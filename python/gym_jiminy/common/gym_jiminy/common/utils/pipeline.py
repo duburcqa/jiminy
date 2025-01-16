@@ -15,7 +15,7 @@ from functools import partial
 from collections.abc import Sequence
 from typing import (
     Dict, Any, Optional, Union, Type, Sequence as SequenceT, Callable,
-    TypedDict, Literal, overload, cast)
+    Tuple, TypedDict, Literal, overload, cast)
 
 import h5py
 import tomlkit
@@ -24,7 +24,7 @@ import gymnasium as gym
 
 import jiminy_py.core as jiminy
 import pinocchio as pin
-from jiminy_py.dynamics import State, Trajectory
+from jiminy_py.dynamics import State, Trajectory, TrajectoryTimeMode
 
 from ..quantities import EnergyGenerationMode, OrientationType
 from ..bases import (QuantityEvalMode,
@@ -85,8 +85,9 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
     format, the name of the selected trajectory, and its interpolation mode.
     """
 
-    dataset: Dict[str, Union[str, Trajectory]]
-    """Set of named trajectories as a dictionary.
+    dataset: Dict[str, Tuple[Union[str, Trajectory], TrajectoryTimeMode]]
+    """Set of named tuples (trajectory, mode) as a dictionary, where 'mode'
+    corresponds the time wrapping mode. See `Trajectory.get` for details.
 
     .. note::
         Both `Trajectory` objects or path (absolute or relative) are supported.
@@ -97,12 +98,6 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
 
     This attribute can be omitted. If so, the first trajectory being specified
     will be selected by default.
-    """
-
-    mode: Literal['raise', 'wrap', 'clip']
-    """Interpolation mode of the selected trajectory.
-
-    This attribute can be omitted. If so, 'raise' mode is used by default.
     """
 
     augment_observation: bool
@@ -417,10 +412,11 @@ def build_pipeline(
 
         # Get trajectory dataset
         augment_observation = False
-        trajectories: Dict[str, Trajectory] = {}
+        trajectories: Dict[str, Tuple[Trajectory, TrajectoryTimeMode]] = {}
         if trajectories_config is not None:
             trajectories = cast(
-                Dict[str, Trajectory], trajectories_config["dataset"])
+                Dict[str, Tuple[Trajectory, TrajectoryTimeMode]],
+                trajectories_config["dataset"])
             augment_observation = trajectories_config.get(
                 "augment_observation", False)
 
@@ -436,8 +432,7 @@ def build_pipeline(
         if trajectories_config is not None:
             name = trajectories_config.get("name")
             if name is not None:
-                mode = trajectories_config.get("mode", "raise")
-                env.quantities.trajectory_dataset.select(name, mode)
+                env.quantities.trajectory_dataset.select(name)
 
         return env
 
@@ -531,7 +526,7 @@ def build_pipeline(
     if trajectories_config is not None:
         trajectories = trajectories_config['dataset']
         assert isinstance(trajectories, dict)
-        for name, path_or_traj in trajectories.items():
+        for name, (path_or_traj, mode) in trajectories.items():
             if isinstance(path_or_traj, Trajectory):
                 continue
             path = pathlib.Path(path_or_traj)
@@ -541,7 +536,8 @@ def build_pipeline(
                         "The argument 'root_path' must be provided when "
                         "specifying relative trajectory paths.")
                 path = pathlib.Path(root_path) / path
-            trajectories[name] = load_trajectory_from_hdf5(path)
+            trajectory = load_trajectory_from_hdf5(path)
+            trajectories[name] = (trajectory, mode)
 
     # Add extra user-specified reward, termination conditions and trajectories
     pipeline_creator = partial(build_composition_layer,

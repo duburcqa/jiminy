@@ -27,7 +27,7 @@ from gymnasium.core import RenderFrame
 from gymnasium.envs.registration import EnvSpec
 
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
-from jiminy_py.dynamics import Trajectory
+from jiminy_py.dynamics import Trajectory, TrajectoryTimeMode
 from jiminy_py.tree import issubclass_mapping
 
 from .interfaces import (DT_EPS,
@@ -518,7 +518,8 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                  *,
                  reward: Optional[AbstractReward] = None,
                  terminations: Sequence[AbstractTerminationCondition] = (),
-                 trajectories: Optional[Dict[str, Trajectory]] = None,
+                 trajectories: Optional[
+                    Dict[str, Tuple[Trajectory, TrajectoryTimeMode]]] = None,
                  augment_observation: bool = False) -> None:
         """
         :param env: Environment to extend, eventually already wrapped.
@@ -536,7 +537,9 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                              conditions must be already instantiated and
                              associated with the environment at hand.
                              Optional: Empty sequence by default.
-        :param trajectories: Ordered set of named trajectories as a dictionary.
+        :param trajectories: Ordered set of named tuples (trajectory, mode) as
+                             a dictionary, where 'mode' corresponds to the time
+                             wrapping mode. See `Trajectory.get` for details.
                              The first trajectory being specified, in any, will
                              be selected as reference by default. `None` to
                              skip the whole process.
@@ -563,13 +566,13 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         # Handling of reference trajectories if any
         if trajectories:
             # Add reference trajectories to managed quantities
-            for name, trajectory in trajectories.items():
-                self._trajectory_dataset.add(name, trajectory)
+            for name, (trajectory, mode) in trajectories.items():
+                self._trajectory_dataset.add(name, trajectory, mode)
 
             # Select the first trajectory with 'raise' mode by default
             if not self._trajectory_dataset.name:
                 name = next(iter(trajectories.keys()))
-                self._trajectory_dataset.select(name, "raise")
+                self._trajectory_dataset.select(name)
 
         # Enforces some restrictions on the trajectory database if necessary
         if self.augment_observation:
@@ -578,7 +581,8 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
 
             # Make sure that the robot model is identical for all trajectories
             traj = self._trajectory_dataset.trajectory
-            for traj_ in self._trajectory_dataset.registry.values():
+            for name in self._trajectory_dataset:
+                traj_ = self._trajectory_dataset[name]
                 if traj.robot.pinocchio_model != traj_.robot.pinocchio_model:
                     raise ValueError(
                         "The robot model must be identical for all the "
@@ -587,7 +591,8 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
             # Determine the state information that are common to all
             # trajectories, not just the one being selected.
             self._trajectory_optional_fields = traj.optional_fields
-            for traj_ in self._trajectory_dataset.registry.values():
+            for name in self._trajectory_dataset:
+                traj_ = self._trajectory_dataset[name]
                 self._trajectory_optional_fields = tuple(
                     field for field in traj_.optional_fields
                     if field in self._trajectory_optional_fields)
