@@ -8,7 +8,7 @@ by caching already computed that did not changed since then, computing
 redundant intermediary quantities only once per step, and gathering similar
 quantities in a large batch to leverage vectorization of math instructions.
 """
-from typing import Any, Dict, List, Tuple, Iterator, Type, cast
+from typing import Any, Dict, List, Tuple, Type, cast
 
 from ..bases import (
     QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity, SharedCache,

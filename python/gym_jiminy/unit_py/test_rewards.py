@@ -9,6 +9,7 @@ import numpy as np
 import gymnasium as gym
 from jiminy_py.log import extract_trajectory_from_log
 
+from gym_jiminy.common.bases import InterfaceJiminyEnv
 from gym_jiminy.common.compositions import (
     CUTOFF_ESP,
     TrackingActuatedJointPositionsReward,
@@ -30,7 +31,9 @@ class Rewards(unittest.TestCase):
     """ TODO: Write documentation
     """
     def setUp(self):
-        self.env = gym.make("gym_jiminy.envs:atlas-pid", debug=False)
+        env = gym.make("gym_jiminy.envs:atlas-pid", debug=False)
+        assert isinstance(env, InterfaceJiminyEnv)
+        self.env = env
 
         self.env.eval()
         self.env.reset(seed=1)

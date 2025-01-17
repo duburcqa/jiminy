@@ -9,7 +9,6 @@ It implements:
 * a wrapper to combine a controller block and a `BaseJiminyEnv` environment,
   eventually already wrapped, so that it appears as a black-box environment.
 """
-import sys
 import math
 import logging
 from weakref import ref
@@ -29,6 +28,7 @@ from gymnasium.envs.registration import EnvSpec
 from jiminy_py.core import array_copyto  # pylint: disable=no-name-in-module
 from jiminy_py.dynamics import Trajectory, TrajectoryTimeMode
 from jiminy_py.tree import issubclass_mapping
+from jiminy_py.simulator import TabbedFigure
 
 from .interfaces import (DT_EPS,
                          Obs,
@@ -37,6 +37,7 @@ from .interfaces import (DT_EPS,
                          BaseAct,
                          InfoType,
                          EngineObsType,
+                         PolicyCallbackFun,
                          InterfaceJiminyEnv)
 from .compositions import AbstractReward, AbstractTerminationCondition
 from .blocks import BaseControllerBlock, BaseObserverBlock
@@ -207,54 +208,44 @@ class BasePipelineWrapper(
         # may be overwritten by derived classes afterward.
         self._copyto_action: Callable[[Act], None] = lambda action: None
 
-    def __getattr__(self, name: str) -> Any:
-        """Convenient fallback attribute getter.
+    def get_wrapper_attr(self, name: str) -> Any:
+        """Return the value of an attribute in the first layer of the pipeline
+        environment for which it exists, from this wrapper to the base
+        environment.
 
-        It enables to get access to the attribute and methods of the wrapped
-        environment directly without having to do it through `env`.
+        If the attribute does not exist in any layer, then an exception
+        `AttributeError` is raised.
 
-        .. warning::
-            This fallback incurs a significant runtime overhead. As such, it
-            must only be used for debug and manual analysis between episodes.
-            Calling this method in script mode while a simulation is already
-            running would trigger a warning to avoid relying on it by mistake.
+        :param name: Name of the attribute.
+        :param value: Desired value of the attribute.
         """
+        if hasattr(self, name):
+            return getattr(self, name)
         try:
-            # Make sure that no simulaton is running
-            if (self.__getattribute__('is_simulation_running') and
-                    self.env.training and not hasattr(sys, 'ps1')):
-                # `hasattr(sys, 'ps1')` is used to detect whether the method
-                # was called from an interpreter or within a script. For
-                # details, see: https://stackoverflow.com/a/64523765/4820605
-                LOGGER.warning(
-                    "Relying on fallback attribute getter is inefficient and "
-                    "strongly discouraged at runtime.")
+            return self.env.get_wrapper_attr(name)
+        except AttributeError as e:
+            raise AttributeError(
+                f"None of the layers of the pipeline environment '{self}' "
+                "have attribute '{name}'.") from e
 
-            # Ensure that the block that has been declared as top-most layer of
-            # the environment pipeline is consistent with the callee of this
-            # method, i.e. `self.env.derived` is a parent of `self`. If not,
-            # set the callee as parent if no simulation is running. Otherwise,
-            # raise an exception.
-            if not self.__getattribute__('_is_registered'):
-                if self.is_simulation_running:
-                    raise RuntimeError(
-                        "This block is not registered as part of the "
-                        "environment pipeline. Please stop the simulation "
-                        "before adding new blocks.")
-                self.update_pipeline(self)
-        except AttributeError:
-            # The block is not fully initialized at this point. Skipping check.
-            pass
-
-        return getattr(self.__getattribute__('env'), name)
-
-    def __dir__(self) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return [*super().__dir__(), *dir(self.env)]
+    def set_wrapper_attr(self,
+                         name: str,
+                         value: Any,
+                         *,
+                         force: bool = True) -> None:
+        if hasattr(self, name):
+            setattr(self, name, value)
+            return
+        try:
+            self.env.set_wrapper_attr(name, value, force=False)
+            return
+        except AttributeError as e:
+            if force:
+                setattr(self, name, value)
+                return
+            raise AttributeError(
+                f"None of the layers of the pipeline environment '{self}' "
+                "have attribute '{name}'.") from e
 
     @property
     def render_mode(self) -> Optional[str]:
@@ -296,7 +287,7 @@ class BasePipelineWrapper(
 
     @property
     def training(self) -> bool:
-        return self._is_training
+        return self.env.training
 
     @training.setter
     def training(self, mode: bool) -> None:
@@ -305,14 +296,14 @@ class BasePipelineWrapper(
     def train(self, mode: bool = True) -> None:
         self.env.train(mode)
 
-    def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
+    def _update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
         if derived is None:
             self._is_registered = False
-            self.env.update_pipeline(None)
+            self.env._update_pipeline(None)
         else:
-            self.unwrapped.update_pipeline(None)
+            self.unwrapped._update_pipeline(None)
             assert not self._is_registered
-            self.env.update_pipeline(derived)
+            self.env._update_pipeline(derived)
             self._is_registered = True
 
     def reset(self,  # type: ignore[override]
@@ -402,8 +393,7 @@ class BasePipelineWrapper(
             self._copyto_action(action)
 
             # Make sure that the pipeline has not change since last reset
-            env_derived = self.unwrapped.derived
-            if env_derived is not self:
+            if self.unwrapped.derived is not self:
                 raise RuntimeError(
                     "Pipeline environment has changed. Please call 'reset' "
                     "before 'step'.")
@@ -428,6 +418,50 @@ class BasePipelineWrapper(
 
     def stop(self) -> None:
         self.env.stop()
+
+    def plot(self,
+             enable_block_states: bool = False,
+             **kwargs: Any) -> TabbedFigure:
+        return self.env.plot(enable_block_states, **kwargs)
+
+    def replay(self, **kwargs: Any) -> None:
+        self.env.replay(**kwargs)
+
+    def evaluate(self,
+                 policy_fn: PolicyCallbackFun,
+                 seed: Optional[int] = None,
+                 horizon: Optional[int] = None,
+                 enable_stats: bool = True,
+                 enable_replay: Optional[bool] = None,
+                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
+        # Ensure that this layer is already declared as part of the pipeline
+        # environment. If not, update the pipeline manually, considering this
+        # layer as top-most. This would be the case if `reset` has never been
+        # called previously or layers have been added/removed since then, as
+        # only `reset` is taking care of updating the pipeline automatically.
+        # This is problematic because `evaluate` needs to known which layer is
+        # the top-most to operate properly.
+        if not self._is_registered:
+            self.stop()
+            self._update_pipeline(self)
+
+        return self.env.evaluate(
+            policy_fn, seed, horizon, enable_stats, enable_replay, **kwargs)
+
+    def play_interactive(self,
+                         enable_travelling: Optional[bool] = None,
+                         start_paused: bool = True,
+                         enable_is_done: bool = True,
+                         verbose: bool = True,
+                         **kwargs: Any) -> None:
+        # Ensure that this layer is already declared as part of the pipeline
+        # environment. See `evaluate` implementation for details.
+        if not self._is_registered:
+            self.stop()
+            self._update_pipeline(self)
+
+        return self.env.play_interactive(
+            enable_travelling, start_paused, enable_is_done, verbose, **kwargs)
 
     # methods to override:
     # ----------------------------

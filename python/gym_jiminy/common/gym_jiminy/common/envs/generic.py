@@ -34,6 +34,14 @@ from jiminy_py.viewer.replay import viewer_lock
 
 import pinocchio as pin
 
+from ..bases import (DT_EPS,
+                     Obs,
+                     Act,
+                     InfoType,
+                     EngineObsType,
+                     PolicyCallbackFun,
+                     InterfaceJiminyEnv)
+from ..quantities import QuantityManager
 from ..utils import (FieldNested,
                      DataNested,
                      zeros,
@@ -46,13 +54,6 @@ from ..utils import (FieldNested,
                      get_robot_state_space,
                      get_robot_measurements_space,
                      register_variables)
-from ..bases import (DT_EPS,
-                     Obs,
-                     Act,
-                     InfoType,
-                     EngineObsType,
-                     InterfaceJiminyEnv)
-from ..quantities import QuantityManager
 
 from .internal import loop_interactive
 
@@ -65,10 +66,6 @@ TIMEOUT_RATIO = 25
 # stops. Because of this, some tolerance must be added to avoid trigeering
 # termination too easily.
 OBS_CONTAINS_TOL = 0.01
-
-
-PolicyCallbackFun = Callable[
-    [Obs, Optional[Act], Optional[float], bool, bool, InfoType], Act]
 
 
 LOGGER = logging.getLogger(__name__)
@@ -337,25 +334,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 self.register_variable(
                     'action', self.action, action_fieldnames)
 
-    def __getattr__(self, name: str) -> Any:
-        """Fallback attribute getter.
-
-        It enables to get access to the attribute and methods of the low-level
-        Simulator directly, without having to do it through `simulator`.
-
-        .. note::
-            This method is not meant to be called manually.
-        """
-        return getattr(self.__getattribute__('simulator'), name)
-
-    def __dir__(self) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return [*super().__dir__(), *dir(self.simulator)]
-
     def __del__(self) -> None:
         try:
             self.close()
@@ -482,9 +460,36 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Store the header and a reference to the variable if successful
         self._registered_variables[name] = (fieldnames, value, is_eval_only)
 
+    def set_wrapper_attr(self,
+                         name: str,
+                         value: Any,
+                         *,
+                         force: bool = True) -> None:
+        if force or hasattr(self, name):
+            setattr(self, name, value)
+            return
+        raise AttributeError(
+            f"'{type(self).__qualname__}' object has no attribute '{name}'")
+
+    @property
+    def viewer_kwargs(self) -> Dict[str, Any]:
+        """Default keyword arguments for the instantiation of the viewer, e.g.
+        when `render` method is first called.
+
+        .. warning::
+            The default argument `backend` is ignored if a backend is already
+            up and running, even if no viewer has been instantiated for the
+            environment at hand in particular.
+        """
+        return self.simulator.viewer_kwargs
+
     @property
     def step_dt(self) -> float:
         return self._step_dt
+
+    @property
+    def unwrapped(self) -> "BaseJiminyEnv":
+        return self
 
     # The idiom `@InterfaceJiminyEnv.training.getter` to overwrite only the
     # property getter without altering the original setter is not properly
@@ -498,10 +503,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
     def training(self, mode: bool) -> None:
         self.train(mode)
 
-    @property
-    def unwrapped(self) -> "BaseJiminyEnv":
-        return self
-
     def train(self, mode: bool = True) -> None:
         if self.is_simulation_running:
             raise RuntimeError(
@@ -510,11 +511,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "method beforehand.")
         self._is_training = mode
 
-    def update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
+    def _update_pipeline(self, derived: Optional[InterfaceJiminyEnv]) -> None:
         if self.derived is not self:
             derived_old = self.derived
             self.derived = self
-            derived_old.update_pipeline(None)
+            derived_old._update_pipeline(None)
         self.derived = derived or self
 
     def reset(self,  # type: ignore[override]
@@ -656,7 +657,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
 
         # Update the environment pipeline if necessary
         if env is not self.derived:
-            env.update_pipeline(env)
+            env._update_pipeline(env)
 
         # Re-initialize the quantity manager.
         # Note that computation graph tracking is never reset automatically.
@@ -915,7 +916,8 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
     def plot(self,
              enable_block_states: bool = False,
              **kwargs: Any) -> TabbedFigure:
-        """Display common simulation data and action over time.
+        """Plot figures of simulation data over time associated with the
+        ongoing episode until now if any, the previous one otherwise.
 
         .. Note:
             It adds tabs for the base environment action plus all blocks
@@ -986,10 +988,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         return figure
 
     def replay(self, **kwargs: Any) -> None:
-        """Replay the current episode until now.
+        """Replay the ongoing episode until now if any, the previous one
+        otherwise.
 
-        :param kwargs: Extra keyword arguments for delegation to
-                       `replay.play_trajectories` method.
+        :param kwargs: Extra keyword arguments to forward to
+                       `jiminy_py.viewer.replay.play_trajectories`.
         """
         # Do not open graphical window automatically if recording requested.
         # Note that backend is closed automatically is there is no viewer
@@ -1017,39 +1020,77 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 **kwargs}
             self.simulator.replay(**viewer_kwargs)
 
+    def evaluate(self,
+                 policy_fn: PolicyCallbackFun,
+                 seed: Optional[int] = None,
+                 horizon: Optional[int] = None,
+                 enable_stats: bool = True,
+                 enable_replay: Optional[bool] = None,
+                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
+        # Handling of default arguments
+        if enable_replay is None:
+            enable_replay = (
+                (Viewer.backend or get_default_backend()) != "panda3d-sync" or
+                interactive_mode() >= 2)
+
+        # Stop the episode if one is still running
+        env = self.derived
+        env.stop()
+
+        # Make sure evaluation mode is enabled
+        is_training = self.training
+        if is_training:
+            self.eval()
+
+        # Initialize the simulation
+        obs, info = env.reset(seed=seed)
+        action, reward, terminated, truncated = None, None, False, False
+
+        # Run the simulation
+        reward_episode: List[float] = []
+        info_episode = [info]
+        try:
+            while horizon is None or self.num_steps < horizon:
+                action = policy_fn(
+                    obs, action, reward, terminated, truncated, info)
+                if terminated or truncated:
+                    # Break AFTER calling the policy callback if the episode is
+                    # terminated or truncated, which gives the policy the
+                    # opportunity to observe and record the final state.
+                    break
+                obs, reward, terminated, truncated, info = env.step(action)
+                info_episode.append(info)
+                reward_episode.append(float(reward))
+            env.stop()
+        except KeyboardInterrupt:
+            pass
+
+        # Restore training mode if it was enabled
+        if is_training:
+            self.train()
+
+        # Display some statistic if requested
+        if enable_stats:
+            print("env.num_steps:", self.num_steps)
+            print("cumulative reward:", sum(reward_episode))
+
+        # Replay the result if requested
+        if enable_replay:
+            try:
+                self.replay(**kwargs)
+            except Exception as e:  # pylint: disable=broad-except
+                # Do not fail because of replay/recording exception
+                traceback = TracebackException.from_exception(e)
+                LOGGER.warning(''.join(traceback.format()))
+
+        return reward_episode, info_episode
+
     def play_interactive(self,
                          enable_travelling: Optional[bool] = None,
                          start_paused: bool = True,
                          enable_is_done: bool = True,
                          verbose: bool = True,
                          **kwargs: Any) -> None:
-        """Activate interact mode enabling to control the robot using keyboard.
-
-        It stops automatically as soon as `terminated or truncated` is True.
-        One has to press a key to start the interaction. If no key is pressed,
-        the action is not updated and the previous one keeps being sent to the
-        robot.
-
-        .. warning::
-            It ignores any external `gym.Wrapper` that may be used for training
-            but are not considered part of the environment pipeline.
-
-        .. warning::
-            This method requires `_key_to_action` method to be implemented by
-            the user by overloading it, otherwise it raises an exception.
-
-        :param enable_travelling: Whether enable travelling, following the
-                                  motion of the root frame of the model. This
-                                  parameter is ignored if the model has no
-                                  freeflyer.
-                                  Optional: Enabled by default iif 'panda3d'
-                                  viewer backend is used.
-        :param start_paused: Whether to start in pause.
-                             Optional: Enabled by default.
-        :param verbose: Whether to display status messages.
-        :param kwargs: Extra keyword arguments to forward to `_key_to_action`
-                       method.
-        """
         # Stop the episode if one is still running
         env = self.derived
         env.stop()
@@ -1118,108 +1159,6 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         self._is_interactive = False
         if is_training:
             self.train()
-
-    def evaluate(self,
-                 policy_fn: PolicyCallbackFun,
-                 seed: Optional[int] = None,
-                 horizon: Optional[int] = None,
-                 enable_stats: bool = True,
-                 enable_replay: Optional[bool] = None,
-                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
-        r"""Evaluate a policy on the environment over a complete episode.
-
-        .. warning::
-            It ignores any external `gym.Wrapper` that may be used for training
-            but are not considered part of the environment pipeline.
-
-        :param policy_fn:
-            .. raw:: html
-
-                Policy to evaluate as a callback function. It must have the
-                following signature (**rew** = None at reset):
-
-            | policy_fn\(**obs**: Obs,
-            |            **action_prev**: Optional[Act],
-            |            **reward**: Optional[float],
-            |            **terminated**: bool,
-            |            **truncated**: bool,
-            |            **info**: InfoType
-            |            \) -> Act  # **action**
-        :param seed: Seed of the environment to be used for the evaluation of
-                     the policy.
-                     Optional: `None` by default. If not specified, then a
-                     strongly random seed will be generated by gym.
-        :param horizon: Horizon of the simulation, namely maximum number of
-                        env steps before termination. `None` to disable.
-                        Optional: Disabled by default.
-        :param enable_stats: Whether to print high-level statistics after the
-                             simulation.
-                             Optional: Enabled by default.
-        :param enable_replay: Whether to enable replay of the simulation, and
-                              eventually recording if the extra
-                              keyword argument `record_video_path` is provided.
-                              Optional: Enabled by default if display is
-                              available, disabled otherwise.
-        :param kwargs: Extra keyword arguments to forward to the `replay`
-                       method if replay is requested.
-        """
-        # Handling of default arguments
-        if enable_replay is None:
-            enable_replay = (
-                (Viewer.backend or get_default_backend()) != "panda3d-sync" or
-                interactive_mode() >= 2)
-
-        # Stop the episode if one is still running
-        env = self.derived
-        env.stop()
-
-        # Make sure evaluation mode is enabled
-        is_training = self.training
-        if is_training:
-            self.eval()
-
-        # Initialize the simulation
-        obs, info = env.reset(seed=seed)
-        action, reward, terminated, truncated = None, None, False, False
-
-        # Run the simulation
-        reward_episode: List[float] = []
-        info_episode = [info]
-        try:
-            while horizon is None or self.num_steps < horizon:
-                action = policy_fn(
-                    obs, action, reward, terminated, truncated, info)
-                if terminated or truncated:
-                    # Break AFTER calling the policy callback if the episode is
-                    # terminated or truncated, which gives the policy the
-                    # opportunity to observe and record the final state.
-                    break
-                obs, reward, terminated, truncated, info = env.step(action)
-                info_episode.append(info)
-                reward_episode.append(float(reward))
-            env.stop()
-        except KeyboardInterrupt:
-            pass
-
-        # Restore training mode if it was enabled
-        if is_training:
-            self.train()
-
-        # Display some statistic if requested
-        if enable_stats:
-            print("env.num_steps:", self.num_steps)
-            print("cumulative reward:", sum(reward_episode))
-
-        # Replay the result if requested
-        if enable_replay:
-            try:
-                self.replay(**kwargs)
-            except Exception as e:  # pylint: disable=broad-except
-                # Do not fail because of replay/recording exception
-                traceback = TracebackException.from_exception(e)
-                LOGGER.warning(''.join(traceback.format()))
-
-        return reward_episode, info_episode
 
     # methods to override:
     # ----------------------------
