@@ -245,9 +245,6 @@ class InterfaceJiminyEnv(
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
-        # Define convenience proxy for quantity manager
-        self.quantities = self.unwrapped.quantities
-
     @property
     def log_data(self) -> Dict[str, Any]:
         """Get log data associated with the ongoing simulation if any, the

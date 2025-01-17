@@ -59,9 +59,9 @@ class FlattenObservation(BaseTransformObservation[FlattenedObs, Obs, Act],
         """
         # Find most appropriate dtype if not specified
         if dtype is None:
-            if env.observation:
-                dtype_all = [
-                    value.dtype for value in tree.flatten(env.observation)]
+            observation_flat = tree.flatten(env.observation)
+            if observation_flat:
+                dtype_all = [value.dtype for value in observation_flat]
                 dtype = reduce(np.promote_types, dtype_all)
             else:
                 dtype = np.float64

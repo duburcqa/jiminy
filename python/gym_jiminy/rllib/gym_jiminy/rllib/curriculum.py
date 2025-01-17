@@ -1,10 +1,11 @@
 
 """ TODO: Write documentation.
 """
-from typing import List, Any, Dict, Tuple, Type
+from typing import List, Any, Dict, Tuple, Type, cast
 
 import numpy as np
 import gymnasium as gym
+from packaging.version import parse as parse_version
 
 from ray.rllib.core.rl_module import RLModule
 from ray.rllib.env.env_context import EnvContext
@@ -18,10 +19,9 @@ from ray.rllib.utils.typing import ResultDict, EpisodeType
 
 from jiminy_py import tree
 from gym_jiminy.common.bases import BasePipelineWrapper
-from gym_jiminy.common.envs import BaseJiminyEnv
 try:
     from gym_jiminy.toolbox.wrappers.meta_envs import (
-        DataTaskTree, Task, TaskSchedulingWrapper)
+        ProbaTaskTree, TaskPath, BaseTaskSettableWrapper)
 except ImportError as e:
     raise ImportError(
         "Submodule not available. Please install 'gym_jiminy[toolbox]'."
@@ -34,10 +34,8 @@ def build_task_scheduling_callback(history_length: int,
     """ TODO: Write documentation.
 
     .. warning:
-        To use this callback, the base environment must derive from classes
-        `TaskSettableEnv` and `BaseJiminyEnv` (in this exact order), while
-        being wrapped with `TaskSchedulingWrapper` (but not necessarily as
-        top-most layer).
+        To use this callback, the base environment must wrapped with
+        `BaseTaskSettableWrapper` (but not necessarily as top-most layer).
     """
     class TaskSchedulingSamplingCallback(DefaultCallbacks):
         """ TODO: Write documentation.
@@ -79,8 +77,9 @@ def build_task_scheduling_callback(history_length: int,
             self._is_initialized = False
             self._must_clear_metrics = False
             self._task_space = gym.spaces.Tuple([])
-            self._task_list: Tuple[Task, ...] = ()
-            self._proba_task_tree: DataTaskTree[float] = ()
+            self._task_paths: Tuple[TaskPath, ...] = ()
+            self._task_names: Tuple[str, ...] = ()
+            self._proba_task_tree: ProbaTaskTree = ()
             self._proba_task_tree_flat_map: Dict[str, int] = {}
 
         def on_environment_created(self,
@@ -94,27 +93,22 @@ def build_task_scheduling_callback(history_length: int,
             if self._is_initialized:
                 return
 
-            # Make sure that the environment is valid
-            assert isinstance(env.unwrapped, gym.vector.SyncVectorEnv)
-            for env_unwrapped in env.unwrapped.envs:
-                assert isinstance(env_unwrapped.unwrapped, BaseJiminyEnv)
-                while not isinstance(env_unwrapped, BaseJiminyEnv):
-                    if isinstance(env_unwrapped, TaskSchedulingWrapper):
-                        break
-                    assert isinstance(
-                        env_unwrapped, (gym.Wrapper, BasePipelineWrapper))
-                    env_unwrapped = env_unwrapped.env
-                else:
-                    raise RuntimeError(
-                        "Base environment must derive from `TaskSettableEnv` "
-                        "and `BaseJiminyEnv` in this exact order, while being "
-                        "wrapped with `TaskSchedulingWrapper`.")
-
             # Backup tree information
-            assert isinstance(env_unwrapped, TaskSchedulingWrapper)
-            self._task_space = env_unwrapped.task_space
-            self._task_list = env_unwrapped.task_list
-            self._proba_task_tree = env_unwrapped.proba_task_tree
+            try:
+                self._task_space, *_ = env.unwrapped.get_attr("task_space")
+                self._proba_task_tree, *_ = (
+                    env.unwrapped.get_attr("proba_task_tree"))
+            except AttributeError as e:
+                raise RuntimeError("Base environment must be wrapped with "
+                                   "`BaseTaskSettableWrapper`.") from e
+
+            # Pre-compute the list of all possible tasks
+            self._task_paths = cast(Tuple[TaskPath, ...], tuple(
+                (*path, i)
+                for path, space in tree.flatten_with_path(self._task_space)
+                for i in range(space.n)))
+            self._task_names = tuple(
+                "/".join(map(str, task)) for task in self._task_paths)
 
             # Initialize proba task tree flat ordering map
             self._proba_task_tree_flat_map = {
@@ -140,22 +134,23 @@ def build_task_scheduling_callback(history_length: int,
                 self._must_clear_metrics = False
 
             # Pop out task information from the episode to avoid monitoring it
-            task, score = (), 0.0
+            task_index, score = -1, 0.0
             for info in episode.get_infos():
-                if "task" in info:  # "task" missing at reset
-                    task, score = info.pop("task")
+                task_index, score = info.pop("task", (task_index, score))
 
             # Update score history of all the nodes from root to leave for the
             # task associated with the episode.
-            for i in range(len(task)):
-                field = "/".join(map(str, task[:(i + 1)]))
-                metrics_logger.log_value(("task_metrics", "score", field),
-                                         score,
-                                         reduce="mean",
-                                         window=history_length,
-                                         clear_on_reduce=False)
+            task_path = self._task_paths[task_index]
+            for i in range(len(task_path)):
+                task_branch = "/".join(map(str, task_path[:(i + 1)]))
                 metrics_logger.log_value(
-                    ("task_metrics", "num", field), 1, reduce="sum")
+                    ("task_metrics", "score", task_branch),
+                    score,
+                    reduce="mean",
+                    window=history_length,
+                    clear_on_reduce=False)
+                metrics_logger.log_value(
+                    ("task_metrics", "num", task_branch), 1, reduce="sum")
 
         def on_sample_end(self,
                           *,
@@ -175,8 +170,7 @@ def build_task_scheduling_callback(history_length: int,
                             **kwargs: Any) -> None:
             # Make sure that the internal state of the callback is initialized
             if not self._is_initialized:
-                TaskSchedulingSamplingCallback.on_environment_created(
-                    self,
+                self.on_environment_created(
                     env_runner=algorithm.env_runner,
                     metrics_logger=algorithm.metrics,
                     env=algorithm.env_runner.env,
@@ -199,9 +193,9 @@ def build_task_scheduling_callback(history_length: int,
                 self._proba_task_tree, score_task_tree_flat)
 
             # Compute the probability tree
-            proba_task_tree: DataTaskTree[float] = []
+            proba_task_tree: ProbaTaskTree = []
             score_and_proba_task_branches: List[Tuple[
-                DataTaskTree[float], DataTaskTree[float], gym.Space
+                ProbaTaskTree, ProbaTaskTree, gym.Space
                 ]] = [(score_task_tree, proba_task_tree, self._task_space)]
             while score_and_proba_task_branches:
                 # Pop out the first tuple (score, proba, space) in queue
@@ -234,56 +228,71 @@ def build_task_scheduling_callback(history_length: int,
                     assert isinstance(score_task_branch, (tuple, list))
                     for (_, score_task_branch_), proba, space in zip(
                             score_task_branch, probas, task_space_branch):
-                        proba_task_branch_: DataTaskTree[float] = []
+                        proba_task_branch_: ProbaTaskTree = []
                         proba_task_branch.append((proba, proba_task_branch_))
                         score_and_proba_task_branches.append((
                             score_task_branch_, proba_task_branch_, space))
 
-            # Update the probability tree at runner-level.
-            # FIXME: Rely on `set_attr` when moving to `gymnasium>=1.0`, which
-            # fixes attribute lookup in wrapped layers.
+            # Update the probability tree at runner-level
             self._proba_task_tree = proba_task_tree
             workers = algorithm.env_runner_group
             assert workers is not None
+            if parse_version(gym.__version__) >= parse_version("1.0"):
+                workers.foreach_worker(
+                    lambda worker: worker.env.unwrapped.set_attr(
+                        'proba_task_tree',
+                        (proba_task_tree,) * worker.num_envs))
+            else:
+                # Legacy code fallback because of buggy `set_attr`
+                def _update_runner_proba_task_tree(
+                        env_runner: EnvRunner) -> None:
+                    """Update the probability task tree of all the environments
+                    being managed by a given runner.
 
-            def _update_runner_proba_task_tree(env_runner: EnvRunner) -> None:
-                """Update the probability task tree of all the environments
-                being managed by a given runner.
+                    :param env_runner: Environment runner to consider.
+                    """
+                    nonlocal proba_task_tree
+                    assert isinstance(env_runner, SingleAgentEnvRunner)
+                    env = env_runner.env.unwrapped
+                    assert isinstance(env, gym.vector.SyncVectorEnv)
+                    for env in env.unwrapped.envs:
+                        while not isinstance(env, BaseTaskSettableWrapper):
+                            assert isinstance(
+                                env, (gym.Wrapper, BasePipelineWrapper))
+                            env = env.env
+                        env.proba_task_tree = proba_task_tree
 
-                :param env_runner: Environment runner to consider.
-                """
-                nonlocal proba_task_tree
-                assert isinstance(env_runner, SingleAgentEnvRunner)
-                env = env_runner.env.unwrapped
-                assert isinstance(env, gym.vector.SyncVectorEnv)
-                for env in env.unwrapped.envs:
-                    while not isinstance(env, TaskSchedulingWrapper):
-                        assert isinstance(
-                            env, (gym.Wrapper, BasePipelineWrapper))
-                        env = env.env
-                    env.proba_task_tree = proba_task_tree
+                workers.foreach_worker(_update_runner_proba_task_tree)
 
-            workers.foreach_worker(_update_runner_proba_task_tree)
-            # workers.foreach_worker(
-            #     lambda worker: worker.env.set_attr(
-            #         'proba_task_tree', proba_task_tree))
+            # Compute flattened probability tree
+            proba_task_tree_flat: List[float] = []
+            for (*task_branch, task_leaf) in self._task_paths:
+                proba = 1.0
+                proba_task_tree_i = proba_task_tree
+                for i in task_branch:
+                    elem_i = proba_task_tree_i[i]
+                    assert isinstance(elem_i, tuple)
+                    proba_i, proba_task_tree_i = elem_i
+                    proba *= proba_i
+                elem_i = proba_task_tree_i[task_leaf]
+                assert isinstance(elem_i, float)
+                proba *= elem_i
+                proba_task_tree_flat.append(proba)
 
-            # Monitor #sampling and probabilities at every task levels
-            num_task_metrics = task_metrics.setdefault("num", {})
+            # Monitor flattened probability tree
             proba_task_metrics = task_metrics.setdefault("proba", {})
-            for path, proba in tree.flatten_with_path(self._proba_task_tree):
-                field = "/".join(map(str, path[::2]))
-                proba_task_metrics[field] = proba
-                if field not in num_task_metrics:
-                    num_task_metrics[field] = 0
+            for path, proba in zip(self._task_paths, proba_task_tree_flat):
+                proba_task_metrics["/".join(map(str, path))] = proba
+
+            # Make sure that no entry is missing for the  number of episodes
+            num_task_metrics = task_metrics.setdefault("num", {})
+            for path in self._task_paths:
+                num_task_metrics.setdefault("/".join(map(str, path)), 0)
 
             # Filter out all non-leaf metrics to avoid cluttering plots
-            field_list = ["/".join(map(str, task)) for task in self._task_list]
-            for data in (score_task_metrics,
-                         num_task_metrics,
-                         proba_task_metrics):
+            for data in (score_task_metrics, num_task_metrics):
                 for key in tuple(data.keys()):
-                    if key not in field_list:
+                    if key not in self._task_names:
                         del data[key]
 
     return TaskSchedulingSamplingCallback
