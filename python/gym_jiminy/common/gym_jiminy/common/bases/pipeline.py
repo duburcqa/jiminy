@@ -66,57 +66,57 @@ LOGGER = logging.getLogger(__name__)
 
 
 @overload
-def _merge_base_env_with_block(
-        block_name: str,
+def _merge_base_env_with_wrapper(
+        wrapper_name: str,
         base_observation: DataNested,
-        block_state: Optional[DataNested],
-        block_feature: Optional[DataNested],
-        block_action: Optional[DataNested]
+        wrapper_state: Optional[DataNested],
+        wrapper_feature: Optional[DataNested],
+        wrapper_action: Optional[DataNested]
         ) -> DataNested:
     ...
 
 
 @overload
-def _merge_base_env_with_block(
-        block_name: str,
+def _merge_base_env_with_wrapper(
+        wrapper_name: str,
         base_observation: gym.Space[DataNested],
-        block_state: Optional[gym.Space[DataNested]],
-        block_feature: Optional[gym.Space[DataNested]],
-        block_action: Optional[gym.Space[DataNested]]
+        wrapper_state: Optional[gym.Space[DataNested]],
+        wrapper_feature: Optional[gym.Space[DataNested]],
+        wrapper_action: Optional[gym.Space[DataNested]]
         ) -> gym.Space[DataNested]:
     ...
 
 
-def _merge_base_env_with_block(
-        block_name: str,
+def _merge_base_env_with_wrapper(
+        wrapper_name: str,
         base_observation: NestedSpaceOrData,
-        block_state: Optional[NestedSpaceOrData],
-        block_feature: Optional[NestedSpaceOrData],
-        block_action: Optional[NestedSpaceOrData],
+        wrapper_state: Optional[NestedSpaceOrData],
+        wrapper_feature: Optional[NestedSpaceOrData],
+        wrapper_action: Optional[NestedSpaceOrData],
         ) -> NestedSpaceOrData:
     """Merge the observation space of a base environment with the state,
-    feature and action spaces of a given block.
+    feature and action spaces of a higher-level wrapper.
 
     This method supports specifying both spaces or values for all the input
     arguments at once. In both cases, the base observation is shallow copy
     first to avoid altering it while sharing memory with the original leaves.
 
     If the base observation space is a mapping, then the state, feature and
-    action of the block are added under nested keys ("states", block_name),
-    ("feature", block_name), and ("action", block_name). Otherwise, the base
-    observation is first stored under nested key ("measurement",) of a new
-    mapping, while block spaces are stored under the same hierarchy as before.
+    action of the wrapper are added under nested keys ("states", wrapper_name),
+    ("feature", wrapper_name), and ("action", wrapper_name). Otherwise, the
+    base observation is first stored under nested key ("measurement",) of a new
+    mapping while wrapper spaces are stored under the same hierarchy as before.
 
-    :param block_name: Name of the block. It will be used as parent key of the
-                       state, feature and action spaces.
+    :param wrapper_name: Name of the wrapper. It will be used as parent key of
+                         the state, feature and action spaces.
     :param base_observation: Observation space or value of the base
                              environment.
-    :param block_state: State space or value of the block. `None` if it does
-                        not exist for the block at hand.
-    :param block_feature: Feature space or value of the block. `None` if it
-                          does not exist for the block at hand.
-    :param block_action: Action space or value of the block. `None` if it does
-                         not exist for the block at hand.
+    :param wrapper_state: State space or value of the wrapper. `None` if it
+                          does not exist for the wrapper at hand.
+    :param wrapper_feature: Feature space or value of the wrapper. `None` if it
+                            does not exist for the wrapper at hand.
+    :param wrapper_action: Action space or value of the wrapper. `None` if it
+                           does not exist for the wrapper at hand.
     """
     observation: Dict[str, NestedSpaceOrData] = OrderedDict()
 
@@ -135,14 +135,15 @@ def _merge_base_env_with_block(
 
     # Deal with the block state, feature and action
     for group_name, block_group in (
-            ('states', block_state),
-            ('features', block_feature),
-            ('actions', block_action)):
+            ('states', wrapper_state),
+            ('features', wrapper_feature),
+            ('actions', wrapper_action)):
         if block_group is not None:
             base_group = observation.setdefault(
                 group_name, mapping_cls())
             assert issubclass_mapping(type(base_group))
-            base_group[block_name] = block_group  # type: ignore[index]
+            assert wrapper_name not in base_group
+            base_group[wrapper_name] = block_group  # type: ignore[index]
 
     return mapping_cls(**observation)
 
@@ -198,15 +199,14 @@ class BasePipelineWrapper(
         self.measurement = env.measurement
         self._measurement_flat = env._measurement_flat
 
-        # Enable direct forwarding by default for efficiency
-        if BasePipelineWrapper.has_terminated is type(self).has_terminated:
-            self.has_terminated = (  # type: ignore[method-assign]
-                self.env.has_terminated)
-
         # Define specialized operator(s) for efficiency.
         # Note that it cannot be done at this point because the action
         # may be overwritten by derived classes afterward.
         self._copyto_action: Callable[[Act], None] = lambda action: None
+
+        # Enable direct forwarding (inlining) if possible for efficiency
+        if BasePipelineWrapper.has_terminated is type(self).has_terminated:
+            self.__dict__["has_terminated"] = self.env.has_terminated
 
     def get_wrapper_attr(self, name: str) -> Any:
         """Return the value of an attribute in the first layer of the pipeline
@@ -291,7 +291,7 @@ class BasePipelineWrapper(
 
     @training.setter
     def training(self, mode: bool) -> None:
-        self.env.train(mode)
+        self.env.training = mode
 
     def train(self, mode: bool = True) -> None:
         self.env.train(mode)
@@ -520,8 +520,8 @@ class BasePipelineWrapper(
         self.env.close()
 
 
-class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
-                        Generic[Obs, Act]):
+class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, BaseObs, Act],
+                        Generic[Obs, Act, BaseObs]):
     """Extend an environment, eventually already wrapped, by plugging ad-hoc
     reward components and termination conditions, including their accompanying
     trajectory database if any.
@@ -548,7 +548,7 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         This class is final, ie not meant to be derived.
     """
     def __init__(self,
-                 env: InterfaceJiminyEnv[Obs, Act],
+                 env: InterfaceJiminyEnv[BaseObs, Act],
                  *,
                  reward: Optional[AbstractReward] = None,
                  terminations: Sequence[AbstractTerminationCondition] = (),
@@ -608,11 +608,11 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                 name = next(iter(trajectories.keys()))
                 self._trajectory_dataset.select(name)
 
+        # Lock the dataset at this point
+        self._trajectory_dataset.lock()
+
         # Enforces some restrictions on the trajectory database if necessary
         if self.augment_observation:
-            # Lock the dataset at this point
-            self._trajectory_dataset.lock()
-
             # Make sure that the robot model is identical for all trajectories
             traj = self._trajectory_dataset.trajectory
             for name in self._trajectory_dataset:
@@ -634,11 +634,6 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
         # Initialize base class
         super().__init__(env)
 
-        # Enable direct forwarding by default for efficiency
-        if ComposedJiminyEnv.compute_command is type(self).compute_command:
-            self.compute_command = (  # type: ignore[method-assign]
-                self.env.compute_command)
-
         # Bind action of the base environment
         assert self.action_space.contains(env.action)
         self.action = env.action
@@ -650,25 +645,37 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                 "states"]["reference"])  # type: ignore[index]
 
         # Initialize the observation
-        self.observation = cast(Obs, _merge_base_env_with_block(
+        self.observation = cast(Obs, _merge_base_env_with_wrapper(
             "reference",
             self.env.observation,
             self._trajectory_state,
             None,
             None))
 
+        # Enable direct forwarding (inlining) if possible for efficiency
+        methods_names = ["compute_command"]
+        if not self.augment_observation or not self._trajectory_dataset:
+            methods_names.append("refresh_observation")
+        for method_name in methods_names:
+            method_orig = getattr(ComposedJiminyEnv, method_name)
+            method = getattr(type(self), method_name)
+            if method_orig is method:
+                self.__dict__[method_name] = getattr(self.env, method_name)
+
     def _initialize_action_space(self) -> None:
         """Configure the action space.
 
-        It simply copy the action space of the wrapped environment.
+        It simply copies the action space of the wrapped environment.
         """
         self.action_space = self.env.action_space
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
         """
-        # Define the trajectory space if necessary
-        trajectory_space: Optional[gym.spaces.Dict] = None
+        # Get the base observation space from the wrapped environment
+        observation_space: gym.Space[Any] = self.env.observation_space
+
+        # Aggregate the trajectory space with the base observation if requested
         if self.augment_observation and self._trajectory_dataset:
             state_space: Dict[str, gym.Space] = OrderedDict()
             traj = self._trajectory_dataset.trajectory
@@ -700,15 +707,10 @@ class ComposedJiminyEnv(BasePipelineWrapper[Obs, Act, Obs, Act],
                     dtype=np.float64)
             trajectory_space = gym.spaces.Dict(
                 **state_space)  # type: ignore[arg-type]
+            observation_space = _merge_base_env_with_wrapper(
+                "reference", observation_space, trajectory_space, None, None)
 
-        # Aggregate the reference trajectory space with the base observation
-        self.observation_space = cast(
-            gym.Space[Obs], _merge_base_env_with_block(
-                "reference",
-                self.env.observation_space,
-                trajectory_space,
-                None,
-                None))
+        self.observation_space = cast(gym.Space[Obs], observation_space)
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -896,9 +898,9 @@ class ObservedJiminyEnv(
                      OtherObs, OtherState, BaseObs, Act],
                  **kwargs: Any):
         """
-        :param env: Environment to control. It can be an already controlled
+        :param env: Environment to observe. It can be an already observed
                     environment wrapped in `ObservedJiminyEnv` if one desires
-                    to stack several controllers with `BaseJiminyEnv`.
+                    to stack several observers with `BaseJiminyEnv`.
         :param observer: Observer to use to extract higher-level features.
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
@@ -909,14 +911,6 @@ class ObservedJiminyEnv(
         # Backup user arguments
         self.observer = observer
 
-        # Make sure that the environment is either some `ObservedJiminyEnv` or
-        # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
-                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
-            raise TypeError(
-                "Observers can only be added on top of another observer, "
-                "controller, or a base environment itself.")
-
         # Make sure that there is no other block with the exact same name
         block_name = observer.name
         env_unwrapped: InterfaceJiminyEnv = env
@@ -925,15 +919,14 @@ class ObservedJiminyEnv(
                 assert block_name != env_unwrapped.observer.name
             elif isinstance(env_unwrapped, ControlledJiminyEnv):
                 assert block_name != env_unwrapped.controller.name
+            elif not isinstance(env_unwrapped, InterfaceJiminyEnv):
+                raise TypeError(
+                    "Observers can only be added on top of any number of "
+                    "pipeline wrappers or the base environment itself.")
             env_unwrapped = env_unwrapped.env
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)
-
-        # Enable direct forwarding by default for efficiency
-        if ObservedJiminyEnv.compute_command is type(self).compute_command:
-            self.compute_command = (  # type: ignore[method-assign]
-                self.env.compute_command)
 
         # Bind action of the base environment
         assert self.action_space.contains(env.action)
@@ -941,7 +934,7 @@ class ObservedJiminyEnv(
 
         # Initialize the observation
         state = self.observer.get_state()
-        self.observation = cast(NestedObs, _merge_base_env_with_block(
+        self.observation = cast(NestedObs, _merge_base_env_with_wrapper(
             self.observer.name,
             self.env.observation,
             state,
@@ -960,6 +953,10 @@ class ObservedJiminyEnv(
                                          self.observer.fieldnames,
                                          self.observer.name)
 
+        # Enable direct forwarding (inlining) if possible for efficiency
+        if ObservedJiminyEnv.compute_command is type(self).compute_command:
+            self.__dict__["compute_command"] = self.env.compute_command
+
     def _setup(self) -> None:
         """Configure the wrapper.
 
@@ -977,6 +974,8 @@ class ObservedJiminyEnv(
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.
+
+        It simply copies the action space of the wrapped environment.
         """
         self.action_space = self.env.action_space
 
@@ -984,7 +983,7 @@ class ObservedJiminyEnv(
         """Configure the observation space.
         """
         self.observation_space = cast(
-            gym.Space[NestedObs], _merge_base_env_with_block(
+            gym.Space[NestedObs], _merge_base_env_with_wrapper(
                 self.observer.name,
                 self.env.observation_space,
                 self.observer.state_space,
@@ -1110,14 +1109,6 @@ class ControlledJiminyEnv(
         self.controller = controller
         self.augment_observation = augment_observation
 
-        # Make sure that the environment is either some `ObservedJiminyEnv` or
-        # `ControlledJiminyEnv` block, or the base environment directly.
-        if isinstance(env, BasePipelineWrapper) and not isinstance(env, (
-                ObservedJiminyEnv, ControlledJiminyEnv, ComposedJiminyEnv)):
-            raise TypeError(
-                "Controllers can only be added on top of another observer, "
-                "controller, or a base environment itself.")
-
         # Make sure that the pipeline does not have a block with the same name
         block_name = controller.name
         env_unwrapped: InterfaceJiminyEnv = env
@@ -1126,23 +1117,21 @@ class ControlledJiminyEnv(
                 assert block_name != env_unwrapped.observer.name
             elif isinstance(env_unwrapped, ControlledJiminyEnv):
                 assert block_name != env_unwrapped.controller.name
+            elif not isinstance(env_unwrapped, InterfaceJiminyEnv):
+                raise TypeError(
+                    "Observers can only be added on top of any number of "
+                    "pipeline wrappers or the base environment itself.")
             env_unwrapped = env_unwrapped.env
 
         # Initialize base wrapper
         super().__init__(env, **kwargs)
-
-        # Enable direct forwarding by default for efficiency
-        if (ControlledJiminyEnv.refresh_observation is
-                type(self).refresh_observation):
-            self.refresh_observation = (  # type: ignore[method-assign]
-                self.env.refresh_observation)
 
         # Allocate action buffer
         self.action: Act = zeros(self.action_space)
 
         # Initialize the observation
         state = self.controller.get_state()
-        self.observation = cast(NestedObs, _merge_base_env_with_block(
+        self.observation = cast(NestedObs, _merge_base_env_with_wrapper(
             self.controller.name,
             self.env.observation,
             state,
@@ -1160,6 +1149,11 @@ class ControlledJiminyEnv(
                                          self.action,
                                          self.controller.fieldnames,
                                          self.controller.name)
+
+        # Enable direct forwarding (inlining) if possible for efficiency
+        if (ControlledJiminyEnv.refresh_observation is
+                type(self).refresh_observation):
+            self.__dict__["refresh_observation"] = self.env.refresh_observation
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -1182,18 +1176,20 @@ class ControlledJiminyEnv(
 
     def _initialize_action_space(self) -> None:
         """Configure the action space.
+
+        It simply copies the action space of the wrapped controller block.
         """
         self.action_space = self.controller.action_space
 
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
 
-        It gathers the original observation from the environment plus the
-        internal state to of the controller, and optionally the target computed
-        by the controller if requested.
+        It gathers the original observation from the wrapped environment plus
+        the internal state to of the controller block, and optionally the
+        target computed by the controller if requested.
         """
         self.observation_space = cast(
-            gym.Space[NestedObs], _merge_base_env_with_block(
+            gym.Space[NestedObs], _merge_base_env_with_wrapper(
                 self.controller.name,
                 self.env.observation_space,
                 self.controller.state_space,
@@ -1257,7 +1253,7 @@ class BaseTransformObservation(
     The observation transform is only applied once per step, as post-processing
     right before returning. It is meant to change the way a whole pipeline
     environment is exposed to the outside rather than changing its internal
-    machinery. Incidentally, the transformed observation is not to be involved
+    machinery. Incidentally, the transformed observation must not be involved
     in the computations of any subsequent pipeline layer.
 
     .. note::
@@ -1276,12 +1272,6 @@ class BaseTransformObservation(
         # Initialize base class
         super().__init__(env)
 
-        # Enable direct forwarding by default for efficiency
-        if (BaseTransformObservation.compute_command is
-                type(self).compute_command):
-            self.compute_command = (  # type: ignore[method-assign]
-                self.env.compute_command)
-
         # Define base env proxies for fast access
         self._step_dt = self.env.step_dt
 
@@ -1291,6 +1281,11 @@ class BaseTransformObservation(
         # Bind action of the base environment
         assert self.action_space.contains(self.env.action)
         self.action = self.env.action
+
+        # Enable direct forwarding (inlining) if possible for efficiency
+        if (BaseTransformObservation.compute_command is
+                type(self).compute_command):
+            self.__dict__["compute_command"] = self.env.compute_command
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -1386,12 +1381,6 @@ class BaseTransformAction(
         # Initialize base class
         super().__init__(env)
 
-        # Enable direct forwarding by default for efficiency
-        if (BaseTransformAction.refresh_observation is
-                type(self).refresh_observation):
-            self.refresh_observation = (  # type: ignore[method-assign]
-                self.env.refresh_observation)
-
         # Initialize some proxies for fast access
         self._step_dt = self.env.step_dt
 
@@ -1401,6 +1390,11 @@ class BaseTransformAction(
         # Bind observation of the base environment
         assert self.observation_space.contains(self.env.observation)
         self.observation = self.env.observation
+
+        # Enable direct forwarding (inlining) if possible for efficiency
+        if (BaseTransformAction.refresh_observation is
+                type(self).refresh_observation):
+            self.__dict__["refresh_observation"] = self.env.refresh_observation
 
     def _setup(self) -> None:
         """Configure the wrapper.
@@ -1418,7 +1412,7 @@ class BaseTransformAction(
     def _initialize_observation_space(self) -> None:
         """Configure the observation space.
 
-        It simply copy the observation space of the wrapped environment.
+        It simply copies the observation space of the wrapped environment.
         """
         self.observation_space = self.env.observation_space
 

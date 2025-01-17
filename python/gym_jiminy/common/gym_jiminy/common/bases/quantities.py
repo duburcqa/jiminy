@@ -320,7 +320,7 @@ class SharedCache(Generic[ValueT]):
     def get(self) -> ValueT:
         """Return cached value if any, otherwise evaluate it and store it.
         """
-        # Get value already stored
+        # Get value already cached if any
         if self.sm_state == _IS_CACHED:
             # return cast(ValueT, self._value)
             return self._value  # type: ignore[return-value]
@@ -357,13 +357,12 @@ class SharedCache(Generic[ValueT]):
             value = owner.refresh()
         except RecursionError as e:
             raise LookupError(
-                "Mutual dependency between quantities is disallowed.") from e
+                "Mutual dependency between quantities is forbidden.") from e
 
-        # Update state machine
+        # Cache the value
         self.sm_state = _IS_CACHED
-
-        # Return value after storing it
         self._value = value
+
         return value
 
 
