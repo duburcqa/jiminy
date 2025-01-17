@@ -47,13 +47,13 @@ class Rewards(unittest.TestCase):
     def test_deletion(self):
         """ TODO: Write documentation
         """
-        assert len(self.env.quantities.registry) == 0
+        assert len(self.env.quantities._registry) == 0
         reward_survive = TrackingActuatedJointPositionsReward(
             self.env, cutoff=1.0)
-        assert len(self.env.quantities.registry) > 0
+        assert len(self.env.quantities._registry) > 0
         del reward_survive
         gc.collect()
-        assert len(self.env.quantities.registry) == 0
+        assert len(self.env.quantities._registry) == 0
 
     def test_tracking(self):
         """ TODO: Write documentation

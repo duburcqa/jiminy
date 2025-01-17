@@ -439,12 +439,12 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
             for name, (cls, kwargs) in requirements.items()}
 
         # Define proxies for user-specified intermediary quantities.
-        # This approach is much faster than hidding quantities behind value
+        # This approach is much faster than hiding quantities behind value
         # getters. In particular, dynamically adding properties, which is hacky
-        # but which is the fastest alternative option, still adds 35% overhead
-        # on Python 3.11 compared to calling `get` directly. The "official"
-        # approaches are even slower, ie implementing custom `__getattribute__`
-        # method or worst custom `__getattr__` method.
+        # but the fastest alternative option, still adds 35% overhead on Python
+        # 3.11 compared to calling `get` directly. The "official" approaches
+        # are even slower, ie implementing custom `__getattribute__` method or
+        # worst custom `__getattr__` method.
         for name, quantity in self.requirements.items():
             setattr(self, name, quantity)
 
@@ -1156,6 +1156,7 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         # Un-initialize quantity when the selected trajectory changes
         self.reset(reset_tracking=False)
 
+    @sync
     def lock(self) -> None:
         """Forbid adding/discarding trajectories to the dataset from now on.
         """

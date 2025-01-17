@@ -514,23 +514,19 @@ class MechanicalSafetyTermination(AbstractTerminationCondition):
             training_only=training_only)
 
         # Add quantity to the set of quantities managed by the environment
-        self.env.quantities["_".join((self.name, "position_delta"))] = (
-            _MultiActuatedJointBoundDistance, {})
-        self.env.quantities["_".join((self.name, "velocity"))] = (
-            MultiActuatedJointKinematic, dict(
-                kinematic_level=pin.KinematicLevel.VELOCITY,
-                is_motor_side=False))
-
-        # Keep track of the underlying quantities
-        registry = self.env.quantities.registry
-        self.position_delta = registry["_".join((self.name, "position_delta"))]
-        self.velocity = registry["_".join((self.name, "velocity"))]
+        self.position_delta = self.env.quantities.add(
+            "_".join((self.name, "position_delta")), (
+                _MultiActuatedJointBoundDistance, {}))
+        self.velocity = self.env.quantities.add(
+            "_".join((self.name, "velocity")), (
+                MultiActuatedJointKinematic, dict(
+                    kinematic_level=pin.KinematicLevel.VELOCITY,
+                    is_motor_side=False)))
 
     def __del__(self) -> None:
         try:
             for field in ("position_delta", "velocity"):
-                if hasattr(self, field):
-                    del self.env.quantities["_".join((self.name, field))]
+                self.env.quantities.discard("_".join((self.name, field)))
         except Exception:   # pylint: disable=broad-except
             # This method must not fail under any circumstances
             pass

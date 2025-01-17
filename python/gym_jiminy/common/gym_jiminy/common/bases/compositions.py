@@ -229,14 +229,11 @@ class QuantityReward(AbstractReward, Generic[ValueT]):
         super().__init__(env, name)
 
         # Add quantity to the set of quantities managed by the environment
-        self.env.quantities[self.name] = quantity
-
-        # Keep track of the underlying quantity
-        self.data = self.env.quantities.registry[self.name]
+        self.data = self.env.quantities.add(self.name, quantity)
 
     def __del__(self) -> None:
         try:
-            del self.env.quantities[self.name]
+            self.env.quantities.discard(self.name)
         except Exception:   # pylint: disable=broad-except
             # This method must not fail under any circumstances
             pass
@@ -578,14 +575,11 @@ class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
             training_only=training_only)
 
         # Add quantity to the set of quantities managed by the environment
-        self.env.quantities[self.name] = quantity
-
-        # Keep track of the underlying quantity
-        self.data = self.env.quantities.registry[self.name]
+        self.data = self.env.quantities.add(self.name, quantity)
 
     def __del__(self) -> None:
         try:
-            del self.env.quantities[self.name]
+            self.env.quantities.discard(self.name)
         except Exception:   # pylint: disable=broad-except
             # This method must not fail under any circumstances
             pass
