@@ -608,11 +608,8 @@ namespace jiminy::python
                   "v_init",
                   bp::arg("a_init") = bp::object(),
                   bp::arg("is_state_theoretical") = false))
-            .def("step",
-                 &Engine::step,
-                 (bp::arg("self"), bp::arg("step_dt") = -1),
-                 "@copydoc Engine::step")
-            .def("stop", &Engine::stop, (bp::arg("self")), "@copydoc Engine::stop")
+            .def("step", &Engine::step, (bp::arg("self"), bp::arg("step_dt") = -1))
+            .def("stop", &Engine::stop, (bp::arg("self")))
             .def("simulate",
                  &internal::engine::simulateFromDict,
                  (bp::arg("self"),
