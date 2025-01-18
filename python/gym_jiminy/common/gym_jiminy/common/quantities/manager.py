@@ -8,15 +8,14 @@ by caching already computed that did not changed since then, computing
 redundant intermediary quantities only once per step, and gathering similar
 quantities in a large batch to leverage vectorization of math instructions.
 """
-from collections.abc import MutableMapping
-from typing import Any, Dict, List, Tuple, Iterator, Type, cast
+from typing import Any, Dict, List, Tuple, Type, cast
 
 from ..bases import (
     QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity, SharedCache,
     DatasetTrajectoryQuantity)
 
 
-class QuantityManager(MutableMapping):
+class QuantityManager:
     """This class centralizes the evaluation of all quantities involved in
     reward components or termination conditions evaluation to redundant and
     unnecessary computations.
@@ -54,7 +53,7 @@ class QuantityManager(MutableMapping):
         self.env = env
 
         # List of instantiated quantities to manager
-        self.registry: Dict[str, InterfaceQuantity] = {}
+        self._registry: Dict[str, InterfaceQuantity] = {}
 
         # Initialize shared caches for all managed quantities.
         # Note that keys are not quantities directly but pairs (class, hash).
@@ -89,7 +88,7 @@ class QuantityManager(MutableMapping):
         :param reset_tracking: Do not consider any quantity as active anymore.
                                Optional: False by default.
         """
-        for quantity in self.registry.values():
+        for quantity in self._registry.values():
             quantity.reset(reset_tracking)
 
     def clear(self) -> None:
@@ -104,29 +103,6 @@ class QuantityManager(MutableMapping):
         ignore_auto_refresh = not self.env.is_simulation_running
         for _, cache in self._caches:
             cache.reset(ignore_auto_refresh=ignore_auto_refresh)
-
-    def __getattr__(self, name: str) -> Any:
-        """Get access managed quantities as first-class properties, rather than
-        dictionary-like values through `__getitem__`.
-
-        .. warning::
-            Getting quantities this way is convenient but unfortunately much
-            slower than doing it through `__getitem__`. It takes 40ns on
-            Python 3.12 and a whooping 180ns on Python 3.11. As a result, this
-            approach is mainly intended for ease of use while prototyping and
-            is not recommended in production, especially on Python<3.12.
-
-        :param name: Name of the requested quantity.
-        """
-        return self[name]
-
-    def __dir__(self) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return [*super().__dir__(), *self.registry.keys()]
 
     def _build_quantity(
             self, quantity_creator: QuantityCreator) -> InterfaceQuantity:
@@ -192,9 +168,9 @@ class QuantityManager(MutableMapping):
 
         return top_quantity
 
-    def __setitem__(self,
-                    name: str,
-                    quantity_creator: QuantityCreator) -> None:
+    def add(self,
+            name: str,
+            quantity_creator: QuantityCreator) -> InterfaceQuantity:
         """Instantiate new top-level quantity that will be managed for now on.
 
         :param name: Desired name of the quantity after instantiation. It will
@@ -207,7 +183,7 @@ class QuantityManager(MutableMapping):
         """
         # Make sure that no quantity with the same name is already managed to
         # avoid silently overriding quantities being managed in user's back.
-        if name in self.registry:
+        if name in self._registry:
             raise KeyError(
                 "A quantity with the exact same name already exists. Please "
                 "delete it first before adding a new one.")
@@ -216,16 +192,11 @@ class QuantityManager(MutableMapping):
         quantity: InterfaceQuantity = self._build_quantity(quantity_creator)
 
         # Add it to the global registry of already managed quantities
-        self.registry[name] = quantity
+        self._registry[name] = quantity
 
-    def __getitem__(self, name: str) -> Any:
-        """Get the evaluated value of a given quantity.
+        return quantity
 
-        :param name: Name of the quantity for which to fetch the current value.
-        """
-        return self.registry[name].get()
-
-    def __delitem__(self, name: str) -> None:
+    def discard(self, name: str) -> None:
         """Stop managing a quantity that is no longer relevant.
 
         .. warning::
@@ -243,7 +214,7 @@ class QuantityManager(MutableMapping):
         # required quantities no longer having shared cache will be triggered
         # automatically by parent quantities following computation graph
         # tracking reset whenever a shared cache co-owner is removed.
-        quantities_all = [self.registry.pop(name)]
+        quantities_all = [self._registry.pop(name)]
         while quantities_all:
             quantity = quantities_all.pop(0)
             cache = quantity.cache
@@ -255,12 +226,11 @@ class QuantityManager(MutableMapping):
                         break
             quantities_all += quantity.requirements.values()
 
-    def __iter__(self) -> Iterator[str]:
-        """Iterate over names of managed quantities.
-        """
-        return iter(self.registry)
+    def get(self, name: str) -> Any:
+        """Fetch the value of a given quantity.
 
-    def __len__(self) -> int:
-        """Number of quantities being managed.
+        The quantity will evaluate if its value is not already cached.
+
+        :param name: Name of the quantity for which to fetch the current value.
         """
-        return len(self.registry)
+        return self._registry[name].get()

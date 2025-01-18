@@ -5,8 +5,8 @@ observer/controller block must inherit and implement those interfaces.
 from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 from typing import (
-    Dict, Any, Tuple, TypeVar, Generic, TypedDict, Optional, no_type_check,
-    TYPE_CHECKING)
+    Dict, Any, Tuple, List, TypeVar, Generic, TypedDict, Optional, Callable,
+    no_type_check, TYPE_CHECKING)
 
 import numpy as np
 import numpy.typing as npt
@@ -15,7 +15,7 @@ import gymnasium as gym
 import jiminy_py.core as jiminy
 from jiminy_py.core import (  # pylint: disable=no-name-in-module
     multi_array_copyto)
-from jiminy_py.simulator import Simulator
+from jiminy_py.simulator import Simulator, TabbedFigure
 from jiminy_py.viewer.viewer import is_display_available
 
 import pinocchio as pin
@@ -37,6 +37,9 @@ BaseAct = TypeVar('BaseAct', bound=DataNested)
 
 SensorMeasurementStackMap = Dict[str, npt.NDArray[np.float64]]
 InfoType = Dict[str, Any]
+
+PolicyCallbackFun = Callable[
+    [Obs, Optional[Act], Optional[float], bool, bool, InfoType], Act]
 
 
 class EngineObsType(TypedDict):
@@ -92,8 +95,7 @@ class InterfaceObserver(Generic[Obs, BaseObs], metaclass=ABCMeta):
             buffer `observation` to store the observation by updating it by
             reference. It may be error prone and tricky to get use to it, but
             it is computationally more efficient as it avoids allocating memory
-            multiple times and redundant calculus. Additionally, it enables to
-            retrieve the observation later on by calling `get_observation`.
+            multiple times and redundant calculus.
 
         :param measurement: Low-level measure from the environment to process
                             to get higher-level observation.
@@ -246,6 +248,16 @@ class InterfaceJiminyEnv(
         # Define convenience proxy for quantity manager
         self.quantities = self.unwrapped.quantities
 
+    @property
+    def log_data(self) -> Dict[str, Any]:
+        """Get log data associated with the ongoing simulation if any, the
+        previous one otherwise.
+
+        .. seealso::
+            See `Simulator.log_data` documentation for details.
+        """
+        return self.simulator.log_data
+
     def _setup(self) -> None:
         """Configure the observer-controller.
 
@@ -359,24 +371,8 @@ class InterfaceJiminyEnv(
         self.__is_observation_refreshed = False
 
     @abstractmethod
-    def stop(self) -> None:
-        """Stop the episode immediately, without waiting for a termination or
-        truncation condition to be satisfied.
-
-        .. note::
-            This method is mainly intended for data analysis and debugging.
-            Stopping the episode is necessary to log the final state, otherwise
-            it will be missing from plots and viewer replay. Moreover, sensor
-            data will not be available during replay using object-oriented
-            method `replay`. Helper method `play_logs_data` must be preferred
-            to replay an episode that cannot be stopped at the time being.
-
-        .. warning:
-            This method is never called internally by the engine.
-        """
-
-    @abstractmethod
-    def update_pipeline(self, derived: Optional["InterfaceJiminyEnv"]) -> None:
+    def _update_pipeline(self,
+                         derived: Optional["InterfaceJiminyEnv"]) -> None:
         """Dynamically update which blocks are declared as part of the
         environment pipeline.
 
@@ -395,6 +391,126 @@ class InterfaceJiminyEnv(
         """
 
     @abstractmethod
+    def stop(self) -> None:
+        """Stop the underlying simulation completely.
+
+        .. note::
+            This method has nothing to do with termination and/or truncation of
+            episodes. Calling it manually should never be necessary for
+            collecting samples during training.
+
+        .. note::
+            This method is mainly intended for evaluation analysis and
+            debugging. Stopping the episode is only necessary for switching
+            between training and evaluation mode, and to log the final state,
+            otherwise it will be missing from plots and viewer replay (see
+            `InterfaceJiminyEnv.log_data` for details). Moreover, sensor data
+            will not be available when calling `replay`. The helper method
+            `jiminy_py.viewer.replay.play_logs_data` must be preferred to
+            replay an episode that cannot be stopped.
+
+        .. note::
+            Resuming a simulation is not supported, which means that calling
+            `reset` to start a new simulation is necessary prior to calling
+            `step` once again. Falling to do so will trigger an exception.
+        """
+
+    @abstractmethod
+    def plot(self,
+             enable_block_states: bool = False,
+             **kwargs: Any) -> TabbedFigure:
+        """Plot figures of simulation data over time associated with the
+        ongoing episode until now if any, the previous one otherwise.
+
+        :param kwargs: Implementation-specific extra keyword arguments if any.
+        """
+
+    @abstractmethod
+    def replay(self, **kwargs: Any) -> None:
+        """Replay the ongoing episode until now if any, the previous one
+        otherwise.
+
+        :param kwargs: Implementation-specific extra keyword arguments if any.
+        """
+
+    @abstractmethod
+    def evaluate(self,
+                 policy_fn: PolicyCallbackFun,
+                 seed: Optional[int] = None,
+                 horizon: Optional[int] = None,
+                 enable_stats: bool = True,
+                 enable_replay: Optional[bool] = None,
+                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
+        r"""Evaluate a policy on the environment over a complete episode.
+
+        .. warning::
+            It ignores any top-level `gym.Wrapper` that may be used for
+            training but are not considered part of the environment pipeline.
+
+        :param policy_fn:
+            .. raw:: html
+
+                Policy to evaluate as a callback function. It must have the
+                following signature (**rew** = None at reset):
+
+            | policy_fn\(**obs**: Obs,
+            |            **action_prev**: Optional[Act],
+            |            **reward**: Optional[float],
+            |            **terminated**: bool,
+            |            **truncated**: bool,
+            |            **info**: InfoType
+            |            \) -> Act  # **action**
+        :param seed: Seed of the environment to be used for the evaluation of
+                     the policy.
+                     Optional: `None` by default. If not specified, then a
+                     strongly random seed will be generated by gym.
+        :param horizon: Horizon of the simulation, namely maximum number of
+                        env steps before termination. `None` to disable.
+                        Optional: Disabled by default.
+        :param enable_stats: Whether to print high-level statistics after the
+                             simulation.
+                             Optional: Enabled by default.
+        :param enable_replay: Whether to enable replay of the simulation, and
+                              eventually recording if the extra
+                              keyword argument `record_video_path` is provided.
+                              Optional: Enabled by default if display is
+                              available, disabled otherwise.
+        :param kwargs: Extra keyword arguments to forward to the `replay`
+                       method if replay is requested.
+        """
+
+    @abstractmethod
+    def play_interactive(self,
+                         enable_travelling: Optional[bool] = None,
+                         start_paused: bool = True,
+                         enable_is_done: bool = True,
+                         verbose: bool = True,
+                         **kwargs: Any) -> None:
+        """Interact evaluation mode where the robot or the world itself are
+        actively "controlled" via keyboard inputs, with real-time rendering.
+
+        This method is not available for all pipeline environments. When it
+        does, the available interactions and keyboard mapping is completely
+        implementation-specific. Please refer to the documentation of the base
+        environment being considered for details.
+
+        .. warning::
+            It ignores any top-level `gym.Wrapper` that may be used for
+            training but are not considered part of the pipeline environment.
+
+        :param enable_travelling: Whether enable travelling, following the
+                                  motion of the root frame of the model. This
+                                  parameter is ignored if the model has no
+                                  freeflyer.
+                                  Optional: Enabled by default iif 'panda3d'
+                                  viewer backend is used.
+        :param start_paused: Whether to start in pause.
+                             Optional: Enabled by default.
+        :param verbose: Whether to display status messages.
+        :param kwargs: Implementation-specific extra keyword arguments if any.
+        """
+
+    @abstractmethod
     def has_terminated(self, info: InfoType) -> Tuple[bool, bool]:
         """Determine whether the episode is over, because a terminal state of
         the underlying MDP has been reached or an aborting condition outside
@@ -407,6 +523,21 @@ class InterfaceJiminyEnv(
         :param info: Dictionary of extra information for monitoring.
 
         :returns: terminated and truncated flags.
+        """
+
+    @abstractmethod
+    def set_wrapper_attr(self,
+                         name: str,
+                         value: Any,
+                         *,
+                         force: bool = True) -> None:
+        """Assign an attribute to a specified value in the first layer of the
+        pipeline environment for which it already exists, from this wrapper to
+        the base environment. If the attribute does not exist in any layer, it
+        is directly added to this wrapper.
+
+        :param name: Name of the attribute.
+        :param value: Desired value of the attribute.
         """
 
     @abstractmethod

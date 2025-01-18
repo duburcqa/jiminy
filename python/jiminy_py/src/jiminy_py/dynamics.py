@@ -145,6 +145,9 @@ class State:
     """
 
 
+TrajectoryTimeMode = Literal['raise', 'wrap', 'clip']
+
+
 @dataclass
 class Trajectory:
     """Trajectory of a robot.
@@ -354,9 +357,7 @@ class Trajectory:
 
         return data
 
-    def get(self,
-            t: float,
-            mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> State:
+    def get(self, t: float, mode: TrajectoryTimeMode = 'raise') -> State:
         """Query the state at a given timestamp.
 
         Internally, the nearest neighbor states are linearly interpolated,

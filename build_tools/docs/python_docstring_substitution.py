@@ -1,10 +1,10 @@
 import os
 import re
 import sys
-import pathlib
-from queue import deque
+from pathlib import Path
+from collections import deque
 from textwrap import indent
-from typing import Sequence
+from typing import List, Sequence, Optional
 
 
 def redent(txt: str, n: int = 0) -> str:
@@ -16,11 +16,11 @@ def redent(txt: str, n: int = 0) -> str:
 
 
 def find_include_files(input_files_fullpath: Sequence[str],
-                       include_dir: str) -> Sequence[str]:
+                       include_dir: str) -> List[str]:
     """Scan recursively the list of header files included in given header files
     and contain in a specific include directory.
     """
-    include_dir = pathlib.Path(include_dir)
+    include_dir = Path(include_dir)
     lookup_file_list = deque(input_files_fullpath)
     include_path_list = []
     while len(lookup_file_list):
@@ -47,31 +47,46 @@ def find_include_files(input_files_fullpath: Sequence[str],
     return include_path_list
 
 
-def extract_doxygen_doc(include_filenames: str,
-                        doc_pattern: str) -> str:
+def extract_doxygen_doc(include_filenames: Sequence[str],
+                        doc_pattern: str,
+                        is_exhaustive: bool = False) -> str:
     """Get C++ docstring associated with a given class and method.
     """
-    method_line = -1
-    class_name, method_name = doc_pattern.split("::", 1)
+    class_name_camel, method_name = doc_pattern.split("::", 1)
+    class_name_snake = re.sub(
+        r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", '_', class_name_camel
+        ).lower()
+
+    pattern_method_name = re.compile(fr"(?<= ){method_name}(?= *\()")
     for include_filename in include_filenames:
-        if class_name in include_filename:
+        if is_exhaustive or (Path(include_filename).stem in (
+                class_name_camel, class_name_snake)):
             with open(include_filename, "r") as include_file:
                 for i, line in enumerate(include_file):
-                    if re.findall(fr"(?<= ){method_name}(?= *\()", line):
-                        method_filename = include_filename
+                    if pattern_method_name.findall(line):
                         method_line = i
                         break
-    if (method_line > 0):
-        with open(method_filename, "r") as include_file:
-            lines = include_file.readlines()
-        for doc_start_line in list(range(method_line))[::-1]:
-            if not "///" in lines[doc_start_line]:
+                else:
+                    continue
                 break
-        doc = lines[(doc_start_line+1):method_line]
-        return re.sub(r"^[ \n]+?(?= +\\)|[ \n]+$", "",
-                      "".join(doc).replace("/",""))
     else:
-        return ""
+        if is_exhaustive:
+            return ""
+        return extract_doxygen_doc(include_filenames, doc_pattern, True)
+
+    with open(include_filename, "r") as include_file:
+        lines = include_file.readlines()
+    for doc_start_line in list(range(method_line))[::-1]:
+        if "template<" in lines[doc_start_line]:
+            method_line -= 1
+            continue
+        break
+    for doc_start_line in list(range(method_line))[::-1]:
+        if not "///" in lines[doc_start_line]:
+            break
+    doc = lines[(doc_start_line+1):method_line]
+    return re.sub(
+        r"^[ \n]+?(?= +\\)|[ \n]+$", "", "".join(doc).replace("/",""))
 
 
 if __name__ == "__main__":
@@ -82,8 +97,7 @@ if __name__ == "__main__":
     include_files.append(input_file_fullpath)
 
     # Create output file
-    pathlib.Path(os.path.dirname(output_file_name)).mkdir(
-        parents=True, exist_ok=True)
+    Path(os.path.dirname(output_file_name)).mkdir(parents=True, exist_ok=True)
 
     # Read input file
     with open(input_file_fullpath, "r", encoding="utf-8") as input_file:
@@ -91,7 +105,7 @@ if __name__ == "__main__":
 
     # Extract boost python method definitions
     pat_head = r'(\.? *[a-zA-Z0-9_]+\("(?!__)[a-zA-Z0-9_\r\n", <>\*\(\):&]*?&)'
-    pat_class_method = r'([^ ,\(\)*]+)::([^ ,\(\)*]+)'
+    pat_class_method = r'([^ ,\(\)\*<>]+)::([^ ,\(\)\*<>]+)'
     pat_tail = r'([a-zA-Z0-9_\r\n", <>\(\):=\-@]*?)\)'
     pat_delim = r'(?=(?: *\n? *(?:;|\.|\n\n)| *//))'
     bp_def_list = re.findall(
@@ -101,21 +115,25 @@ if __name__ == "__main__":
     # docstring to Python.
     for (head, class_name, method_name, tail) in bp_def_list:
         # Check if the def already has docstring argument
-        docstring = re.search(r'"(.*)"$', tail)
-        if docstring is not None:
-            docstring = docstring.group(1)
-            has_copydoc = "@copydoc" in docstring
-        else:
+        docstring_matches = re.search(r'"(.*)"$', tail)
+        if docstring_matches is None:
+            docstring = ""
             has_copydoc = False
+        else:
+            docstring = docstring_matches.group(1)
+            has_copydoc = "@copydoc" in docstring
 
         # Get declaration from which to extract docstring, if anu
         if has_copydoc:
-            doc_pattern = re.search(
-                r"@copydoc +([a-zA-Z0-9:_]+)", docstring).group(1)
+            doc_matches = re.search(
+                r"@copydoc +([a-zA-Z0-9:_]+)", docstring)
+            assert doc_matches is not None
+            doc_pattern = doc_matches.group(1)
+        elif docstring:
+            continue
         else:
-            if docstring:
-                continue
-            class_name_clean = re.sub("^Py|Visitor$", "", class_name)
+            class_name_clean = re.sub(
+                "^Py|Visitor$", "", class_name).rsplit("::", 1)[-1]
             doc_pattern = f"{class_name_clean}::{method_name}"
 
         # Extract raw docstring, if any. Continue otherwise.
@@ -130,6 +148,7 @@ if __name__ == "__main__":
         make_flag = lambda txt: f":{txt}: "
         make_directive = lambda txt: f".. {txt}::\n"
         tag_map = {
+            'warning': make_directive('warning'),
             'remark': make_directive('note'),
             'return': make_flag('return')
         }
@@ -143,7 +162,7 @@ if __name__ == "__main__":
                 f"{redent(txt)}")
 
         for (_head, tag, txt) in re.findall(
-                fr"( *\\)(remark|note|return){pat_block}", doc_str):
+                fr"( *\\)(warning|remark|note|return){pat_block}", doc_str):
             doc_str = doc_str.replace(
                 f"{_head}{tag}{txt}",
                 f"\n{tag_map.get(tag, make_directive(tag))}{redent(txt, 4)}")
@@ -164,7 +183,7 @@ if __name__ == "__main__":
             doc_str = doc_str.replace(r'\\n', r'\\\\n')
             def_new = re.sub(r'(?<=")@copydoc.+(?="\)$)', doc_str, def_orig)
         else:
-            def_new =  f'{def_match}, "{doc_str}")'
+            def_new =  fr'{def_match}, "{doc_str}")'
         def_orig = re.sub(r"(\(|\)|\\)", r"\\\g<1>", def_orig)
         input_str = re.sub(def_orig, def_new, input_str, count=1)
 

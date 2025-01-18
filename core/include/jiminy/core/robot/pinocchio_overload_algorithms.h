@@ -37,8 +37,7 @@ namespace jiminy::pinocchio_overload
 {
     template<typename Scalar,
              int Options,
-             template<typename, int>
-             class JointCollectionTpl,
+             template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType,
              typename TangentVectorType>
     inline Scalar
@@ -59,8 +58,7 @@ namespace jiminy::pinocchio_overload
 
     template<typename Scalar,
              int Options,
-             template<typename, int>
-             class JointCollectionTpl,
+             template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType,
              typename TangentVectorType1,
              typename TangentVectorType2,
@@ -81,8 +79,7 @@ namespace jiminy::pinocchio_overload
 
     template<typename Scalar,
              int Options,
-             template<typename, int>
-             class JointCollectionTpl,
+             template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType,
              typename TangentVectorType1,
              typename TangentVectorType2>
@@ -101,8 +98,7 @@ namespace jiminy::pinocchio_overload
 
     template<typename Scalar,
              int Options,
-             template<typename, int>
-             class JointCollectionTpl,
+             template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType>
     inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs &
     crba(const pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -440,8 +436,7 @@ namespace jiminy::pinocchio_overload
 
     template<typename Scalar,
              int Options,
-             template<typename, int>
-             class JointCollectionTpl,
+             template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType,
              typename TangentVectorType1,
              typename TangentVectorType2,

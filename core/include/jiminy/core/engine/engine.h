@@ -581,19 +581,26 @@ namespace jiminy
                    const std::optional<Eigen::VectorXd> & aInit = std::nullopt,
                    bool isStateTheoretical = false);
 
-        /// \brief Integrate robot dynamics from current state for a given duration.
+        /// \brief Advance the ongoing simulation forward by a given amount of time.
         ///
-        /// \details Internally, the integrator may perform multiple steps inside in the interval.
+        /// \details Internally, the integrator must perform multiple steps, which may involve
+        ///          calling the controller to compute command or internal dynamics.
         ///
-        /// \param[in] stepSize Duration for which to integrate. -1 for default duration, ie until
-        ///                     next breakpoint if any, or 'engine_options["stepper"]["dtMax"]'.
+        /// \param[in] stepSize Duration of integration. For convenience, a sensible default will
+        ///                     be selected automatically a negative value is specified. This
+        ///                     default either corresponds the discrete-time controller update
+        ///                     period, the discrete-time sensor update period, or stepper option
+        ///                     'dtMax', depending on which one of this criteria is applicable, in
+        ///                     this priority order.
+        ///                     Optional: -1 by default.
         void step(double stepSize = -1);
 
-        /// \brief Stop the simulation.
+        /// \brief Stop the simulation completely.
         ///
         /// \details It releases the lock on the robot and the telemetry, so that it is possible
         ///          again to update the robot (for example to update the options, add or remove
-        ///          sensors...) and to register new variables or forces.
+        ///          sensors...) and to register new variables or forces. Resuming a simulation is
+        ///          not supported.
         void stop();
 
         /// \brief Run a simulation of duration tEnd, starting at xInit.
