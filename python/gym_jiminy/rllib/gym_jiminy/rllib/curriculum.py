@@ -5,7 +5,6 @@ from typing import List, Any, Dict, Tuple, Type, cast
 
 import numpy as np
 import gymnasium as gym
-from packaging.version import parse as parse_version
 
 from ray.rllib.core.rl_module import RLModule
 from ray.rllib.env.env_context import EnvContext
@@ -233,36 +232,37 @@ def build_task_scheduling_callback(history_length: int,
                         score_and_proba_task_branches.append((
                             score_task_branch_, proba_task_branch_, space))
 
-            # Update the probability tree at runner-level
+            # Update the probability tree at runner-level.
+            # FIXME: `set_attr` is buggy on`gymnasium<=1.0` and cannot be used
+            # reliability in conjunction with `BasePipelineWrapper`.
+            # See PR: https://github.com/Farama-Foundation/Gymnasium/pull/1294
             self._proba_task_tree = proba_task_tree
             workers = algorithm.env_runner_group
             assert workers is not None
-            if parse_version(gym.__version__) >= parse_version("1.0"):
-                workers.foreach_worker(
-                    lambda worker: worker.env.unwrapped.set_attr(
-                        'proba_task_tree',
-                        (proba_task_tree,) * worker.num_envs))
-            else:
-                # Legacy code fallback because of buggy `set_attr`
-                def _update_runner_proba_task_tree(
-                        env_runner: EnvRunner) -> None:
-                    """Update the probability task tree of all the environments
-                    being managed by a given runner.
 
-                    :param env_runner: Environment runner to consider.
-                    """
-                    nonlocal proba_task_tree
-                    assert isinstance(env_runner, SingleAgentEnvRunner)
-                    env = env_runner.env.unwrapped
-                    assert isinstance(env, gym.vector.SyncVectorEnv)
-                    for env in env.unwrapped.envs:
-                        while not isinstance(env, BaseTaskSettableWrapper):
-                            assert isinstance(
-                                env, (gym.Wrapper, BasePipelineWrapper))
-                            env = env.env
-                        env.proba_task_tree = proba_task_tree
+            def _update_runner_proba_task_tree(
+                    env_runner: EnvRunner) -> None:
+                """Update the probability task tree of all the environments
+                being managed by a given runner.
 
-                workers.foreach_worker(_update_runner_proba_task_tree)
+                :param env_runner: Environment runner to consider.
+                """
+                nonlocal proba_task_tree
+                assert isinstance(env_runner, SingleAgentEnvRunner)
+                env = env_runner.env.unwrapped
+                assert isinstance(env, gym.vector.SyncVectorEnv)
+                for env in env.unwrapped.envs:
+                    while not isinstance(env, BaseTaskSettableWrapper):
+                        assert isinstance(
+                            env, (gym.Wrapper, BasePipelineWrapper))
+                        env = env.env
+                    env.proba_task_tree = proba_task_tree
+
+            workers.foreach_worker(_update_runner_proba_task_tree)
+            # workers.foreach_worker(
+            #     lambda worker: worker.env.unwrapped.set_attr(
+            #         'proba_task_tree',
+            #         (proba_task_tree,) * worker.num_envs))
 
             # Compute flattened probability tree
             proba_task_tree_flat: List[float] = []

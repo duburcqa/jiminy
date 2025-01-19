@@ -186,6 +186,7 @@ class BasePipelineWrapper(
         self.is_simulation_running = env.is_simulation_running
         self.num_steps = env.num_steps
         self.quantities = env.quantities
+        self.log_fieldnames = env.log_fieldnames
 
         # Backup the parent environment
         self.env = env

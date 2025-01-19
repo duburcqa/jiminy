@@ -32,7 +32,6 @@ import tree
 import numpy as np
 import gymnasium as gym
 import plotext as plt
-from packaging.version import parse as parse_version
 
 import ray
 from ray._private import services
@@ -1016,14 +1015,14 @@ def sample_from_runner(
         if log_path is not None and log_path not in log_paths:
             os.remove(log_path)
 
-    # Restore the original training/evaluation mode
-    if parse_version(gym.__version__) >= parse_version("1.0"):
-        env.set_attr('training', is_training_all)
-    else:
-        # Legacy code fallback because `set_attr` is buggy for `gymnasium<1.0`
-        assert isinstance(env, gym.vector.SyncVectorEnv)
-        for env, is_training in zip(env.envs, is_training_all):
-            env.get_wrapper_attr("train")(is_training)
+    # Restore the original training/evaluation mode.
+    # FIXME: `set_attr` is buggy on`gymnasium<=1.0` and cannot be used
+    # reliability in conjunction with `BasePipelineWrapper`.
+    # See PR: https://github.com/Farama-Foundation/Gymnasium/pull/1294
+    # env.set_attr('training', is_training_all)
+    assert isinstance(env, gym.vector.SyncVectorEnv)
+    for env, is_training in zip(env.envs, is_training_all):
+        env.get_wrapper_attr("train")(is_training)
 
     return (metrics,), episodes, log_paths
 

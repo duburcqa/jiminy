@@ -6,7 +6,7 @@ from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 from typing import (
     Dict, Any, Tuple, List, TypeVar, Generic, TypedDict, Optional, Callable,
-    no_type_check, TYPE_CHECKING)
+    Mapping, no_type_check, TYPE_CHECKING)
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +20,7 @@ from jiminy_py.viewer.viewer import is_display_available
 
 import pinocchio as pin
 
-from ..utils import DataNested
+from ..utils import FieldNested, DataNested
 if TYPE_CHECKING:
     from ..envs.generic import BaseJiminyEnv
     from ..quantities import QuantityManager
@@ -194,12 +194,21 @@ class InterfaceJiminyEnv(
     action_space: gym.Space[Act]
     observation_space: gym.Space[Obs]
 
+    action: Act
+
     simulator: Simulator
     robot: jiminy.Robot
     stepper_state: jiminy.StepperState
     robot_state: jiminy.RobotState
     measurements: EngineObsType
     is_simulation_running: npt.NDArray[np.bool_]
+
+    quantities: "QuantityManager"
+
+    log_fieldnames: Mapping[str, FieldNested]
+    """Fielnames associated with all the variables that have been recorded to
+    the telemetry by any of the layer of the whole pipeline environment.
+    """
 
     num_steps: npt.NDArray[np.int64]
     """Number of simulation steps that has been performed since last reset of
@@ -210,10 +219,6 @@ class InterfaceJiminyEnv(
         of the step, and consequently, before evaluating the reward and the
         termination conditions.
     """
-
-    quantities: "QuantityManager"
-
-    action: Act
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Track whether the observation has been refreshed manually since the
