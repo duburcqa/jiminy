@@ -430,7 +430,7 @@ def initialize(num_cpus: int,
     # Handling of default log name and sanity checks
     if not log_name:
         log_name = "_".join((
-            datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+            datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")[:-3],
             re.sub(r'[^A-Za-z0-9_]', "_", socket.gethostname())))
     else:
         assert re.match(r'^[A-Za-z0-9_]+$', log_name), (
