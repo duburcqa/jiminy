@@ -216,7 +216,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Store references to the variables to register to the telemetry
         self._registered_variables: MutableMappingT[
             str, Tuple[FieldNested, DataNested, bool]] = {}
-        self.log_fieldnames: MappingT[str, FieldNested] = _LazyDictItemFilter(
+        self.log_fieldnames = _LazyDictItemFilter(
             self._registered_variables, 0)
 
         # Random number generator.

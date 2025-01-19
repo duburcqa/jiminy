@@ -1,8 +1,11 @@
+# mypy: disable-error-code="no-untyped-def, var-annotated"
 """Integration tests to check that everything is working fine, from the
 low-level Jiminy engine, to the Gym environment integration. However, it does
 not assessed that the viewer is working properly.
 """
 import os
+import sys
+import warnings
 import unittest
 from typing import Optional, Dict, Any
 
@@ -15,9 +18,9 @@ from stable_baselines3.common.env_util import make_vec_env
 from utilities import train
 
 
-# Fix the seed and number of threads for CI stability
+# Fix number of threads and seed for CI stability
+NUM_THREADS = 5
 SEED = 42
-N_THREADS = 5
 
 # Skip some tests if Jiminy has been compiled in debug
 DEBUG = "JIMINY_BUILD_DEBUG" in os.environ
@@ -33,13 +36,18 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
     .. warning::
         It requires pytorch>=1.4 and stable-baselines3[extra]>=0.10.0
     """
+    def setUp(self):
+        if not sys.warnoptions:
+            # Disable warning about different training and eval envs
+            warnings.simplefilter("ignore", UserWarning)
+
     @staticmethod
     def _get_default_config_stable_baselines():
         """Return default configuration for stables baselines that should work
         for every toys models.
         """
         # Agent algorithm config
-        config = {}
+        config: Dict[str, Any] = {}
         config['n_steps'] = 4000
         config['batch_size'] = 250
         config['learning_rate'] = 5.0e-4
@@ -80,10 +88,14 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         # Create a multiprocess environment
         train_env = make_vec_env(
             env_id=env_name,  env_kwargs=env_kwargs or {},
-            n_envs=max(0, N_THREADS - 1), vec_env_cls=SubprocVecEnv, seed=SEED)
+            n_envs=max(0, NUM_THREADS - 1),
+            vec_env_cls=SubprocVecEnv,
+            seed=SEED)
         test_env = make_vec_env(
             env_id=env_name, env_kwargs=env_kwargs or {},
-            n_envs=1, vec_env_cls=DummyVecEnv, seed=SEED)
+            n_envs=1,
+            vec_env_cls=DummyVecEnv,
+            seed=SEED)
 
         # Create the learning agent according to the chosen algorithm
         config = cls._get_default_config_stable_baselines()

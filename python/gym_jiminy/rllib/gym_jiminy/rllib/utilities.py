@@ -32,7 +32,6 @@ import tree
 import numpy as np
 import gymnasium as gym
 import plotext as plt
-from packaging.version import parse as parse_version
 
 import ray
 from ray._private import services
@@ -247,10 +246,8 @@ class MonitorEpisodeCallback(DefaultCallbacks):
         # has already been reset at this point.
         assert isinstance(episode, SingleAgentEpisode)
         num_steps = episode.t
-        assert isinstance(env.unwrapped, gym.vector.SyncVectorEnv)
-        env_unwrapped = env.unwrapped.envs[env_index].unwrapped
-        assert isinstance(env_unwrapped, BaseJiminyEnv)
-        step_dt = env_unwrapped.step_dt
+        step_dt = env.unwrapped.get_attr('step_dt')[env_index]
+
         episode_duration = step_dt * num_steps
         metrics_logger.log_value("episode_duration",
                                  episode_duration,
@@ -307,6 +304,7 @@ def initialize(num_cpus: int,
                log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                launch_tensorboard: bool = True,
+               env_vars: Optional[Dict[str, Any]] = None,
                debug: bool = False,
                verbose: bool = True,
                **ray_init_kwargs: Any) -> str:
@@ -338,6 +336,8 @@ def initialize(num_cpus: int,
                      Optional: full date _ hostname by default.
     :param launch_tensorboard: Whether to launch tensorboard automatically.
                                Optional: Enabled by default.
+    :param env_vars: Environment variables at cluster-level as a dictionary.
+                     Optional: `None` by default.
     :param debug: Whether to display debugging trace.
                   Optional: Disabled by default.
     :param verbose: Whether to print information about what is going on.
@@ -378,6 +378,8 @@ def initialize(num_cpus: int,
                 num_gpus=num_gpus,
                 # Logging level
                 logging_level=logging.DEBUG if debug else logging.ERROR,
+                # Environment variables
+                runtime_env={"env_vars": env_vars or {}},
                 # Whether to redirect outputs from every worker to the driver
                 log_to_driver=debug, **{**dict(
                     # Whether to start Ray dashboard to monitor cluster status
@@ -427,7 +429,7 @@ def initialize(num_cpus: int,
     # Handling of default log name and sanity checks
     if not log_name:
         log_name = "_".join((
-            datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+            datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")[:-3],
             re.sub(r'[^A-Za-z0-9_]', "_", socket.gethostname())))
     else:
         assert re.match(r'^[A-Za-z0-9_]+$', log_name), (
@@ -826,7 +828,7 @@ def train(algo_config: AlgorithmConfig,
                     title, metrics_nested = metrics_nested_list.pop(0)
 
                     # Check if it corresponds to a dict of named scalar metrics
-                    tags = ["/".join((title, name))
+                    tags = ["/".join(map(str, (title, name)))
                             for name in metrics_nested.keys()]
                     for tag, data in zip(tags, metrics_nested.values()):
                         if tag not in scalar_tags:
@@ -955,13 +957,6 @@ def sample_from_runner(
     # Assert(s) for type checker
     assert isinstance(env_runner, SingleAgentEnvRunner)
 
-    # This method only supports environments deriving from `BaseJiminyEnv`
-    assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
-    (env_type,) = set(
-        type(env.unwrapped) for env in env_runner.env.unwrapped.envs)
-    if not issubclass(env_type, BaseJiminyEnv):
-        raise RuntimeError("Test env must inherit from `BaseJiminyEnv`.")
-
     # FIXME: When there is a single thread, the same environments are used for
     # sampling during training and evaluation. One is expecting to sample
     # complete episode from reset to termination during evaluation, which means
@@ -978,11 +973,16 @@ def sample_from_runner(
     env_runner._needs_initial_reset = True
 
     # Stop any simulation that may be running
-    env_runner.env.unwrapped.call('stop')
+    env = env_runner.env.unwrapped
+    try:
+        env.call('stop')
+    except AttributeError as e:
+        raise RuntimeError(
+            "Evaluation env must inherit from `BaseJiminyEnv`.") from e
 
     # Backup the current mode of the environment then switch to evaluation
-    is_training_all = env_runner.env.unwrapped.get_attr('training')
-    env_runner.env.unwrapped.call('eval')
+    is_training_all = env.get_attr('training')
+    env.call('eval')
 
     # Collect a bunch of episodes
     episodes = env_runner.sample(
@@ -1003,7 +1003,7 @@ def sample_from_runner(
 
     # Stop any simulation that may be running.
     # This is necessary to make sure that all log files have been written.
-    env_runner.env.unwrapped.call('stop')
+    env.call('stop')
 
     # Delete useless log files to avoid filling up the hard drive.
     # Note that the log path would be `None` for environments has been reset
@@ -1011,18 +1011,18 @@ def sample_from_runner(
     # expected as internally, try to step a vector environment will only call
     # `reset` without performing a single step if the previous episode has just
     # terminated.
-    for log_path in env_runner.env.unwrapped.get_attr('log_path'):
+    for log_path in env.get_attr('log_path'):
         if log_path is not None and log_path not in log_paths:
             os.remove(log_path)
 
-    # Restore the original training/evaluation mode
-    if parse_version(gym.__version__) >= parse_version("1.0"):
-        env_runner.env.unwrapped.set_attr('training', is_training_all)
-    else:
-        assert isinstance(env_runner.env.unwrapped, gym.vector.SyncVectorEnv)
-        for env, is_training in zip(
-                env_runner.env.unwrapped.envs, is_training_all):
-            env.get_wrapper_attr("train")(is_training)
+    # Restore the original training/evaluation mode.
+    # FIXME: `set_attr` is buggy on`gymnasium<=1.0` and cannot be used
+    # reliability in conjunction with `BasePipelineWrapper`.
+    # See PR: https://github.com/Farama-Foundation/Gymnasium/pull/1294
+    # env.set_attr('training', is_training_all)
+    assert isinstance(env, gym.vector.SyncVectorEnv)
+    for env, is_training in zip(env.envs, is_training_all):
+        env.get_wrapper_attr("train")(is_training)
 
     return (metrics,), episodes, log_paths
 
@@ -1082,7 +1082,7 @@ def sample_from_runner_group(
                     "Calling `sample()` on your remote evaluation worker(s) "
                     "resulted in a timeout. Please configure the parameter "
                     "`evaluation_sample_timeout_s` accordingly.")
-            all_metrics.append(metrics)
+            all_metrics += metrics
             all_episodes += episodes
             all_log_paths += log_paths
     else:
@@ -1368,9 +1368,10 @@ def evaluate_from_runner(env_runner: EnvRunner,
         sample_from_runner(env_runner, num_episodes))
 
     # Print stats in ASCII histograms if requested
+    env = env_runner.env.unwrapped
     if print_stats:
         try:
-            (step_dt,) = set(env_runner.env.unwrapped.get_attr('step_dt'))
+            (step_dt,) = set(env.get_attr('step_dt'))
         except ValueError:
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
@@ -1382,7 +1383,7 @@ def evaluate_from_runner(env_runner: EnvRunner,
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
-    viewer_kwargs, *_ = env_runner.env.unwrapped.get_attr("viewer_kwargs")
+    viewer_kwargs, *_ = env.get_attr('viewer_kwargs')
     viewer_kwargs = {
         **viewer_kwargs, **dict(
             robots_colors=('green', 'red') if num_episodes > 1 else None),
