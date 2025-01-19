@@ -143,8 +143,8 @@ jobs:
           # (see https://github.com/python/mypy/issues/17396)
           "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
           stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
-          # FIXME: Python 3.10 crashes when generating stubs without any backtrace...
-          if [[ "${{ matrix.PYTHON_VERSION }}" != '3.10' ]] ; then
+          # FIXME: Python 3.10 and Python 3.11 crashes when generating stubs without any backtrace...
+          if [[ "${{ matrix.PYTHON_VERSION }}" != '3.10' && "${{ matrix.PYTHON_VERSION }}" != '3.11' ]] ; then
             # lldb --batch -o "settings set target.process.stop-on-exec false" \
             #   -o "break set -n main" -o "run" -k "bt" -k "quit" -- \
             "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stubgen.py" \
