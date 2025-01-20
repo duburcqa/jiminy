@@ -1064,9 +1064,11 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
                 reward_episode.append(float(reward))
-            env.stop()
         except KeyboardInterrupt:
             pass
+
+        # Stop the simulation
+        env.stop()
 
         # Restore training mode if it was enabled
         if is_training:
