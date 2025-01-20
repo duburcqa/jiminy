@@ -620,25 +620,16 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                 "Controller update period must be a divisor of environment "
                 "simulation timestep")
 
-        # Sample the initial state and reset the low-level engine
-        q_init, v_init = self._sample_state()
-        if not jiminy.is_position_valid(self.robot.pinocchio_model, q_init):
-            raise RuntimeError(
-                "The initial state provided by `_sample_state` is "
-                "inconsistent with the dimension or types of joints of the "
-                "model.")
-
-        # Set robot in initial configuration
-        pin.framesForwardKinematics(
-            self.robot.pinocchio_model, self.robot.pinocchio_data, q_init)
-
         # Initialize sensor measurements that are zero-ed at this point. This
         # may be necessary for pre-compiling blocks before actually starting
         # the simulation to avoid triggering timeout error. Indeed, some
         # computations may require valid sensor data, such as normalized
         # quaternion or non-zero linear acceleration.
-        a_init, u_motor = (np.zeros(self.robot.nv),) * 2
+        q_init = self._neutral()
+        v_init, a_init, u_motor = (np.zeros(self.robot.nv),) * 3
         f_external = [pin.Force.Zero(),] * self.robot.pinocchio_model.njoints
+        pin.framesForwardKinematics(
+            self.robot.pinocchio_model, self.robot.pinocchio_data, q_init)
         self.robot.compute_sensor_measurements(
             0.0, q_init, v_init, a_init, u_motor, f_external)
 
@@ -658,6 +649,18 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Update the environment pipeline if necessary
         if env is not self.derived:
             env._update_pipeline(env)
+
+        # Sample the initial state
+        # Note that it is important to postpone initial state sampling to after
+        # calling `reset` for all the layers of the pipeline, as some of them
+        # may affect the base environment. Notably, by selecting the reference
+        # trajectory, which in turns, may be involve in the initial condition.
+        q_init, v_init = self._sample_state()
+        if not jiminy.is_position_valid(self.robot.pinocchio_model, q_init):
+            raise RuntimeError(
+                "The initial state provided by `_sample_state` is "
+                "inconsistent with the dimension or types of joints of the "
+                "model.")
 
         # Re-initialize the quantity manager.
         # Note that computation graph tracking is never reset automatically.
