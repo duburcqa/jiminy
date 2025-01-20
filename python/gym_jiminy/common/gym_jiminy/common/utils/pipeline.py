@@ -668,7 +668,7 @@ def save_trajectory_to_hdf5(trajectory: Trajectory,
             hdf_obj.create_dataset(name=f"states/{key}", data=data)
 
     # Dump serialized robot
-    robot_data = jiminy.save_to_binary(trajectory.robot)
+    robot_data = jiminy.save_robot_to_binary(trajectory.robot)
     dataset = hdf_obj.create_dataset(name="robot", data=np.array(robot_data))
 
     # Dump whether to use the theoretical model of the robot
@@ -710,7 +710,7 @@ def load_trajectory_from_hdf5(
     robot_data += b'\0' * (
         dataset.nbytes - len(robot_data))  # pylint: disable=no-member
     try:
-        robot = jiminy.load_from_binary(robot_data)
+        robot = jiminy.load_robot_from_binary(robot_data)
     except MemoryError as e:
         raise MemoryError(
             "Impossible to build robot from serialized binary data. Make sure "

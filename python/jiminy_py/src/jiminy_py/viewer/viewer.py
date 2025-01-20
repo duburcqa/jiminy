@@ -45,9 +45,7 @@ from pinocchio.rpy import (  # pylint: disable=import-error
     rpyToMatrix, matrixToRpy)
 
 from .. import core as jiminy
-from ..core import (  # pylint: disable=no-name-in-module
-    ContactSensor,
-    discretize_heightmap)
+from ..core import ContactSensor  # pylint: disable=no-name-in-module
 from ..robot import _DuplicateFilter
 from ..dynamics import Trajectory
 from ..log import UpdateHook
@@ -832,7 +830,7 @@ class Viewer:
                                 pose=[frame_pose.translation, None],
                                 remove_if_exists=True,
                                 auto_refresh=False,
-                                radius=0.01)
+                                radius=0.006)
 
             self.display_contact_frames(self._display_contact_frames)
 
@@ -1840,34 +1838,17 @@ class Viewer:
     @staticmethod
     @_with_lock
     @_must_be_open
-    def update_floor(ground_profile: Optional[jiminy.HeightmapFunction] = None,
-                     x_range: Tuple[float, float] = (-10.0, 10.0),
-                     y_range: Tuple[float, float] = (-10.0, 10.0),
-                     grid_unit:  Tuple[float, float] = (0.04, 0.04),
-                     simplify_mesh: bool = False,
+    def update_floor(geom: Optional[hppfcl.CollisionGeometry] = None,
                      show_vertices: bool = False) -> None:
         """Display a custom ground profile as a height map or the original tile
         ground floor.
 
-        :param ground_profile: `jiminy_py.core.HeightmapFunction` associated
-                               with the ground profile. It renders a flat tile
-                               ground if not specified.
-                               Optional: None by default.
-        :param x_range: Tuple gathering min and max limits along x-axis for
-                        which the heightmap mesh associated with the ground
-                        profile will be procedurally generated.
-                        Optional: (-10.0, 10.0) by default.
-        :param y_range: Tuple gathering min and max limits along y-axis.
-                        Optional: (-10.0, 10.0) by default.
-        :param grid_unit: Tuple gathering X and Y discretization steps for the
-                          generation of the heightmap mesh.
-                          Optional: 4cm by default.
-        :param simplify_mesh: Whether the generated heightmap mesh should be
-                              decimated before final rendering. This option
-                              must be enabled for the ratio between grid size
-                              and unit is very large to avoid a prohibitive
-                              slowdown of the viewer.
-                              Optional: False by default
+        :param geom: Collision geometry associated with the ground profile. A
+                     flat tile ground will be rendered if not specified. Note
+                     that symbolic function `jiminy_py.core.HeightmapFunction`
+                     can be converted in collision geometry by calling
+                     `jiminy_py.core.discretize_heightmap`.
+                     Optional: None by default.
         :param show_vertices: Whether to highlight the mesh vertices.
                               Optional: disabled by default.
         """
@@ -1876,13 +1857,6 @@ class Viewer:
         # Assert(s) for type checker
         assert Viewer.backend is not None
         assert Viewer._backend_obj is not None
-
-        # Discretize ground profile if provided
-        geom = None
-        if ground_profile is not None:
-            geom = discretize_heightmap(
-                ground_profile, *x_range, grid_unit[0], *y_range, grid_unit[1],
-                must_simplify=simplify_mesh)
 
         # Render original flat tile ground if possible.
         # TODO: Improve this check using LocalAABB box geometry instead.
