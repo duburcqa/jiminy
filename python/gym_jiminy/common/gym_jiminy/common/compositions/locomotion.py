@@ -670,7 +670,7 @@ def angle_difference(delta: ArrayOrScalar) -> ArrayOrScalar:
 
     :param delta: Pre-computed difference between left and right angles.
     """
-    return delta - np.floor((delta + np.pi) / (2.0 * np.pi)) * (2.0 * np.pi)
+    return delta - np.floor((delta + np.pi) / (2 * np.pi)) * (2 * np.pi)
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
@@ -707,8 +707,11 @@ def angle_total(angles: np.ndarray) -> np.ndarray:
     :param angle: Temporal sequence of angles as a multi-dimensional array
                   whose last dimension gathers all the successive timesteps.
     """
+    # Note that `angle_difference` has been manually inlined as it results in
+    # about 50% speedup, which is surprising.
     delta = angles[..., 1:] - angles[..., :-1]
-    return np.sum(np.minimum(delta, 2 * np.pi - delta))
+    delta -= np.floor((delta + np.pi) / (2.0 * np.pi)) * (2 * np.pi)
+    return np.sum(delta)
 
 
 class DriftTrackingBaseOdometryOrientationTermination(
