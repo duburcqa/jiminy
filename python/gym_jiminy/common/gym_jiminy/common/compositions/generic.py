@@ -5,7 +5,7 @@ and the application (locomotion, grasping...).
 from functools import partial
 from operator import sub, itemgetter
 from dataclasses import dataclass
-from typing import Optional, Callable, Tuple, TypeVar
+from typing import Optional, Callable, Tuple, Sequence, Union, TypeVar
 
 import numpy as np
 import numba as nb
@@ -15,7 +15,7 @@ from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity,
     QuantityEvalMode, AbstractReward, QuantityReward,
     AbstractTerminationCondition, QuantityTermination)
-from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
+from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar, Number
 from ..quantities import (
     EnergyGenerationMode, StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
     MultiActuatedJointKinematic, AverageMechanicalPowerConsumption)
@@ -24,6 +24,8 @@ from .mixin import radial_basis_function
 
 
 ValueT = TypeVar('ValueT')
+
+ArrayLike = Union[np.ndarray, Sequence[Union[Number, np.number]]]
 
 
 class SurviveReward(AbstractReward):
@@ -171,8 +173,8 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                  horizon: float,
                  grace_period: float = 0.0,
                  *,
-                 op: Callable[
-                    [ArrayOrScalar, ArrayOrScalar], ArrayOrScalar] = sub,
+                 op: Callable[[ArrayLike, ArrayLike], ArrayOrScalar] = sub,
+                 bounds_only: bool = True,
                  post_fn: Optional[Callable[
                     [ArrayOrScalar], ArrayOrScalar]] = None,
                  is_truncation: bool = False,
@@ -199,16 +201,26 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param op: Any callable taking the true and reference values of the
-                   quantity as input argument and returning the difference
-                   between them, considering the algebra defined by their Lie
-                   Group. The basic subtraction operator `operator.sub` is
-                   appropriate for Euclidean space.
-                   Optional: `operator.sub` by default.
-        :apram post_fn: Optional callable taking the true and reference drifts
-                        of the quantity as input argument and returning some
+        :param op: Any callable taking as input argument either the complete
+                   history of true or reference value of the quantity or only
+                   the most recent and oldest value stored in the history (in
+                   that exact order) depending on whether `bounds_only` is
+                   False or True respectively, and returning its variation over
+                   the whole span of the history. For instance, the difference
+                   between the most recent and oldest values stored in the
+                   history is is appropriate for position in Euclidean space,
+                   but not for orientation as it is important to count turns.
+                   Optional: `sub` by default.
+        :param bounds_only: Whether to pass only the ecent and oldest value
+                            stored in the history as input argument of `op`
+                            instead of the complete history (stacked as last
+                            dimenstion).
+                            Optional: True by default.
+        :apram post_fn: Optional callable taking the drift between the true and
+                        reference varation of the quantity over the whole
+                        history as input argument, and returning some
                         post-processed value to which bound checking will be
-                        applied. None to skip post-processing entirely.
+                        applied. `None` to skip post-processing entirely.
                         Optional: None by default.
         :param is_truncation: Whether the episode should be considered
                               terminated or truncated whenever the termination
@@ -228,19 +240,30 @@ class DriftTrackingQuantityTermination(QuantityTermination):
         self.max_stack = max_stack
         self.op = op
         self.post_fn = post_fn
+        self.bounds_only = bounds_only
 
         # Define drift of quantity
-        stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
-            quantity=quantity_creator(mode),
-            max_stack=max_stack))
-        delta_creator = lambda mode: (BinaryOpQuantity, dict(  # noqa: E731
-            quantity_left=(UnaryOpQuantity, dict(
-                quantity=stack_creator(mode),
-                op=itemgetter(-1))),
-            quantity_right=(UnaryOpQuantity, dict(
-                quantity=stack_creator(mode),
-                op=itemgetter(0))),
-            op=op))
+        delta_creator: Callable[[QuantityEvalMode], QuantityCreator]
+        if self.bounds_only:
+            stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
+                quantity=quantity_creator(mode),
+                max_stack=max_stack))
+            delta_creator = lambda mode: (BinaryOpQuantity, dict(  # noqa: E731
+                quantity_left=(UnaryOpQuantity, dict(
+                    quantity=stack_creator(mode),
+                    op=itemgetter(-1))),
+                quantity_right=(UnaryOpQuantity, dict(
+                    quantity=stack_creator(mode),
+                    op=itemgetter(0))),
+                op=op))
+        else:
+            delta_creator = lambda mode: (UnaryOpQuantity, dict(  # noqa: E731
+                quantity=(StackedQuantity, dict(
+                    quantity=quantity_creator(mode),
+                    max_stack=max_stack,
+                    is_wrapping=False,
+                    as_array=True)),
+                op=op))
 
         # Add drift quantity to the set of quantities managed by environment
         drift_tracking_quantity = (BinaryOpQuantity, dict(
@@ -330,7 +353,6 @@ class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
                    common subtraction operator `operator.sub` is appropriate
                    for Euclidean space.
                    Optional: `operator.sub` by default.
-        :param order: Order of L^p-norm that will be used as distance metric.
         :param is_truncation: Whether the episode should be considered
                               terminated or truncated whenever the termination
                               condition is triggered.
