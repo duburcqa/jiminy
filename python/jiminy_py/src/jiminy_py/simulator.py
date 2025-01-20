@@ -415,6 +415,36 @@ class Simulator:
         return robot_state
 
     @property
+    def log_data(self) -> Dict[str, Any]:
+        """Get log data (constants and time-continuous variables) associated
+        with the ongoing simulation if any, the previous one otherwise.
+
+        .. note::
+            Quantities at acceleration-level and beyond are inherently
+            time-discountinuous. More specifically, their value at time t- and
+            t+ would be different, under the effect of discontinuous command
+            update or impulse forces. Becaue of this, one has to decide whether
+            to log either t-, t+ or both. If the telemetry option
+            `logInternalStepperSteps` is enabled, then both would be logged.
+            Otherwise, it was decided to only log t+ for efficiency, since it
+            is actually these values that are ultimately involved in the
+            integration scheme over time, while t- is nonetheless interesting
+            for monitoring and debug. In practice, values at t+ are only known
+            at the beginning of each simulation step. Because of this, the
+            latest timestamp can only be logged at the beginning of every
+            simulation step rather than at the end, as one would intuitively
+            expect. As a side effect, a simulation must be `stop` explictly for
+            the last timestamp to be logged, otherwise it will be missing.
+
+        .. note::
+            Internally, log data are cached for efficiency. However, this cache
+            must be cleared after each simulation step and after starting a new
+            one.  This means that accessing log data multiple times throughput
+            a simulation is not recommended beyond prototyping and debug.
+        """
+        return self.engine.log_data
+
+    @property
     def is_viewer_available(self) -> bool:
         """Returns whether some viewer instances associated with the ongoing
         simulation is currently opened.

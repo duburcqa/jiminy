@@ -1,8 +1,8 @@
 # pylint: disable=missing-module-docstring
 
-from .locomotion import tanh_normalization, MaximizeRobusntess
+from .locomotion import sigmoid_normalization, MaximizeRobustness
 
 __all__ = [
-    "tanh_normalization",
-    "MaximizeRobusntess"
+    "sigmoid_normalization",
+    "MaximizeRobustness"
 ]

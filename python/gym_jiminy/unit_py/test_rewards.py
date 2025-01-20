@@ -9,6 +9,7 @@ import numpy as np
 import gymnasium as gym
 from jiminy_py.log import extract_trajectory_from_log
 
+from gym_jiminy.common.bases import InterfaceJiminyEnv
 from gym_jiminy.common.compositions import (
     CUTOFF_ESP,
     TrackingActuatedJointPositionsReward,
@@ -22,15 +23,17 @@ from gym_jiminy.common.compositions import (
     SurviveReward,
     AdditiveMixtureReward)
 from gym_jiminy.toolbox.compositions import (
-    tanh_normalization,
-    MaximizeRobusntess)
+    sigmoid_normalization,
+    MaximizeRobustness)
 
 
 class Rewards(unittest.TestCase):
     """ TODO: Write documentation
     """
     def setUp(self):
-        self.env = gym.make("gym_jiminy.envs:atlas-pid", debug=False)
+        env = gym.make("gym_jiminy.envs:atlas-pid", debug=False)
+        assert isinstance(env, InterfaceJiminyEnv)
+        self.env = env
 
         self.env.eval()
         self.env.reset(seed=1)
@@ -47,13 +50,13 @@ class Rewards(unittest.TestCase):
     def test_deletion(self):
         """ TODO: Write documentation
         """
-        assert len(self.env.quantities.registry) == 0
+        assert len(self.env.quantities._registry) == 0
         reward_survive = TrackingActuatedJointPositionsReward(
             self.env, cutoff=1.0)
-        assert len(self.env.quantities.registry) > 0
+        assert len(self.env.quantities._registry) > 0
         del reward_survive
         gc.collect()
-        assert len(self.env.quantities.registry) == 0
+        assert len(self.env.quantities._registry) == 0
 
     def test_tracking(self):
         """ TODO: Write documentation
@@ -121,8 +124,8 @@ class Rewards(unittest.TestCase):
         """ TODO: Write documentation
         """
         CUTOFF_INNER, CUTOFF_OUTER = 0.1, 0.5
-        reward_stability = MaximizeRobusntess(
-            self.env, cutoff=0.1, cutoff_outer=0.5)
+        reward_stability = MaximizeRobustness(
+            self.env, cutoff_inner=CUTOFF_INNER, cutoff_outer=CUTOFF_OUTER)
         quantity = reward_stability.data
 
         self.env.reset(seed=0)
@@ -130,12 +133,18 @@ class Rewards(unittest.TestCase):
         _, _, terminated, _, _ = self.env.step(action)
 
         support_polygon = quantity.support_polygon.get()
-        dist = support_polygon.get_distance_to_point(quantity.zmp.get())
-        value = tanh_normalization(dist.item(), -CUTOFF_INNER, CUTOFF_OUTER)
-        np.testing.assert_allclose(tanh_normalization(
-            -CUTOFF_INNER, -CUTOFF_INNER, CUTOFF_OUTER), 1.0 - CUTOFF_ESP)
-        np.testing.assert_allclose(tanh_normalization(
-            CUTOFF_OUTER, -CUTOFF_INNER, CUTOFF_OUTER), CUTOFF_ESP)
+        dist = - support_polygon.get_distance_to_point(quantity.zmp.get())
+        value = sigmoid_normalization(
+            dist.item(), -CUTOFF_OUTER, CUTOFF_INNER, True)
+        for is_asymmetric in (True, False):
+            np.testing.assert_allclose(
+                sigmoid_normalization(
+                    CUTOFF_INNER, -CUTOFF_OUTER, CUTOFF_INNER, is_asymmetric),
+                1.0 - CUTOFF_ESP)
+            np.testing.assert_allclose(
+                sigmoid_normalization(
+                    -CUTOFF_OUTER, -CUTOFF_OUTER, CUTOFF_INNER, is_asymmetric),
+                CUTOFF_ESP)
         np.testing.assert_allclose(reward_stability(terminated, {}), value)
 
     def test_friction(self):

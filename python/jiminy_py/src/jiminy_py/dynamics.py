@@ -145,6 +145,9 @@ class State:
     """
 
 
+TrajectoryTimeMode = Literal['raise', 'wrap', 'clip']
+
+
 @dataclass
 class Trajectory:
     """Trajectory of a robot.
@@ -354,9 +357,7 @@ class Trajectory:
 
         return data
 
-    def get(self,
-            t: float,
-            mode: Literal['raise', 'wrap', 'clip'] = 'raise') -> State:
+    def get(self, t: float, mode: TrajectoryTimeMode = 'raise') -> State:
         """Query the state at a given timestamp.
 
         Internally, the nearest neighbor states are linearly interpolated,
@@ -398,7 +399,8 @@ class Trajectory:
             t = max(t, t_start)  # Clipping right it is sufficient
 
         # Rounding time to avoid cache miss issues
-        t = round(t / TRAJ_INTERP_TOL) * TRAJ_INTERP_TOL
+        # Note that `int(x + 0.5)` is faster than `round(x)`.
+        t = int(t / TRAJ_INTERP_TOL + 0.5) * TRAJ_INTERP_TOL
 
         # Interpolate state at the desired time
         state = State(t=t_orig, **self._get(t))

@@ -231,8 +231,7 @@ namespace jiminy::python
                  (bp::arg("self"), "name", "value"))
             .def("register_variable",
                  &internal::abstract_controller::registerVariable,
-                 (bp::arg("self"), "name", "value"),
-                 "@copydoc AbstractController::registerVariable")
+                 (bp::arg("self"), "name", "value"))
             .def("register_variables",
                  &internal::abstract_controller::registerVariableArray,
                  (bp::arg("self"), "fieldnames", "values"))

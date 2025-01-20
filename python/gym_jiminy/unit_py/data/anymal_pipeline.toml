@@ -8,7 +8,7 @@ step_dt = 0.04
 [env_config.trajectories]
 mode = "raise"
 name = "reference"
-dataset.reference = "./anymal_trajectory.hdf5"
+dataset.reference = ["./anymal_trajectory.hdf5", "raise"]
 
 # ======================= Ad-hoc termination conditions =======================
 

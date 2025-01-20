@@ -40,7 +40,7 @@ namespace jiminy
             {
                 /* Equivalent to `stateIncrement_ += (dt * A_(i, j)) * ki_[j]`
                    but more efficient because it avoid temporaries. */
-                stateIncrement_.sumInPlace(ki_[j], dt * A_(i, j));
+                stateIncrement_.sumInPlace(ki_[j], dt * A_.coeff(i, j));
             }
             state.sum(stateIncrement_, stateBuffer_);
             ki_[i] = f(t + c_[i] * dt, stateBuffer_);

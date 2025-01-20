@@ -71,11 +71,8 @@ class QuantityObserver(BaseObserverBlock[ValueT, None, BaseObs, BaseAct]):
         :param kwargs: Additional arguments that will be forwarded to the
                        constructor of the quantity.
         """
-        # Add the quantity to the environment
-        env.quantities[name] = (quantity, kwargs)
-
-        # Define proxy for fast access
-        self.data = env.quantities.registry[name]
+        # Add the quantity to the environment and define proxy for fast access
+        self.data = env.quantities.add(name, (quantity, kwargs))
 
         # Initialize the observer
         super().__init__(name, env, update_ratio)
@@ -93,7 +90,7 @@ class QuantityObserver(BaseObserverBlock[ValueT, None, BaseObs, BaseAct]):
 
     def __del__(self) -> None:
         try:
-            del self.env.quantities[self.name]
+            self.env.quantities.discard(self.name)
         except Exception:   # pylint: disable=broad-except
             # This method must not fail under any circumstances
             pass

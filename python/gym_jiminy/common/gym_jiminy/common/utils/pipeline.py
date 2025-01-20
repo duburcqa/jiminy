@@ -15,7 +15,7 @@ from functools import partial
 from collections.abc import Sequence
 from typing import (
     Dict, Any, Optional, Union, Type, Sequence as SequenceT, Callable,
-    TypedDict, Literal, overload, cast)
+    Tuple, TypedDict, Literal, overload, cast)
 
 import h5py
 import tomlkit
@@ -24,7 +24,7 @@ import gymnasium as gym
 
 import jiminy_py.core as jiminy
 import pinocchio as pin
-from jiminy_py.dynamics import State, Trajectory
+from jiminy_py.dynamics import State, Trajectory, TrajectoryTimeMode
 
 from ..quantities import EnergyGenerationMode, OrientationType
 from ..bases import (QuantityEvalMode,
@@ -85,8 +85,9 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
     format, the name of the selected trajectory, and its interpolation mode.
     """
 
-    dataset: Dict[str, Union[str, Trajectory]]
-    """Set of named trajectories as a dictionary.
+    dataset: Dict[str, Tuple[Union[str, Trajectory], TrajectoryTimeMode]]
+    """Set of named tuples (trajectory, mode) as a dictionary, where 'mode'
+    corresponds the time wrapping mode. See `Trajectory.get` for details.
 
     .. note::
         Both `Trajectory` objects or path (absolute or relative) are supported.
@@ -97,12 +98,6 @@ class TrajectoryDatabaseConfig(TypedDict, total=False):
 
     This attribute can be omitted. If so, the first trajectory being specified
     will be selected by default.
-    """
-
-    mode: Literal['raise', 'wrap', 'clip']
-    """Interpolation mode of the selected trajectory.
-
-    This attribute can be omitted. If so, 'raise' mode is used by default.
     """
 
     augment_observation: bool
@@ -234,11 +229,12 @@ class LayerConfig(TypedDict, total=False):
     """
 
 
-def build_pipeline(env_config: EnvConfig,
-                   layers_config: SequenceT[LayerConfig] = (),
-                   *,
-                   root_path: Optional[Union[str, pathlib.Path]] = None
-                   ) -> Callable[..., InterfaceJiminyEnv]:
+def build_pipeline(
+        env_config: EnvConfig,
+        layers_config: SequenceT[LayerConfig] = (),
+        *,
+        root_path: Optional[Union[str, pathlib.Path]] = None
+        ) -> Callable[..., Union[BaseJiminyEnv, BasePipelineWrapper]]:
     """Wrap together an environment inheriting from `BaseJiminyEnv` with any
     number of layers, as a unified pipeline environment class inheriting from
     `BasePipelineWrapper`. Each layer is wrapped individually and successively.
@@ -258,8 +254,8 @@ def build_pipeline(env_config: EnvConfig,
     def sanitize_special_string(kwargs: Dict[str, Any]) -> None:
         """Replace in-place some special strings with their object counterpart.
 
-        This method deals with enums, None ("none") and special floats ("nan",
-        "+/-inf").
+        This method deals with enums, None ("none"), Ellipsis ("...") and
+        special floats ("nan", "+/-inf").
 
         :param kwargs: Nested dictionary of options.
         """
@@ -273,6 +269,9 @@ def build_pipeline(env_config: EnvConfig,
 
             if value == "none":
                 kwargs[key] = None
+                continue
+            if value == "...":
+                kwargs[key] = Ellipsis
                 continue
             if value == "nan" or value.endswith("inf"):
                 kwargs[key] = float(value)
@@ -373,11 +372,12 @@ def build_pipeline(env_config: EnvConfig,
 
     # Define helper to build reward
     def build_composition_layer(
-            env_creator: Callable[..., InterfaceJiminyEnv],
+            env_creator: Callable[..., Union[
+                BaseJiminyEnv, BasePipelineWrapper]],
             reward_config: Optional[CompositionConfig],
             terminations_config: SequenceT[CompositionConfig],
             trajectories_config: Optional[TrajectoryDatabaseConfig],
-            **env_kwargs: Any) -> InterfaceJiminyEnv:
+            **env_kwargs: Any) -> Union[BaseJiminyEnv, BasePipelineWrapper]:
         """Helper adding reward components and/or termination conditions on top
         of a base environment or a pipeline using `ComposedJiminyEnv` wrapper.
 
@@ -412,10 +412,11 @@ def build_pipeline(env_config: EnvConfig,
 
         # Get trajectory dataset
         augment_observation = False
-        trajectories: Dict[str, Trajectory] = {}
+        trajectories: Dict[str, Tuple[Trajectory, TrajectoryTimeMode]] = {}
         if trajectories_config is not None:
             trajectories = cast(
-                Dict[str, Trajectory], trajectories_config["dataset"])
+                Dict[str, Tuple[Trajectory, TrajectoryTimeMode]],
+                trajectories_config["dataset"])
             augment_observation = trajectories_config.get(
                 "augment_observation", False)
 
@@ -431,20 +432,20 @@ def build_pipeline(env_config: EnvConfig,
         if trajectories_config is not None:
             name = trajectories_config.get("name")
             if name is not None:
-                mode = trajectories_config.get("mode", "raise")
-                env.quantities.trajectory_dataset.select(name, mode)
+                env.quantities.trajectory_dataset.select(name)
 
         return env
 
     # Define helper to wrap a single layer
     def build_controller_observer_layer(
-            env_creator: Callable[..., InterfaceJiminyEnv],
+            env_creator: Callable[..., Union[
+                BaseJiminyEnv, BasePipelineWrapper]],
             wrapper_cls: Type[BasePipelineWrapper],
             wrapper_kwargs: Dict[str, Any],
             block_cls: Optional[Type[InterfaceBlock]],
             block_kwargs: Dict[str, Any],
             **env_kwargs: Any
-            ) -> InterfaceJiminyEnv:
+            ) -> Union[BaseJiminyEnv, BasePipelineWrapper]:
         """Helper wrapping a base environment or a pipeline with an additional
         observer-controller layer.
 
@@ -506,7 +507,7 @@ def build_pipeline(env_config: EnvConfig,
         obj = locate(env_cls)
         assert isinstance(obj, type) and issubclass(obj, BaseJiminyEnv)
         env_cls = obj
-    pipeline_creator: Callable[..., InterfaceJiminyEnv] = partial(
+    pipeline_creator: Callable[..., BaseJiminyEnv] = partial(
         env_cls, **env_config.get("kwargs", {}))
 
     # Parse reward configuration
@@ -525,7 +526,7 @@ def build_pipeline(env_config: EnvConfig,
     if trajectories_config is not None:
         trajectories = trajectories_config['dataset']
         assert isinstance(trajectories, dict)
-        for name, path_or_traj in trajectories.items():
+        for name, (path_or_traj, mode) in trajectories.items():
             if isinstance(path_or_traj, Trajectory):
                 continue
             path = pathlib.Path(path_or_traj)
@@ -535,7 +536,8 @@ def build_pipeline(env_config: EnvConfig,
                         "The argument 'root_path' must be provided when "
                         "specifying relative trajectory paths.")
                 path = pathlib.Path(root_path) / path
-            trajectories[name] = load_trajectory_from_hdf5(path)
+            trajectory = load_trajectory_from_hdf5(path)
+            trajectories[name] = (trajectory, mode)
 
     # Add extra user-specified reward, termination conditions and trajectories
     pipeline_creator = partial(build_composition_layer,
@@ -617,8 +619,9 @@ def build_pipeline(env_config: EnvConfig,
     return pipeline_creator
 
 
-def load_pipeline(fullpath: Union[str, pathlib.Path]
-                  ) -> Callable[..., InterfaceJiminyEnv]:
+def load_pipeline(
+        fullpath: Union[str, pathlib.Path]
+        ) -> Callable[..., Union[BaseJiminyEnv, BasePipelineWrapper]]:
     """Load pipeline from JSON or TOML configuration file.
 
     :param: Fullpath of the configuration file.

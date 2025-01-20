@@ -676,7 +676,7 @@ class PPOTorchLearner(_PPOTorchLearner):
 
         if (config.symmetric_policy_reg > 0.0 and
                 not config.enable_symmetry_surrogate_loss):
-            # Minimize the assymetry of self output
+            # Minimize the asymmetry of self output
             symmetric_policy_reg = (
                 actions_all["mirrored"] - action_mirrored_mean) ** 2
             mean_symmetric_policy_reg = possibly_masked_mean(

@@ -99,9 +99,10 @@ class PipelineControl(unittest.TestCase):
 
         # Check that the joint velocity target is zero
         time = log_vars["Global.Time"]
+        controller = self.env.get_wrapper_attr("controller")
         velocity_target = np.stack([
-            log_vars['.'.join(("controller", self.env.controller.name, name))]
-            for name in self.env.controller.fieldnames], axis=-1)
+            log_vars['.'.join(("controller", controller.name, name))]
+            for name in controller.fieldnames], axis=-1)
         self.assertTrue(np.all(
             np.abs(velocity_target[time > time[-1] - 1.0]) < 1.0e-9))
 
@@ -263,7 +264,7 @@ class PipelineControl(unittest.TestCase):
         env = AtlasPDControlJiminyEnv()
 
         # Make sure that a PD controller is plugged to the robot
-        adapter = env.controller
+        adapter = env.get_wrapper_attr("controller")
         assert isinstance(adapter, PDAdapter) and adapter.order == 1
         controller = env.env.env.controller
         assert isinstance(controller, PDController)

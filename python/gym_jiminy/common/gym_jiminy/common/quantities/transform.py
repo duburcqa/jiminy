@@ -312,7 +312,7 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
     """Base quantity whose elements must be extracted.
     """
 
-    indices: Tuple[int, ...]
+    indices: Tuple[Union[int, EllipsisType], ...]
     """Indices of the elements to extract.
     """
 
@@ -324,7 +324,8 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  quantity: QuantityCreator[np.ndarray],
-                 keys: Union[Sequence[int], Sequence[bool]],
+                 keys: Union[Sequence[Union[int, EllipsisType]],
+                             Sequence[bool]],
                  *,
                  axis: Optional[int] = 0) -> None:
         """
@@ -336,38 +337,86 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
                          constructor except 'env' and 'parent'.
         :param keys: Sequence of indices or boolean mask that will be used to
                      extract elements from the quantity along one axis.
+                     Ellipsis can be specified to automatically extract any
+                     indices in between surrounding indices or at both ends.
+                     Ellipsis on the right end is only supported for indices
+                     with constant stride.
         :param axis: Axis over which to extract elements. `None` to consider
                      flattened array.
                      Optional: First axis by default.
         """
-        # Check if indices or boolean mask has been provided
-        if all(isinstance(e, bool) for e in keys):
-            keys = tuple(np.flatnonzero(keys))
-        elif not all(isinstance(e, int) for e in keys):
-            raise ValueError(
-                "Argument 'keys' invalid. It must either be a boolean mask, "
-                "or a sequence of indices.")
+        # Convert boolean mask to indices
+        if any(isinstance(e, (bool, np.bool_)) for e in keys):
+            if not all(isinstance(e, (bool, np.bool_)) for e in keys):
+                raise ValueError(
+                    "Interleave boolean mask with ellipsis is not supported.")
+            keys = tuple(np.flatnonzero(keys))  # type: ignore[arg-type]
 
-        # Backup user arguments
-        self.indices = tuple(keys)
-        self.axis = axis
+        # Convert keys to tuple while removing consecutive ellipsis if any
+        keys = tuple(
+            e if e is Ellipsis else int(e)
+            for e, _next in zip(keys, (*keys[1:], object()))
+            if e is not Ellipsis or _next != e)
+
+        # Replace intermediary ellipsis by indices if possible.
+        # Note that it is important to do this substitution BEFORE storing
+        # indices as attribute, otherwise masked quantities whose keys are
+        # different be actually corresponds to identicial indices would be
+        # identified as different as recomputed, e.g. (1, 2, 3) vs (..., 3).
+        if any(e is Ellipsis for e in keys):
+            for i in range(len(keys))[1:-1][::-1]:
+                if keys[i] is Ellipsis:
+                    indices = range(
+                        keys[i - 1], keys[i + 1])  # type: ignore[arg-type]
+                    keys = (*keys[:(i - 1)], *indices, *keys[(i + 1):])
+            if len(keys) > 1 and keys[0] is Ellipsis:
+                assert isinstance(keys[1], int)
+                keys = (*range(0, keys[1]), *keys[1:])
 
         # Make sure that at least one index must be extracted
-        if not self.indices:
+        if not keys:
             raise ValueError(
                 "No indices to extract from quantity. Data would be empty.")
 
+        # Make sure that at least one index must be extracted
+        if keys == (Ellipsis,):
+            raise ValueError(
+                "Specifying `keys=(...,)` is not allowed as it has no effect.")
+
+        # Check if indices or ellipsis has been provided
+        if not all((e is Ellipsis) or isinstance(e, int) for e in keys):
+            raise ValueError(
+                "Argument 'keys' invalid. It must either be a boolean mask, "
+                "or a sequence of indices and ellipsis.")
+
+        # Backup user arguments
+        self.indices = keys
+        self.axis = axis
+
         # Check if the indices are evenly spaced
-        self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
         stride: Optional[int] = None
-        if len(self.indices) == 1:
+        keys_heads, key_tail = cast(Tuple[int, ...], keys[:-1]), keys[-1]
+        if len(keys) == 1:
             stride = 1
-        if len(self.indices) > 1 and all(e >= 0 for e in self.indices):
-            spacing = np.unique(np.diff(self.indices))
-            if spacing.size == 1:
-                stride = spacing[0]
+        elif all(e >= 0 for e in keys if e is not Ellipsis):
+            if key_tail is Ellipsis:
+                spaces = np.array((*np.diff(keys_heads), 1))
+            else:
+                spaces = np.diff((*keys_heads, key_tail))
+            try:
+                (stride,) = np.unique(spaces)
+            except ValueError as e:
+                if key_tail is Ellipsis:
+                    raise ValueError(
+                        "Ellipsis on the right end is only supported for "
+                        "sequence of indices with constant stride.") from e
+
+        # Convert indices to slices if possible
+        self._slices: Tuple[Union[slice, EllipsisType], ...] = ()
         if stride is not None:
-            slice_ = slice(self.indices[0], self.indices[-1] + 1, stride)
+            slice_ = slice(keys[0],
+                           None if key_tail is Ellipsis else key_tail + 1,
+                           stride)
             if axis is None:
                 self._slices = (slice_,)
             elif axis >= 0:
@@ -391,12 +440,100 @@ class MaskedQuantity(InterfaceQuantity[np.ndarray]):
             # Note that `take` is faster than classical advanced indexing via
             # `operator[]` (`__getitem__`) because the latter is more generic.
             # Notably, `operator[]` supports boolean mask but `take` does not.
-            return value.take(self.indices, self.axis)
+            return value.take(
+                self.indices, self.axis)  # type: ignore[arg-type]
         if self.axis is None:
             # `ravel` must be used instead of `flat` to get a view that can
             # be sliced without copy.
             return value.ravel(order="K")[self._slices]
         return value[self._slices]
+
+
+@dataclass(unsafe_hash=True)
+class ConcatenatedQuantity(InterfaceQuantity[np.ndarray]):
+    """Concatenate a set of quantities whose value are N-dimensional arrays
+    along a given axis.
+
+    All the quantities must have the same shape, except for the dimension
+    corresponding to concatenation axis.
+    """
+
+    quantities: Tuple[InterfaceQuantity[np.ndarray], ...]
+    """Base quantities whose values must be concatenated.
+    """
+
+    axis: int
+    """Axis over which to concatenate values.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 quantities: Sequence[QuantityCreator[np.ndarray]],
+                 *,
+                 axis: int = 0) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param quantities: Sequence of tuples, each of which gathering the
+                           class of the quantity whose values must be
+                           extracted, plus any keyword-arguments of its
+                           constructor except 'env' and 'parent'.
+        :param axis: Axis over which to concatenate values.
+                     Optional: First axis by default.
+        """
+        # Backup user arguments
+        self.axis = axis
+
+        # Call base implementation
+        super().__init__(env,
+                         parent,
+                         requirements={
+                            str(i): quantity
+                            for i, quantity in enumerate(quantities)
+                         },
+                         auto_refresh=False)
+
+        # Define proxies for fast access
+        if len(quantities) < 2:
+            raise ValueError(
+                "Specifying less than 2 quantities is not allowed.")
+        self.quantities = tuple(self.requirements.values())
+
+        # Continuous memory to store the result
+        # Note that it will be allocated lazily since the dimension of the
+        # quantity is not known in advance.
+        self._data = np.array([])
+
+        # Store slices of data associated with each individual quantity
+        self._data_slices: List[np.ndarray] = []
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Get current value of all the quantities
+        values = [quantity.get() for quantity in self.quantities]
+
+        # Allocate contiguous memory
+        self._data = np.concatenate(values, axis=self.axis)
+
+        # Compute slices of data
+        self._data_slices.clear()
+        idx_start = 0
+        for data in values:
+            idx_end = idx_start + data.shape[self.axis]
+            self._data_slices.append(self._data[
+                (*((slice(None),) * self.axis), slice(idx_start, idx_end))])
+            idx_start = idx_end
+
+    def refresh(self) -> np.ndarray:
+        # Refresh the contiguous buffer
+        multi_array_copyto(self._data_slices,
+                           [quantity.get() for quantity in self.quantities])
+
+        return self._data
 
 
 @dataclass(unsafe_hash=True)
