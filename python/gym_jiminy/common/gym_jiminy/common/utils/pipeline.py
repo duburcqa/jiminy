@@ -476,7 +476,7 @@ def build_pipeline(
 
         # Instantiate the block associated with the wrapper if any
         if block_cls is not None:
-            block_name = block_kwargs.pop("name", None)
+            block_name = block_kwargs.get("name", None)
             if block_name is None:
                 block_index = 0
                 env_wrapper: gym.Env = env
@@ -494,8 +494,9 @@ def build_pipeline(
                     ).lower()
                 if block_index:
                     block_name += f"_{block_index}"
+                block_kwargs["name"] = block_name
 
-            block = block_cls(block_name, env, **block_kwargs)
+            block = block_cls(env=env, **block_kwargs)
             args.append(block)
 
         # Instantiate the wrapper
