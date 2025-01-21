@@ -14,7 +14,7 @@ setup(
     author_email="alexis.duburcq@gmail.com",
     maintainer="Alexis Duburcq",
     license="MIT",
-    python_requires=">=3.10,<3.13",
+    python_requires=">=3.10,<3.14",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Science/Research",
@@ -23,7 +23,8 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12"
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13"
     ],
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),

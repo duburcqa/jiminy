@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['cp310', 'cp311', 'cp312']
+        PYTHON_VERSION: ['cp310', 'cp311', 'cp312', 'cp313']
         OS: [ubuntu-24.04]
         include:
           - OS: ubuntu-24.04
@@ -87,7 +87,6 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == 'cp313' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j4
 

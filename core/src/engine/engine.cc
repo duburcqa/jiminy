@@ -1505,11 +1505,12 @@ namespace jiminy
             telemetrySender_->registerConstant(key, saveToBinary(robot, isPersistent));
         }
 
-        // Log the ground profile if requested
+        // Log the (simplified) ground profile if requested
         if (engineOptions_->telemetry.isPersistent)
         {
-            hpp::fcl::CollisionGeometryPtr_t heightmap = discretizeHeightmap(
-                engineOptions_->world.groundProfile, -10.0, 10.0, 0.04, -10.0, 10.0, 0.04);
+            const HeightmapFunction & groundProfile = engineOptions_->world.groundProfile;
+            hpp::fcl::CollisionGeometryPtr_t heightmap =
+                discretizeHeightmap(groundProfile, -10.0, 10.0, 0.04, -10.0, 10.0, 0.04, true);
             telemetrySender_->registerConstant("groundProfile", saveToBinary(heightmap));
         }
 
