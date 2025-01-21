@@ -234,7 +234,7 @@ class ScaleObservation(BaseTransformObservation[ScaledObs, Obs, Act],
     def transform_observation(self) -> None:
         # First, copy the value of some leaves.
         # Guarding function call is faster than calling no-op python bindings.
-        if not self._copyto_dst:
+        if self._copyto_dst:
             multi_array_copyto(self._copyto_dst, self._copyto_src)
 
         # Apply scaling factor sequentially on some chunks
