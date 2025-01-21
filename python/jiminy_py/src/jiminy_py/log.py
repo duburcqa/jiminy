@@ -143,7 +143,7 @@ def build_robot_from_log(
     robot_data = log_constants[".".join(filter(None, (robot_name, "robot")))]
 
     # Load robot from binary data
-    return jiminy.load_from_binary(
+    return jiminy.load_robot_from_binary(
         robot_data, mesh_dir_path, mesh_package_dirs)
 
 

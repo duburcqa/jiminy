@@ -824,10 +824,14 @@ class Simulator:
         # Enable the ground profile is requested and available
         assert self.viewer is not None and self.viewer.backend is not None
         if update_ground_profile:
+            # Discretize ground profile
             engine_options = self.engine.get_options()
             ground_profile = engine_options["world"]["groundProfile"]
-            Viewer.update_floor(
-                ground_profile, simplify_mesh=True, show_vertices=False)
+            geom = jiminy.discretize_heightmap(
+                ground_profile, *((-10.0, 10.0, 0.04) * 2), must_simplify=True)
+
+            # Update viewer
+            Viewer.update_floor(geom, show_vertices=False)
 
         # Set the camera pose if requested
         if camera_pose is not None:
