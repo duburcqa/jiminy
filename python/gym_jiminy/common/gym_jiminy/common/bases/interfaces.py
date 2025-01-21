@@ -227,7 +227,7 @@ class InterfaceJiminyEnv(
         # with the updated state of the agent.
         self.__is_observation_refreshed = True
 
-        # Store latest engine measurement for efficiency
+        # Store latest engine measurement
         self.measurement = EngineObsType(
             t=np.array(0.0),
             states=OrderedDict(
@@ -237,7 +237,6 @@ class InterfaceJiminyEnv(
             measurements=OrderedDict(zip(
                 self.robot.sensor_measurements.keys(),
                 map(np.copy, self.robot.sensor_measurements.values()))))
-        self._sensors_types = tuple(self.robot.sensor_measurements.keys())
 
         # Define flattened engine measurement for efficiency
         agent_state = self.measurement['states']['agent']

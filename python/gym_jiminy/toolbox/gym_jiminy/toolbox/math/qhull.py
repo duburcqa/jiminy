@@ -273,8 +273,8 @@ def compute_distance_convex_to_ray(
             collision = ratio * vectors[j] + vertices[j]
             oriented_ray = collision - query_origin
             if oriented_ray.dot(query_dir) > 0.0:
-                casting_dist = min(  # type: ignore[assignment]
-                    np.linalg.norm(oriented_ray), casting_dist)
+                casting_dist = min(
+                    float(np.linalg.norm(oriented_ray)), casting_dist)
                 collide_num += 1
 
     # If the ray is intersecting with two edges and the sign of the oriented

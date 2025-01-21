@@ -1071,24 +1071,36 @@ namespace jiminy::python
     {
         SensorMeasurementTree sensorMeasurements;
         bp::dict sensorMeasurementTreePy = bp::extract<bp::dict>(dataPy);
-        bp::list sensorTypesPy = sensorMeasurementTreePy.keys();
-        bp::list SensorMeasurementMapsPy = sensorMeasurementTreePy.values();
-        for (bp::ssize_t i = 0; i < bp::len(sensorTypesPy); ++i)
+        // Note that `attr("items")()` is used rather than `item()` to get a view rather than a
+        // bp::list. This way, the items can be accessed lazyly without memory allocation.
+        // Moreover, `items()` actually returns a view for OrderedDict while it turns a list for
+        // `Dict`, and calling `bp::list` fails to make it subscritable for some reason...
+        auto SensorMeasurementTreeItemsPy = sensorMeasurementTreePy.attr("items")();
+        for (auto SensorMeasurementTreeItemPyIt =
+                 bp::stl_input_iterator<bp::tuple>(SensorMeasurementTreeItemsPy);
+             SensorMeasurementTreeItemPyIt != bp::stl_input_iterator<bp::tuple>();
+             ++SensorMeasurementTreeItemPyIt)
         {
             SensorMeasurementTree::mapped_type sensorMeasurementStack{};
-            std::string sensorType = bp::extract<std::string>(sensorTypesPy[i]);
-            bp::dict SensorMeasurementMapPy = bp::extract<bp::dict>(SensorMeasurementMapsPy[i]);
-            bp::list sensorNamesPy = SensorMeasurementMapPy.keys();
-            bp::list sensorMeasurementListPy = SensorMeasurementMapPy.values();
-            for (bp::ssize_t j = 0; j < bp::len(sensorNamesPy); ++j)
+            bp::tuple SensorMeasurementTreeItemPy = *SensorMeasurementTreeItemPyIt;
+            std::string sensorType = bp::extract<std::string>(SensorMeasurementTreeItemPy[0]);
+            bp::dict SensorMeasurementMapPy =
+                bp::extract<bp::dict>(SensorMeasurementTreeItemPy[1]);
+            auto SensorMeasurementItemsPy = SensorMeasurementMapPy.attr("items")();
+            bp::ssize_t sensorIndex = 0;
+            for (auto SensorMeasurementItemPyIt =
+                     bp::stl_input_iterator<bp::tuple>(SensorMeasurementItemsPy);
+                 SensorMeasurementItemPyIt != bp::stl_input_iterator<bp::tuple>();
+                 ++SensorMeasurementItemPyIt, ++sensorIndex)
             {
-                std::string sensorName = bp::extract<std::string>(sensorNamesPy[j]);
+                bp::tuple SensorMeasurementItemPy = *SensorMeasurementItemPyIt;
+                std::string sensorName = bp::extract<std::string>(SensorMeasurementItemPy[0]);
                 np::ndarray sensorMeasurementNumpy =
-                    bp::extract<np::ndarray>(sensorMeasurementListPy[j]);
+                    bp::extract<np::ndarray>(SensorMeasurementItemPy[1]);
                 auto sensorMeasurement =
                     convertFromPython<Eigen::Ref<const Eigen::VectorXd>>(sensorMeasurementNumpy);
                 sensorMeasurementStack.insert(
-                    {sensorName, static_cast<size_t>(j), sensorMeasurement});
+                    {sensorName, static_cast<size_t>(sensorIndex), sensorMeasurement});
             }
             sensorMeasurements.emplace(sensorType, std::move(sensorMeasurementStack));
         }
