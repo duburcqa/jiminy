@@ -75,8 +75,8 @@ jobs:
         if [[ "${{ matrix.GENERATOR }}" == 'Ninja' ]] ; then
           sudo apt install ninja-build
         fi
-        "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<=1.0" "stable_baselines3>=2.0,<2.5"
+        "${PYTHON_EXECUTABLE}" -m pip install torch -f https://download.pytorch.org/whl/torch
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.1" "stable_baselines3>=2.0,<2.5"
 
     #####################################################################################
 
