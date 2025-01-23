@@ -25,9 +25,14 @@
 #include "H5Cpp.h"
 #include "json/json.h"
 
+#define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
+#include "hpp/fcl/serialization/collision_object.h"  // `serialize<hpp::fcl::CollisionGeometry>`
+#undef HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
+
 #include "jiminy/core/telemetry/fwd.h"
 #include "jiminy/core/hardware/fwd.h"
 #include "jiminy/core/utilities/helpers.h"
+#include "jiminy/core/utilities/geometry.h"
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/json.h"
 #include "jiminy/core/io/file_device.h"
@@ -1498,6 +1503,15 @@ namespace jiminy
             const std::string key =
                 addCircumfix("robot", robot->getName(), {}, TELEMETRY_FIELDNAME_DELIMITER);
             telemetrySender_->registerConstant(key, saveToBinary(robot, isPersistent));
+        }
+
+        // Log the (simplified) ground profile if requested
+        if (engineOptions_->telemetry.isPersistent)
+        {
+            const HeightmapFunction & groundProfile = engineOptions_->world.groundProfile;
+            hpp::fcl::CollisionGeometryPtr_t heightmap =
+                discretizeHeightmap(groundProfile, -10.0, 10.0, 0.04, -10.0, 10.0, 0.04, true);
+            telemetrySender_->registerConstant("groundProfile", saveToBinary(heightmap));
         }
 
         // Log all options

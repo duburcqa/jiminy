@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         OS: ['macos-15']  # 'macos-13': Intel (x86), 'macos-14+': Apple Silicon (arm64)
-        PYTHON_VERSION: ['3.10', '3.11', '3.12']  # `setup-python` does not support Python<3.10 on Apple Silicon
+        PYTHON_VERSION: ['3.10', '3.11', '3.12', '3.13']  # `setup-python` does not support Python<3.10 on Apple Silicon
         BUILD_TYPE: ['Release']
         include:
           - OS: 'macos-13'
@@ -72,10 +72,14 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
         "${PYTHON_EXECUTABLE}" -m pip install delocate twine
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
-      if: matrix.PYTHON_VERSION != '3.13'
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<=1.0" "stable_baselines3>=2.0,<2.5"
+        # FIXME: Pre-release 2.6 is needed to install torch for Python 3.13 on MacOS
+        if [[ "${{ matrix.OS }}" != 'macos-13' ]] ; then
+          "${PYTHON_EXECUTABLE}" -m pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu
+        else
+          "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
+        fi
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.1" "stable_baselines3>=2.0,<2.5"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
         if [[ "${{ matrix.BUILD_TYPE }}" != 'Debug' && "${{ matrix.OS }}" != 'macos-13' ]] ; then
@@ -114,7 +118,6 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.13' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make -j4
 
@@ -214,7 +217,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
     - name: Run examples for gym jiminy add-on modules
-      if: matrix.BUILD_TYPE != 'Debug'
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.13'
       run: |
         export LD_LIBRARY_PATH="${InstallDir}/lib/:/usr/local/lib"
 

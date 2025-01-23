@@ -11,16 +11,21 @@ from typing import Any, Callable, Dict
 import numpy as np
 import gymnasium as gym
 
-import ray
-from ray.tune.registry import register_env
-from ray.rllib.algorithms import PPOConfig
-from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
+try:
+    import ray
+    from ray.tune.registry import register_env
+    from ray.rllib.algorithms import PPOConfig
+    from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
+    IS_RAY_AVAILABLE = True
+except ImportError:
+    IS_RAY_AVAILABLE = False
 
 from gym_jiminy.common.wrappers import FlattenObservation
 from gym_jiminy.envs import AcrobotJiminyEnv
 from gym_jiminy.toolbox.wrappers.meta_envs import BaseTaskSettableWrapper
-from gym_jiminy.rllib.utilities import initialize, train
-from gym_jiminy.rllib.curriculum import build_task_scheduling_callback
+if IS_RAY_AVAILABLE:
+    from gym_jiminy.rllib.utilities import initialize, train
+    from gym_jiminy.rllib.curriculum import build_task_scheduling_callback
 
 
 # Fix the seed for CI stability
@@ -62,6 +67,7 @@ class DummyTaskWrapper(BaseTaskSettableWrapper):
         return float(score)
 
 
+@unittest.skipIf(not IS_RAY_AVAILABLE, "Ray is not available.")
 class AcrobotTaskCurriculum(unittest.TestCase):
     """ TODO: Write documentation.
     """

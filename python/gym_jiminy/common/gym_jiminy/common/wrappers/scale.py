@@ -217,6 +217,8 @@ class ScaleObservation(BaseTransformObservation[ScaledObs, Obs, Act],
                 copy_ops.append((dst, src))
             observation_flat.append(dst)
         if copy_ops:
+            # FIXME: Could be optimized by avoiding copying fields for which
+            # the union of extracted slices is covering the whole subspace.
             self._copyto_dst, self._copyto_src = map(tuple, zip(*copy_ops))
         else:
             self._copyto_dst, self._copyto_src = (), ()
@@ -234,7 +236,7 @@ class ScaleObservation(BaseTransformObservation[ScaledObs, Obs, Act],
     def transform_observation(self) -> None:
         # First, copy the value of some leaves.
         # Guarding function call is faster than calling no-op python bindings.
-        if not self._copyto_dst:
+        if self._copyto_dst:
             multi_array_copyto(self._copyto_dst, self._copyto_src)
 
         # Apply scaling factor sequentially on some chunks

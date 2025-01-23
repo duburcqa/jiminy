@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        PYTHON_VERSION: ['3.10', '3.11', '3.12']
+        PYTHON_VERSION: ['3.10', '3.11', '3.12', '3.13']
         BUILD_TYPE: ['Release']
         include:
           - PYTHON_VERSION: '3.12'
@@ -69,10 +69,9 @@ jobs:
 
         git config --global advice.detachedHead false
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
-      if: matrix.PYTHON_VERSION != '3.13'
       run: |
-        "${PYTHON_EXECUTABLE}" -m pip install "torch" -f https://download.pytorch.org/whl/torch
-        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<=1.0" "stable_baselines3>=2.0,<2.5"
+        "${PYTHON_EXECUTABLE}" -m pip install torch -f https://download.pytorch.org/whl/torch
+        "${PYTHON_EXECUTABLE}" -m pip install "gymnasium>=0.28,<1.1" "stable_baselines3>=2.0,<2.5"
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
@@ -95,7 +94,6 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=ON \
               -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DINSTALL_GYM_JIMINY=${{ (matrix.PYTHON_VERSION == '3.13' && 'OFF') || 'ON' }} \
               -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${{ matrix.BUILD_TYPE }}"
         make install -j4
 
@@ -133,7 +131,7 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m unittest discover -s "${RootDir}/python/gym_jiminy/unit_py" -v
 
     - name: Run examples for gym jiminy add-on modules
-      if: matrix.BUILD_TYPE != 'Debug'
+      if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION != '3.13'
       run: |
         cd "${RootDir}/python/gym_jiminy/examples/rllib"
         "${PYTHON_EXECUTABLE}" acrobot_ppo.py

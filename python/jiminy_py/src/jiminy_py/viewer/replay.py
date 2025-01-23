@@ -25,6 +25,7 @@ import numpy as np
 from tqdm import tqdm
 
 import pinocchio as pin
+from hppfcl import CollisionGeometry
 
 from .. import core as jiminy
 from ..dynamics import Trajectory
@@ -153,6 +154,8 @@ def play_trajectories(
             Trajectory, Sequence[Trajectory]],
         update_hooks: Optional[
             Union[UpdateHook, Sequence[Optional[UpdateHook]]]] = None,
+        ground_profile: Optional[
+            Union[jiminy.HeightmapFunction, CollisionGeometry]] = None,
         time_interval: Union[np.ndarray, Tuple[float, float]] = (0.0, np.inf),
         speed_ratio: float = 1.0,
         xyz_offsets: Optional[
@@ -549,6 +552,13 @@ def play_trajectories(
     elif camera_pose is not None:
         viewer.set_camera_transform(*camera_pose)
 
+    # Display ground profile if provided
+    if ground_profile is not None:
+        if not isinstance(ground_profile, CollisionGeometry):
+            ground_profile = jiminy.discretize_heightmap(
+                ground_profile, *((-10.0, 10.0, 0.04) * 2), must_simplify=True)
+        viewer.update_floor(ground_profile)
+
     # Wait for the meshes to finish loading if video recording is disable
     if record_video_path is None:
         if backend == 'meshcat':
@@ -809,6 +819,19 @@ def play_logs_data(
     elif robots is None:
         robots = [None,] * len(logs_data)
 
+    # Extract ground profile if available
+    ground_profile: Optional[CollisionGeometry] = None
+    for log_data in logs_data:
+        data = log_data["constants"].get("groundProfile", None)
+        if data is not None:
+            if ground_profile is not None:
+                LOGGER.info(
+                    "Impossible to display multiple ground profiles at once. "
+                    "Only the one associated with the first log file will be "
+                    "considered.")
+                continue
+            ground_profile = jiminy.load_heightmap_from_binary(data)
+
     # Extract a replay data for `play_trajectories` for each pair (robot, log)
     trajectories, update_hooks, extra_kwargs = [], [], {}
     for log_data, robot in zip(logs_data, robots):
@@ -823,8 +846,10 @@ def play_logs_data(
         extra_kwargs.pop("display_f_external", None)
 
     # Finally, play the trajectories
-    return play_trajectories(
-        trajectories, update_hooks, **{**extra_kwargs, **kwargs})
+    return play_trajectories(trajectories,
+                             update_hooks,
+                             ground_profile,
+                             **{**extra_kwargs, **kwargs})
 
 
 def play_logs_files(logs_files: Union[str, Sequence[str]],

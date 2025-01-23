@@ -1633,7 +1633,10 @@ class MultiActuatedJointKinematic(AbstractQuantity[np.ndarray]):
         joint_to_motor_ratios = []
         self.kinematic_indices.clear()
         for motor in self.robot.motors:
-            joint = self.pinocchio_model.joints[motor.joint_index]
+            # Note that pinocchio model may be theoretical or extended, which
+            # means that `motor.joint_index` cannot be used reliably.
+            joint_index = self.pinocchio_model.getJointId(motor.joint_name)
+            joint = self.pinocchio_model.joints[joint_index]
             joint_type = jiminy.get_joint_type(joint)
             if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
                 raise ValueError(

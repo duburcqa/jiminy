@@ -8,6 +8,10 @@
 #include "jiminy/core/utilities/pinocchio.h"
 #include "jiminy/core/utilities/random.h"
 
+#define HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
+#include "hpp/fcl/serialization/collision_object.h"  // `serialize<hpp::fcl::CollisionGeometry>`
+#undef HPP_FCL_SKIP_EIGEN_BOOST_SERIALIZATION
+
 #define NO_IMPORT_ARRAY
 #include "jiminy/python/fwd.h"
 #include "jiminy/python/utilities.h"
@@ -88,6 +92,13 @@ namespace jiminy::python
         std::shared_ptr<jiminy::Robot> robot;
         loadFromBinary(robot, data, meshPathDir, meshPackageDirs);
         return robot;
+    }
+
+    hpp::fcl::CollisionGeometryPtr_t buildHeightmapFromBinary(const std::string & data)
+    {
+        hpp::fcl::CollisionGeometryPtr_t heightmap;
+        loadFromBinary(heightmap, data);
+        return heightmap;
     }
 
     np::ndarray solveJMinvJtv(
@@ -366,13 +377,15 @@ namespace jiminy::python
                  bp::arg("build_visual_model") = false,
                  bp::arg("load_visual_meshes") = false));
 
-        bp::def("save_to_binary", &saveRobotToBinary, (bp::arg("robot")));
+        bp::def("save_robot_to_binary", &saveRobotToBinary, (bp::arg("robot")));
 
-        bp::def("load_from_binary",
+        bp::def("load_robot_from_binary",
                 &buildRobotFromBinary,
                 (bp::arg("data"),
                  bp::arg("mesh_dir_path") = bp::object(),
                  bp::arg("mesh_package_dirs") = bp::list()));
+
+        bp::def("load_heightmap_from_binary", &buildHeightmapFromBinary, bp::arg("data"));
 
         bp::def("get_joint_type", &getJointType, bp::arg("joint_model"));
         bp::def(
