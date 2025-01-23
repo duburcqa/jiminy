@@ -18,7 +18,8 @@ from ..bases import (
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar, Number
 from ..quantities import (
     EnergyGenerationMode, StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
-    MultiActuatedJointKinematic, AverageMechanicalPowerConsumption)
+    MultiActuatedJointKinematic, MechanicalPowerConsumption,
+    AverageMechanicalPowerConsumption)
 
 from .mixin import radial_basis_function
 
@@ -591,7 +592,7 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
             self,
             env: InterfaceJiminyEnv,
             max_power: float,
-            horizon: float,
+            horizon: Optional[float] = None,
             generator_mode: EnergyGenerationMode = EnergyGenerationMode.CHARGE,
             grace_period: float = 0.0,
             *,
@@ -606,7 +607,9 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
                              to continue whatever happens.
                              Optional: 0.0 by default.
         :param horizon: Horizon over which values of the quantity will be
-                        stacked before computing the average.
+                        stacked before computing the average. `None` to
+                        consider the instantaneous power consumption.
+                        Optional: `None` by default.
         :param training_only: Whether the termination condition should be
                               completely by-passed if the environment is in
                               evaluation mode.
@@ -617,13 +620,23 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
         self.horizon = horizon
         self.generator_mode = generator_mode
 
+        # Pick the right quantity creator depending on the horizon
+        quantity_creator: QuantityCreator
+        if horizon is None:
+            quantity_creator = (AverageMechanicalPowerConsumption, dict(
+                horizon=self.horizon,
+                generator_mode=self.generator_mode,
+                mode=QuantityEvalMode.TRUE))
+        else:
+            quantity_creator = (MechanicalPowerConsumption, dict(
+                generator_mode=self.generator_mode,
+                mode=QuantityEvalMode.TRUE))
+
         # Call base implementation
         super().__init__(
             env,
             "termination_power_consumption",
-            (AverageMechanicalPowerConsumption, dict(  # type: ignore[arg-type]
-                horizon=self.horizon,
-                generator_mode=self.generator_mode)),
+            quantity_creator,
             None,
             self.max_power,
             grace_period,
