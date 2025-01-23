@@ -744,6 +744,23 @@ def train(algo_config: AlgorithmConfig,
                       sort_keys=True,
                       cls=SafeFallbackEncoder)
 
+    # Disable connector update for evaluation runner
+    def disable_update_connectors(env_runner: EnvRunner) -> None:
+        """Internal helper to disable automatic update of statistics (mean,
+        std) when collecting samples used by MeanStdFilter to empirically
+        normalized the observation.
+
+        :param env_runner: Environment runner to consider.
+        """
+        assert isinstance(env_runner, SingleAgentEnvRunner)
+        for connector in env_runner._env_to_module:
+            if isinstance(connector, MeanStdFilter):
+                connector._update_stats = False
+                break
+
+    if algo.eval_env_runner_group is not None:
+        algo.eval_env_runner_group.foreach_worker(disable_update_connectors)
+
     # Monitor memory allocations to detect leaks if any
     if debug:
         tracemalloc.start(10)
@@ -755,6 +772,24 @@ def train(algo_config: AlgorithmConfig,
         while True:
             # Perform one iteration of training the policy
             result = algo.train()
+
+            # Synchronize evaluation connectors with training connectors
+            if algo.eval_env_runner_group is not None:
+                def sync_connectors(state_connectors: Dict[str, Any],
+                                    env_runner: EnvRunner) -> None:
+                    """Internal helper to synchronise all the env-to-module
+                    connectors of a given runner with a given state.
+
+                    :param state_connectors: Expected state of the connectors
+                                             after synchronization.
+                    :param env_runner: Environment runner to consider.
+                    """
+                    assert isinstance(env_runner, SingleAgentEnvRunner)
+                    env_runner._env_to_module.set_state(state_connectors)
+
+                algo.eval_env_runner_group.foreach_worker(partial(
+                    sync_connectors,
+                    algo.env_runner._env_to_module.get_state()))
 
             # Log results
             num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
