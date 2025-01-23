@@ -24,7 +24,7 @@ from gym_jiminy.rllib.ppo import PPOConfig
 from gym_jiminy.rllib.utilities import (initialize,
                                         train,
                                         evaluate_from_runner,
-                                        build_eval_runner_from_checkpoint,
+                                        build_runner_from_checkpoint,
                                         build_module_from_checkpoint,
                                         build_module_wrapper)
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
     # Build a standalone local evaluation worker (not requiring ray backend)
     register_env("env", env_creator)
-    env_runner = build_eval_runner_from_checkpoint(checkpoint_path)
+    env_runner = build_runner_from_checkpoint(checkpoint_path)
     evaluate_from_runner(env_runner,
                          num_episodes=1,
                          close_backend=True,
