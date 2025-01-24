@@ -7,7 +7,10 @@ import sys
 import time
 import queue
 import threading
+from traceback import TracebackException
 from typing import Optional, Callable, Any
+
+from panda3d_viewer.viewer_errors import ViewerClosedError
 
 from jiminy_py.viewer import sleep
 
@@ -161,10 +164,11 @@ def loop_interactive(exit_key: str = 'k',
             if verbose:
                 print("Entering keyboard interactive mode. Pressed "
                       f"'{exit_key}' to exit or close window.")
-            if pause_key:
+            if start_paused:
                 print(f"Press '{pause_key}' to start...")
 
             # Loop infinitely until termination is triggered
+            traceback: Optional[TracebackException] = None
             key = None
             stop = False
             is_paused = start_paused
@@ -177,10 +181,10 @@ def loop_interactive(exit_key: str = 'k',
                     if not is_paused:
                         try:
                             stop = func(*args, **kwargs, key=key)
-                        except KeyboardInterrupt:
+                        except (KeyboardInterrupt, ViewerClosedError):
                             stop = True
                         except Exception as e:  # pylint: disable=broad-except
-                            print(str(e))
+                            traceback = TracebackException.from_exception(e)
                             stop = True
 
                     # Sleep for a while if necessary, using busy loop only if
@@ -224,6 +228,13 @@ def loop_interactive(exit_key: str = 'k',
                 # Stop keyboard handling loop
                 stop_event.set()
                 time.sleep(max_rate + 0.01 if max_rate is not None else 0.01)
+
+            # Print traceback if any.
+            # Note that it must be delayed after having restored the original
+            # stdin mode, otherwise printing long traceback would raise
+            # `BlockingIOError` exception.
+            if traceback is not None:
+                print(''.join(traceback.format()))
         return wrapped_func
     return wrap
 

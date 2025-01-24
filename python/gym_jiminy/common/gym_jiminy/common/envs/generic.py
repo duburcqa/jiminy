@@ -1140,11 +1140,13 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             action = self._key_to_action(
                 key, obs, reward, **{"verbose": verbose, **kwargs})
             if action is None:
-                action = self.action
+                action = env.action
             obs, reward, terminated, truncated, _ = env.step(action)
             self.render()
-            if not enable_is_done and self.robot.has_freeflyer:
-                return self._robot_state_q[2] < 0.0
+            if not enable_is_done:
+                if self.robot.has_freeflyer:
+                    return self._robot_state_q[2] < 0.0
+                return False
             return terminated or truncated
 
         # Run interactive loop
