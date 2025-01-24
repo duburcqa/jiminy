@@ -657,63 +657,13 @@ def train(algo_config: AlgorithmConfig,
     # Initialize the learning algorithm
     algo = algo_config.build()
 
-    # Assert(s) for type checker
-    assert algo.env_runner_group is not None
-
-    # Restore checkpoint if any
-    checkpoints_paths = sorted([
-        str(path) for path in Path(logdir).iterdir()
-        if path.is_dir() and path.name.startswith("checkpoint_")])
-    if checkpoints_paths:
-        algo.restore(checkpoints_paths[-1])
-
-    # Get the reward threshold of the environment, if any.
-    # Note that the original environment is always re-registered as an new gym
-    # entry-point "rllib-single-agent-env-v0". Most of the original spec are
-    # lost in the process when the environment is a callable that has been
-    # registered through `ray.tune.registry.register_env`. The only way to
-    # access the original spec is by instantiating the entry-point manually
-    # without relying on `gym.make`.
-    env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
-        lambda worker: worker.env.unwrapped.get_attr('spec')))
-    assert env_spec is not None
-    if env_spec.reward_threshold is None:
-        env_spec = env_spec.entry_point().spec
-    if env_spec is None or env_spec.reward_threshold is None:
-        return_threshold = float('inf')
-    else:
-        return_threshold = env_spec.reward_threshold
-
-    # Set the seed of the training and evaluation environments
-    if seed is not None:
-        seed_seq_gen = np.random.SeedSequence(seed)
-        seed_seq = seed_seq_gen.generate_state(2)
-        for seed_seq_gen_i, workers in zip(
-                tuple(map(np.random.SeedSequence, seed_seq)),
-                (algo.env_runner_group, algo.eval_env_runner_group)):
-            if workers is None:
-                continue
-            num_envs = workers.foreach_worker(lambda worker: worker.num_envs)
-            seeds = [seed_seq_gen_i.generate_state(n).tolist()
-                     for n in num_envs]
-            workers.foreach_worker_with_id(
-                lambda idx, worker: worker.env.reset(
-                    seed=seeds[idx]))  # pylint: disable=cell-var-from-loop
-
-    # Instantiate logger that will be used throughout the experiment
-    try:
-        # pylint: disable=import-outside-toplevel,import-error
-        from tensorboardX import SummaryWriter
-        file_writer = SummaryWriter(logdir, flush_secs=30)
-    except ImportError:
-        LOGGER.warning("Tensorboard not available. Cannot start server.")
-
     # Backup some information
     if algo.iteration == 0:
         # Make sure log dir exists
         os.makedirs(logdir, exist_ok=True)
 
         # Backup all environment's source files
+        assert algo.env_runner_group is not None
         (env_type,) = set(chain(*algo.env_runner_group.foreach_worker(
             lambda worker: [
                 type(env.unwrapped) for env in worker.env.unwrapped.envs])))
@@ -743,6 +693,77 @@ def train(algo_config: AlgorithmConfig,
                       indent=2,
                       sort_keys=True,
                       cls=SafeFallbackEncoder)
+
+    # Instantiate logger that will be used throughout the experiment
+    try:
+        # pylint: disable=import-outside-toplevel,import-error
+        from tensorboardX import SummaryWriter
+        file_writer = SummaryWriter(logdir, flush_secs=30)
+    except ImportError:
+        LOGGER.warning("Tensorboard not available. Cannot start server.")
+
+    # Get the reward threshold of the environment, if any.
+    # Note that the original environment is always re-registered as an new gym
+    # entry-point "rllib-single-agent-env-v0". Most of the original spec are
+    # lost in the process when the environment is a callable that has been
+    # registered through `ray.tune.registry.register_env`. The only way to
+    # access the original spec is by instantiating the entry-point manually
+    # without relying on `gym.make`.
+    assert algo.env_runner_group is not None
+    env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
+        lambda worker: worker.env.unwrapped.get_attr('spec')))
+    assert env_spec is not None
+    if env_spec.reward_threshold is None:
+        env_spec = env_spec.entry_point().spec
+    if env_spec is None or env_spec.reward_threshold is None:
+        return_threshold = float('inf')
+    else:
+        return_threshold = env_spec.reward_threshold
+
+    # Set the seed of the training and evaluation environments
+    if seed is not None:
+        seed_seq_gen = np.random.SeedSequence(seed)
+        seed_seq = seed_seq_gen.generate_state(2)
+        for seed_seq_gen_i, workers in zip(
+                tuple(map(np.random.SeedSequence, seed_seq)),
+                (algo.env_runner_group, algo.eval_env_runner_group)):
+            if workers is None:
+                continue
+            num_envs = workers.foreach_worker(lambda worker: worker.num_envs)
+            seeds = [seed_seq_gen_i.generate_state(n).tolist()
+                     for n in num_envs]
+            workers.foreach_worker_with_id(
+                lambda idx, worker: worker.env.reset(
+                    seed=seeds[idx]))  # pylint: disable=cell-var-from-loop
+
+    # Restore checkpoint if any
+    checkpoints_paths = sorted([
+        str(path) for path in Path(logdir).iterdir()
+        if path.is_dir() and path.name.startswith("checkpoint_")])
+    if checkpoints_paths:
+        algo.restore(checkpoints_paths[-1])
+
+    # Synchronize connectors of training and evaluation remote workers with the
+    # local training runner. This is necessary if a checkpoint has just been
+    # restored, otherwise that is a no-op that does no harm.
+    def sync_connectors(state_connectors: Dict[str, Any],
+                        env_runner: EnvRunner) -> None:
+        """Internal helper to synchronise all the env-to-module
+        connectors of a given runner with a given state.
+
+        :param state_connectors: Expected state of the connectors
+                                    after synchronization.
+        :param env_runner: Environment runner to consider.
+        """
+        assert isinstance(env_runner, SingleAgentEnvRunner)
+        env_runner._env_to_module.set_state(state_connectors)
+
+    state_connectors = algo.env_runner._env_to_module.get_state()
+    algo.env_runner_group.foreach_worker(partial(
+        sync_connectors, state_connectors))
+    if algo.eval_env_runner_group is not None:
+        algo.eval_env_runner_group.foreach_worker(partial(
+            sync_connectors, state_connectors))
 
     # Disable connector update for evaluation runner
     def disable_update_connectors(env_runner: EnvRunner) -> None:
@@ -775,21 +796,9 @@ def train(algo_config: AlgorithmConfig,
 
             # Synchronize evaluation connectors with training connectors
             if algo.eval_env_runner_group is not None:
-                def sync_connectors(state_connectors: Dict[str, Any],
-                                    env_runner: EnvRunner) -> None:
-                    """Internal helper to synchronise all the env-to-module
-                    connectors of a given runner with a given state.
-
-                    :param state_connectors: Expected state of the connectors
-                                             after synchronization.
-                    :param env_runner: Environment runner to consider.
-                    """
-                    assert isinstance(env_runner, SingleAgentEnvRunner)
-                    env_runner._env_to_module.set_state(state_connectors)
-
+                state_connectors = algo.env_runner._env_to_module.get_state()
                 algo.eval_env_runner_group.foreach_worker(partial(
-                    sync_connectors,
-                    algo.env_runner._env_to_module.get_state()))
+                    sync_connectors, state_connectors))
 
             # Log results
             num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
