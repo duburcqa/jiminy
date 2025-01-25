@@ -1492,7 +1492,8 @@ def build_runner_from_checkpoint(
         ctor_info = pickle.load(f)
     ctor_args, ctor_kwargs = ctor_info["ctor_args_and_kwargs"]
     env_config = ctor_kwargs['config'].env_config
-    env_config.update(env_config_kwargs)
+    if env_config_kwargs:
+        env_config.update(env_config_kwargs)
     env_runner = ctor(*ctor_args, **ctor_kwargs)
 
     # Restore the state of the runner
