@@ -579,16 +579,6 @@ class ImpactForceTermination(QuantityTermination):
             training_only=training_only)
 
 
-@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def l2_norm(array: np.ndarray) -> np.floating:
-    """Compute the L2-norm of a N-dimensional array as after flattening as a
-    vector.
-
-    :param array: Input array.
-    """
-    return np.linalg.norm(array.reshape((-1,)))
-
-
 class DriftTrackingBaseOdometryPositionTermination(
         DriftTrackingQuantityTermination):
     """Terminate the episode if the current base odometry position is drifting
@@ -645,11 +635,9 @@ class DriftTrackingBaseOdometryPositionTermination(
                         mode=mode)),
                     axis=0,
                     keys=(0, 1))),
-            None,
             max_position_err,
             horizon,
             grace_period,
-            post_fn=l2_norm,
             is_truncation=False,
             training_only=training_only)
 
@@ -721,6 +709,10 @@ class DriftTrackingBaseOdometryOrientationTermination(
 
     See `BaseOdometryPose` and `DriftTrackingBaseOdometryPositionTermination`
     documentations for details.
+
+    .. note::
+        It takes into account the  number of turns of the yaw angle of the
+        floating base over the whole span of the history.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -754,13 +746,11 @@ class DriftTrackingBaseOdometryOrientationTermination(
                         mode=mode)),
                     axis=0,
                     keys=(2,))),
-            -max_orientation_err,
             max_orientation_err,
             horizon,
             grace_period,
             op=angle_total,
             bounds_only=False,
-            # post_fn=angle_difference,
             is_truncation=False,
             training_only=training_only)
 
@@ -786,7 +776,7 @@ class ShiftTrackingFootOdometryPositionsTermination(
         """
         :param env: Base or wrapped jiminy environment.
         :param max_position_err:
-            Maximum drift error in translation (X, Y) in world plane above
+            Maximum shift error in translation (X, Y) in world plane above
             which termination is triggered.
         :param horizon: Horizon over which values of the quantity will be
                         stacked before computing the shift.

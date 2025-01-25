@@ -514,7 +514,7 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
         return is_terminated, is_truncated
 
 
-class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
+class QuantityTermination(AbstractTerminationCondition):
     """Convenience class making it easy to derive termination conditions from
     generic quantities.
 

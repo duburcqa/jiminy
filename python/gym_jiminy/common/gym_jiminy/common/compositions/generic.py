@@ -15,7 +15,7 @@ from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity,
     QuantityEvalMode, AbstractReward, QuantityReward,
     AbstractTerminationCondition, QuantityTermination)
-from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar, Number
+from ..bases.compositions import ArrayOrScalar, Number
 from ..quantities import (
     EnergyGenerationMode, StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
     MultiActuatedJointKinematic, MechanicalPowerConsumption,
@@ -151,26 +151,32 @@ class TrackingActuatedJointPositionsReward(TrackingQuantityReward):
 
 
 class DriftTrackingQuantityTermination(QuantityTermination):
-    """Base class to derive termination condition from the difference between
-    the current and reference drift of a given quantity.
+    """Base class to derive termination condition from the drift between the
+    current and reference values of a given quantity over a horizon.
 
-    The drift is defined as the difference between the most recent and oldest
-    values of a time series. In this case, a variable-length horizon bounded by
-    'max_stack' is considered.
+    The drift is defined as the difference between the current and reference
+    variation of the quantity over a variable-length horizon bounded by
+    'max_stack'. This variation is computed from the whole history of values
+    corresponding to this horizon, which is basically a sliding window. For
+    Euclidean spaces, this variation is simply computed as the difference
+    between most recent and oldest values stored in the history.
 
-    All elements must be within bounds for at least one time step in the fixed
-    horizon. If so, then the episode continues, otherwise it is either
-    truncated or terminated according to 'is_truncation' constructor argument.
-    This only applies after the end of a grace period. Before that, the episode
-    continues no matter what.
+    In practice, no bound check is applied on the drift directly, which may be
+    multi-variate at this point. Instead, the L2-norm is used as metric in the
+    variation space for computing the error between the current and reference
+    variation of the quantity.
+
+    If the error does not exceed the maximum threshold, then the episode
+    continues. Otherwise, it is either truncated or terminated according to
+    'is_truncation' constructor argument. This check only applies after the end
+    of a grace period. Before that, the episode continues no matter what.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  name: str,
                  quantity_creator: Callable[
                     [QuantityEvalMode], QuantityCreator[ArrayOrScalar]],
-                 low: Optional[ArrayLikeOrScalar],
-                 high: Optional[ArrayLikeOrScalar],
+                 thr: float,
                  horizon: float,
                  grace_period: float = 0.0,
                  *,
@@ -194,8 +200,8 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                                  reward after some post-processing, plus any
                                  keyword-arguments of its constructor except
                                  'env' and 'parent'.
-        :param low: Lower bound below which termination is triggered.
-        :param high: Upper bound above which termination is triggered.
+        :param thr: Termination is triggered if the drift exceeds this
+                    threshold.
         :param horizon: Horizon over which values of the quantity will be
                         stacked before computing the drift.
         :param grace_period: Grace period effective only at the very beginning
@@ -212,17 +218,11 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                    history is is appropriate for position in Euclidean space,
                    but not for orientation as it is important to count turns.
                    Optional: `sub` by default.
-        :param bounds_only: Whether to pass only the ecent and oldest value
+        :param bounds_only: Whether to pass only the recent and oldest value
                             stored in the history as input argument of `op`
                             instead of the complete history (stacked as last
                             dimenstion).
                             Optional: True by default.
-        :apram post_fn: Optional callable taking the drift between the true and
-                        reference varation of the quantity over the whole
-                        history as input argument, and returning some
-                        post-processed value to which bound checking will be
-                        applied. `None` to skip post-processing entirely.
-                        Optional: None by default.
         :param is_truncation: Whether the episode should be considered
                               terminated or truncated whenever the termination
                               condition is triggered.
@@ -240,8 +240,25 @@ class DriftTrackingQuantityTermination(QuantityTermination):
         # Backup user argument(s)
         self.max_stack = max_stack
         self.op = op
-        self.post_fn = post_fn
         self.bounds_only = bounds_only
+
+        # Jit-able method for computing the drift error
+        @nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+        def compute_drift_error(delta_true: ArrayOrScalar,
+                                delta_ref: ArrayOrScalar) -> float:
+            """Compute the difference between the true and reference variation
+            of a quantity over a given horizon, then apply some post-processing
+            on it if requested.
+
+            :param delta_true: True value of the variation as a N-dimensional
+                               array.
+            :param delta_ref: Reference value of the variation as a
+                              N-dimensional array.
+            """
+            drift = delta_true - delta_ref
+            if isinstance(drift, float):
+                return abs(drift)
+            return np.linalg.norm(drift.reshape((-1,)))
 
         # Define drift of quantity
         delta_creator: Callable[[QuantityEvalMode], QuantityCreator]
@@ -270,34 +287,20 @@ class DriftTrackingQuantityTermination(QuantityTermination):
         drift_tracking_quantity = (BinaryOpQuantity, dict(
             quantity_left=delta_creator(QuantityEvalMode.TRUE),
             quantity_right=delta_creator(QuantityEvalMode.REFERENCE),
-            op=self._compute_drift_error))
+            op=compute_drift_error))
 
         # Call base implementation
         super().__init__(env,
                          name,
                          drift_tracking_quantity,  # type: ignore[arg-type]
-                         low,
-                         high,
+                         None,
+                         np.array(thr),
                          grace_period,
                          is_truncation=is_truncation,
                          training_only=training_only)
 
-    def _compute_drift_error(self,
-                             left: np.ndarray,
-                             right: np.ndarray) -> ArrayOrScalar:
-        """Compute the difference between the true and reference drift over
-        a given horizon, then apply some post-processing on it if requested.
 
-        :param left: True value of the drift as a N-dimensional array.
-        :param right: Reference value of the drift as a N-dimensional array.
-        """
-        diff = left - right
-        if self.post_fn is not None:
-            return self.post_fn(diff)
-        return diff
-
-
-class ShiftTrackingQuantityTermination(QuantityTermination[np.ndarray]):
+class ShiftTrackingQuantityTermination(QuantityTermination):
     """Base class to derive termination condition from the shift between the
     current and reference values of a given quantity.
 
