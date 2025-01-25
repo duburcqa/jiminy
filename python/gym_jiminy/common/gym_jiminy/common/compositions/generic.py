@@ -626,12 +626,12 @@ class MechanicalPowerConsumptionTermination(QuantityTermination):
         # Pick the right quantity creator depending on the horizon
         quantity_creator: QuantityCreator
         if horizon is None:
-            quantity_creator = (AverageMechanicalPowerConsumption, dict(
-                horizon=self.horizon,
+            quantity_creator = (MechanicalPowerConsumption, dict(
                 generator_mode=self.generator_mode,
                 mode=QuantityEvalMode.TRUE))
         else:
-            quantity_creator = (MechanicalPowerConsumption, dict(
+            quantity_creator = (AverageMechanicalPowerConsumption, dict(
+                horizon=self.horizon,
                 generator_mode=self.generator_mode,
                 mode=QuantityEvalMode.TRUE))
 
