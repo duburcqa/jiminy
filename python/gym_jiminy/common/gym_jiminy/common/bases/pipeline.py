@@ -228,7 +228,7 @@ class BasePipelineWrapper(
         except AttributeError as e:
             raise AttributeError(
                 f"None of the layers of the pipeline environment '{self}' "
-                "have attribute '{name}'.") from e
+                f"have attribute '{name}'.") from e
 
     def set_wrapper_attr(self,
                          name: str,
@@ -247,7 +247,7 @@ class BasePipelineWrapper(
                 return
             raise AttributeError(
                 f"None of the layers of the pipeline environment '{self}' "
-                "have attribute '{name}'.") from e
+                f"have attribute '{name}'.") from e
 
     @property
     def render_mode(self) -> Optional[str]:

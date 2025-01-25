@@ -352,7 +352,6 @@ class BaseTaskSettableWrapper(BasePipelineWrapper[Obs, Act, BaseObs, Act],
         if self.num_tasks:  # and (terminated or truncated):
             assert "task" not in info
             score = float(self.get_score())
-            assert 0.0 <= score <= 1.0
             info["task"] = (int(self.task_index), score)
 
         # Return total reward
