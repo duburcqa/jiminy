@@ -47,7 +47,7 @@ def radial_basis_function(error: ArrayOrScalar,
     :param cutoff: Cut-off threshold to consider.
     :param order: Order of L^p-norm that will be used as distance metric.
     """
-    error_ = np.asarray(error)
+    error_ = np.atleast_1d(np.asarray(error))
     is_contiguous = error_.flags.f_contiguous or error_.flags.c_contiguous
     if is_contiguous or order != 2:
         if error_.ndim > 1 and not is_contiguous:
