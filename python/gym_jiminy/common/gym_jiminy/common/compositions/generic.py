@@ -14,7 +14,7 @@ import pinocchio as pin
 from ..bases import (
     InfoType, QuantityCreator, InterfaceJiminyEnv, InterfaceQuantity,
     QuantityEvalMode, AbstractReward, QuantityReward,
-    AbstractTerminationCondition, QuantityTermination)
+    AbstractTerminationCondition, QuantityTermination, partial_hashable)
 from ..bases.compositions import ArrayOrScalar, Number
 from ..quantities import (
     EnergyGenerationMode, StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
@@ -191,6 +191,23 @@ class MinimizeMechanicalPowerConsumption(QuantityReward):
             is_terminal=False)
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def compute_drift_error(delta_true: np.ndarray,
+                        delta_ref: np.ndarray) -> float:
+    """Compute the difference between the true and reference variation of a
+    quantity over a given horizon, then apply some post-processing on it if
+    requested.
+
+    :param delta_true: True value of the variation as a N-dimensional array.
+    :param delta_ref: Reference value of the variation as a N-dimensional
+                      array.
+    """
+    drift = delta_true - delta_ref
+    if isinstance(drift, float):
+        return abs(drift)
+    return np.linalg.norm(drift.reshape((-1,)))  # type: ignore[return-value]
+
+
 class DriftTrackingQuantityTermination(QuantityTermination):
     """Base class to derive termination condition from the drift between the
     current and reference values of a given quantity over a horizon.
@@ -223,8 +240,6 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                  *,
                  op: Callable[[ArrayLike, ArrayLike], ArrayOrScalar] = sub,
                  bounds_only: bool = True,
-                 post_fn: Optional[Callable[
-                    [ArrayOrScalar], ArrayOrScalar]] = None,
                  is_truncation: bool = False,
                  training_only: bool = False) -> None:
         """
@@ -283,24 +298,6 @@ class DriftTrackingQuantityTermination(QuantityTermination):
         self.op = op
         self.bounds_only = bounds_only
 
-        # Jit-able method for computing the drift error
-        @nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-        def compute_drift_error(delta_true: ArrayOrScalar,
-                                delta_ref: ArrayOrScalar) -> float:
-            """Compute the difference between the true and reference variation
-            of a quantity over a given horizon, then apply some post-processing
-            on it if requested.
-
-            :param delta_true: True value of the variation as a N-dimensional
-                               array.
-            :param delta_ref: Reference value of the variation as a
-                              N-dimensional array.
-            """
-            drift = delta_true - delta_ref
-            if isinstance(drift, float):
-                return abs(drift)
-            return np.linalg.norm(drift.reshape((-1,)))
-
         # Define drift of quantity
         delta_creator: Callable[[QuantityEvalMode], QuantityCreator]
         if self.bounds_only:
@@ -339,6 +336,44 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                          grace_period,
                          is_truncation=is_truncation,
                          training_only=training_only)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def min_norm(values: np.ndarray) -> float:
+    """Compute the minimum Euclidean norm over all timestamps of a multivariate
+    time series.
+
+    :param values: Time series as a N-dimensional array whose last dimension
+                   corresponds to individual timestamps over a finite horizon.
+                   The value at each timestamp will be regarded as a 1D vector
+                   for computing their Euclidean norm.
+    """
+    num_times = values.shape[-1]
+    values_squared_flat = np.square(values).reshape((-1, num_times))
+    return np.sqrt(np.min(np.sum(values_squared_flat, axis=0)))
+
+
+def compute_min_distance(op: Callable[[np.ndarray, np.ndarray], np.ndarray],
+                         left: np.ndarray,
+                         right: np.ndarray) -> float:
+    """Compute the minimum time-aligned Euclidean distance between two
+    multivariate time series kept in sync.
+
+    Internally, the time-aligned difference between the two time series will
+    first be computed according to the user-specified binary operator 'op'. The
+    classical Euclidean norm of the difference is then computed over all
+    timestamps individually and the minimum value is returned.
+
+    :param left: Time series as a N-dimensional array whose first dimension
+                 corresponds to individual timestamps over a finite horizon.
+                 The value at each timestamp will be regarded as a 1D vector
+                 for computing their Euclidean norm. It will be passed as
+                 left-hand side of the binary operator 'op'.
+    :param right: Time series as a N-dimensional array with the exact same
+                  shape as 'left'. See 'left' for details. It will be passed as
+                  right-hand side of the binary operator 'op'.
+    """
+    return min_norm(op(left, right))
 
 
 class ShiftTrackingQuantityTermination(QuantityTermination):
@@ -416,24 +451,6 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
         self.max_stack = max_stack
         self.op = op
 
-        # Jit-able method computing minimum distance between two time series
-        @nb.jit(nopython=True, cache=True)
-        def min_norm(values: np.ndarray) -> float:
-            """Compute the minimum Euclidean norm over all timestamps of a
-            multivariate time series.
-
-            :param values: Time series as a N-dimensional array whose last
-                           dimension corresponds to individual timestamps over
-                           a finite horizon. The value at each timestamp will
-                           be regarded as a 1D vector for computing their
-                           Euclidean norm.
-            """
-            num_times = values.shape[-1]
-            values_squared_flat = np.square(values).reshape((-1, num_times))
-            return np.sqrt(np.min(np.sum(values_squared_flat, axis=0)))
-
-        self._min_norm = min_norm
-
         # Define drift of quantity
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
             quantity=quantity_creator(mode),
@@ -445,7 +462,7 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
         shift_tracking_quantity = (BinaryOpQuantity, dict(
             quantity_left=stack_creator(QuantityEvalMode.TRUE),
             quantity_right=stack_creator(QuantityEvalMode.REFERENCE),
-            op=self._compute_min_distance))
+            op=partial_hashable(compute_min_distance, op)))
 
         # Call base implementation
         super().__init__(env,
@@ -456,28 +473,6 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
                          max(grace_period, horizon),
                          is_truncation=is_truncation,
                          training_only=training_only)
-
-    def _compute_min_distance(self,
-                              left: np.ndarray,
-                              right: np.ndarray) -> float:
-        """Compute the minimum time-aligned Euclidean distance between two
-        multivariate time series kept in sync.
-
-        Internally, the time-aligned difference between the two time series
-        will first be computed according to the user-specified binary operator
-        'op'. The classical Euclidean norm of the difference is then computed
-        over all timestamps individually and the minimum value is returned.
-
-        :param left: Time series as a N-dimensional array whose first dimension
-                     corresponds to individual timestamps over a finite
-                     horizon. The value at each timestamp will be regarded as a
-                     1D vector for computing their Euclidean norm. It will be
-                     passed as left-hand side of the binary operator 'op'.
-        :param right: Time series as a N-dimensional array with the exact same
-                      shape as 'left'. See 'left' for details. It will be
-                      passed as right-hand side of the binary operator 'op'.
-        """
-        return self._min_norm(self.op(left, right))
 
 
 @dataclass(unsafe_hash=True)

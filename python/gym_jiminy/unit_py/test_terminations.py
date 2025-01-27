@@ -83,12 +83,12 @@ class TerminationConditions(unittest.TestCase):
             0.6,
             quat_difference)
 
-        for i, (is_truncation, is_training_only) in enumerate((
-            (False, False), (True, False), (False, True))):
+        for is_truncation, is_training_only in (
+                (False, False), (True, False), (False, True)):
             termination_pos, termination_rot = (
                 DriftTrackingQuantityTermination(
                     self.env,
-                    f"drift_tracking_{name}_{i}",
+                    f"drift_tracking_{name}",
                     lambda mode: (quantity_cls, dict(
                         **quantity_kwargs,
                         frame_name="root_joint",
@@ -155,12 +155,12 @@ class TerminationConditions(unittest.TestCase):
             0.3,
             quat_difference)
 
-        for i, (is_truncation, training_only) in enumerate((
-            (False, False), (True, False), (False, True))):
+        for is_truncation, training_only in (
+                (False, False), (True, False), (False, True)):
             termination_pos, termination_rot = (
                 ShiftTrackingQuantityTermination(
                     self.env,
-                    f"shift_tracking_{name}_{i}",
+                    f"shift_tracking_{name}",
                     lambda mode: (quantity_cls, dict(
                         **quantity_kwargs,
                         frame_name="root_joint",

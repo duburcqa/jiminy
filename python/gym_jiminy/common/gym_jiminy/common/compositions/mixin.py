@@ -66,6 +66,45 @@ def radial_basis_function(error: ArrayOrScalar,
     return math.pow(CUTOFF_ESP, squared_dist_rel)
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def weighted_norm(weights: Tuple[float, ...],
+                  order: Union[int, float],
+                  values: Tuple[Optional[float], ...]
+                  ) -> Optional[float]:
+    """Compute the weighted L^p-norm of all the reward components that has been
+    evaluated, filtering out the others.
+
+    This method returns `None` if no reward component has been evaluated.
+
+    :param weights: Sequence of weights for each reward component, with same
+                    ordering as 'components'.
+    :param order: Order of the L^p-norm.
+    :param values: Sequence of scalar value for reward components that has been
+                   evaluated, `None` otherwise, with the same ordering as
+                   'components'.
+
+    :returns: Scalar value if at least one of the reward component has been
+              evaluated, `None` otherwise.
+    """
+    is_max_norm = order == float('inf')
+    total, any_value = 0.0, False
+    for value, weight in zip(values, weights):
+        if value is not None:
+            if is_max_norm:
+                if any_value:
+                    total = max(total, weight * value)
+                else:
+                    total = weight * value
+            else:
+                total += weight * math.pow(value, order)
+            any_value = True
+    if any_value:
+        if is_max_norm:
+            return total
+        return math.pow(total, 1.0 / order)
+    return None
+
+
 class AdditiveMixtureReward(MixtureReward):
     """Weighted L^p-norm of multiple independent reward components.
 
@@ -142,46 +181,6 @@ class AdditiveMixtureReward(MixtureReward):
         self.order = order
         self.weights = tuple(weights)
 
-        # Jit-able method computing the weighted sum of reward components
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def weighted_norm(weights: Tuple[float, ...],
-                          order: Union[int, float],
-                          values: Tuple[Optional[float], ...]
-                          ) -> Optional[float]:
-            """Compute the weighted L^p-norm of all the reward components that
-            has been evaluated, filtering out the others.
-
-            This method returns `None` if no reward component has been
-            evaluated.
-
-            :param weights: Sequence of weights for each reward component, with
-                            same ordering as 'components'.
-            :param order: Order of the L^p-norm.
-            :param values: Sequence of scalar value for reward components that
-                           has been evaluated, `None` otherwise, with the same
-                           ordering as 'components'.
-
-            :returns: Scalar value if at least one of the reward component has
-                      been evaluated, `None` otherwise.
-            """
-            is_max_norm = order == float('inf')
-            total, any_value = 0.0, False
-            for value, weight in zip(values, weights):
-                if value is not None:
-                    if is_max_norm:
-                        if any_value:
-                            total = max(total, weight * value)
-                        else:
-                            total = weight * value
-                    else:
-                        total += weight * math.pow(value, order)
-                    any_value = True
-            if any_value:
-                if is_max_norm:
-                    return total
-                return math.pow(total, 1.0 / order)
-            return None
-
         # Call base implementation
         super().__init__(
             env,
@@ -198,6 +197,29 @@ AdditiveMixtureReward.is_normalized.__doc__ = \
     The cumulative reward is considered normalized if all its individual
     reward components are normalized and their weights sums up to 1.0.
     """
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def geometric_mean(values: Tuple[Optional[float], ...]) -> Optional[float]:
+    """Compute the product of all the reward components that has been
+    evaluated, filtering out the others.
+
+    This method returns `None` if no reward component has been evaluated.
+
+    :param values: Sequence of scalar value for reward components that has been
+                   evaluated, `None` otherwise, with the same ordering as
+                   'components'.
+
+    :returns: Scalar value if at least one of the reward component has been
+              evaluated, `None` otherwise.
+    """
+    total, any_value, n_values = 1.0, False, 0
+    for value in values:
+        if value is not None:
+            total *= value
+            any_value = True
+            n_values += 1
+    return math.pow(total, 1.0 / n_values) if any_value else None
 
 
 class MultiplicativeMixtureReward(MixtureReward):
@@ -222,31 +244,6 @@ class MultiplicativeMixtureReward(MixtureReward):
         """
         # Determine whether the cumulative reward is normalized
         is_normalized = all(reward.is_normalized for reward in components)
-
-        # Jit-able method computing the product of reward components
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def geometric_mean(
-                values: Tuple[Optional[float], ...]) -> Optional[float]:
-            """Compute the product of all the reward components that has
-            been evaluated, filtering out the others.
-
-            This method returns `None` if no reward component has been
-            evaluated.
-
-            :param values: Sequence of scalar value for reward components that
-                           has been evaluated, `None` otherwise, with the same
-                           ordering as 'components'.
-
-            :returns: Scalar value if at least one of the reward component has
-                      been evaluated, `None` otherwise.
-            """
-            total, any_value, n_values = 1.0, False, 0
-            for value in values:
-                if value is not None:
-                    total *= value
-                    any_value = True
-                    n_values += 1
-            return math.pow(total, 1.0 / n_values) if any_value else None
 
         # Call base implementation
         super().__init__(env, name, components, geometric_mean, is_normalized)

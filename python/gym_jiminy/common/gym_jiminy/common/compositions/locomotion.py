@@ -403,6 +403,32 @@ class FootCollisionTermination(QuantityTermination):
             training_only=training_only)
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def min_depth(positions: np.ndarray,
+              heights: np.ndarray,
+              normals: np.ndarray) -> float:
+    """Approximate minimum distance from the ground profile among a set of the
+    query points.
+
+    Internally, it uses a first order approximation assuming zero local
+    curvature around each query point.
+
+    :param positions: Position of all the query points from which to compute
+                      from the ground profile, as a 2D array whose first
+                      dimension gathers the 3 position coordinates (X, Y, Z)
+                      while the second correponds to the N individual query
+                      points.
+    :param heights: Vertical height wrt the ground profile of the N individual
+                    query points in world frame as 1D array.
+    :param normals: Normal of the ground profile for the projection in world
+                    plane of all the query points, as a 2D array whose first
+                    dimension gathers the 3 position coordinates (X, Y, Z)
+                    while the second correponds to the N individual query
+                    points.
+    """
+    return np.min((positions[2] - heights) * normals[2])
+
+
 @dataclass(unsafe_hash=True)
 class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
     """Minimum distance from the ground profile among all the contact points.
@@ -440,34 +466,6 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
                 ))),
             auto_refresh=False)
 
-        # Jit-able method computing the minimum first-order depth
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def min_depth(positions: np.ndarray,
-                      heights: np.ndarray,
-                      normals: np.ndarray) -> float:
-            """Approximate minimum distance from the ground profile among a set
-            of the query points.
-
-            Internally, it uses a first order approximation assuming zero local
-            curvature around each query point.
-
-            :param positions: Position of all the query points from which to
-                              compute from the ground profile, as a 2D array
-                              whose first dimension gathers the 3 position
-                              coordinates (X, Y, Z) while the second correponds
-                              to the N individual query points.
-            :param heights: Vertical height wrt the ground profile of the N
-                            individual query points in world frame as 1D array.
-            :param normals: Normal of the ground profile for the projection in
-                            world plane of all the query points, as a 2D array
-                            whose first dimension gathers the 3 position
-                            coordinates (X, Y, Z) while the second correponds
-                            to the N individual query points.
-            """
-            return np.min((positions[2] - heights) * normals[2])
-
-        self._min_depth = min_depth
-
         # Reference to the heightmap function for the ongoing epsiode
         self._heightmap = jiminy.HeightmapFunction(lambda: None)
 
@@ -496,7 +494,7 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
         # self._normals /= np.linalg.norm(self._normals, axis=0)
 
         # First-order distance estimation assuming no curvature
-        return self._min_depth(positions, self._heights, self._normals)
+        return min_depth(positions, self._heights, self._normals)
 
 
 class FlyingTermination(QuantityTermination):
