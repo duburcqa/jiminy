@@ -141,9 +141,11 @@ class BaseRelativeHeight(InterfaceQuantity[float]):
             parent,
             requirements=dict(
                 base_pos=(FramePosition, dict(
-                    frame_name="root_joint")),
+                    frame_name="root_joint",
+                    mode=mode)),
                 contacts_pos=(MultiFramePosition, dict(
-                    frame_names=frame_names))),
+                    frame_names=frame_names,
+                    mode=mode))),
             auto_refresh=False)
 
     def refresh(self) -> float:
