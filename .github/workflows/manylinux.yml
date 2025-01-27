@@ -112,15 +112,13 @@ jobs:
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         # Generate stubs
-        # FIXME: stubgen does not work with Numpy 2.X
+        # FIXME: stubgen does not work with Numpy 2.X without option `--no-analysis`
         # (see https://github.com/python/mypy/issues/17396)
-        "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
-        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
+        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src --no-analysis
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stubgen.py" \
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         \cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \
             $RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
-        "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba
 
         # Generate wheels
         cd "$RootDir/build"
