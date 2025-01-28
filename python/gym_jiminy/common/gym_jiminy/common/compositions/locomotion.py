@@ -31,7 +31,7 @@ from .mixin import radial_basis_function
 
 class TrackingBaseHeightReward(TrackingQuantityReward):
     """Reward the agent for tracking the height of the floating base of the
-    robot wrt some reference trajectory.
+    robot relative to lowest contact point wrt some reference trajectory.
 
     .. seealso::
         See `TrackingQuantityReward` documentation for technical details.
@@ -46,14 +46,7 @@ class TrackingBaseHeightReward(TrackingQuantityReward):
         super().__init__(
             env,
             "reward_tracking_base_height",
-            lambda mode: (MaskedQuantity, dict(
-                quantity=(UnaryOpQuantity, dict(
-                    quantity=(StateQuantity, dict(
-                        update_kinematics=False,
-                        mode=mode)),
-                    op=attrgetter("q"))),
-                axis=0,
-                keys=(2,))),
+            lambda mode: (BaseRelativeHeight, dict(mode=mode)),
             cutoff)
 
 
@@ -347,7 +340,8 @@ class FallingTermination(QuantityTermination):
         super().__init__(
             env,
             "termination_base_height",
-            (BaseRelativeHeight, {}),  # type: ignore[arg-type]
+            (BaseRelativeHeight, dict(  # type: ignore[arg-type]
+                mode=QuantityEvalMode.TRUE)),
             min_base_height,
             None,
             grace_period,
