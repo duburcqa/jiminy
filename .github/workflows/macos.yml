@@ -142,10 +142,9 @@ jobs:
 
         # Generate stubs
         if [[ "${{ matrix.BUILD_TYPE }}" != 'Debug' && "${{ matrix.OS }}" != 'macos-13' ]] ; then
-          # FIXME: stubgen does not work with Numpy 2.X
+          # FIXME: stubgen does not work with Numpy 2.X without option `--no-analysis`
           # (see https://github.com/python/mypy/issues/17396)
-          "${PYTHON_EXECUTABLE}" -m pip install "numpy<2.0"
-          stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
+          stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src --no-analysis
           # FIXME: Python 3.10 and Python 3.11 crashes when generating stubs without any backtrace...
           if [[ "${{ matrix.PYTHON_VERSION }}" != '3.10' && "${{ matrix.PYTHON_VERSION }}" != '3.11' ]] ; then
             # lldb --batch -o "settings set target.process.stop-on-exec false" \
@@ -155,7 +154,6 @@ jobs:
             cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \
               ${RootDir}/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi
           fi
-          "${PYTHON_EXECUTABLE}" -m pip install --upgrade "numpy>=1.24" numba torch
         fi
 
         # Generate wheels

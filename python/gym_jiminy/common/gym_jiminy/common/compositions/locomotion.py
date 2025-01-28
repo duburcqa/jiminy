@@ -403,6 +403,32 @@ class FootCollisionTermination(QuantityTermination):
             training_only=training_only)
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def min_depth(positions: np.ndarray,
+              heights: np.ndarray,
+              normals: np.ndarray) -> float:
+    """Approximate minimum distance from the ground profile among a set of the
+    query points.
+
+    Internally, it uses a first order approximation assuming zero local
+    curvature around each query point.
+
+    :param positions: Position of all the query points from which to compute
+                      from the ground profile, as a 2D array whose first
+                      dimension gathers the 3 position coordinates (X, Y, Z)
+                      while the second correponds to the N individual query
+                      points.
+    :param heights: Vertical height wrt the ground profile of the N individual
+                    query points in world frame as 1D array.
+    :param normals: Normal of the ground profile for the projection in world
+                    plane of all the query points, as a 2D array whose first
+                    dimension gathers the 3 position coordinates (X, Y, Z)
+                    while the second correponds to the N individual query
+                    points.
+    """
+    return np.min((positions[2] - heights) * normals[2])
+
+
 @dataclass(unsafe_hash=True)
 class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
     """Minimum distance from the ground profile among all the contact points.
@@ -440,34 +466,6 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
                 ))),
             auto_refresh=False)
 
-        # Jit-able method computing the minimum first-order depth
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def min_depth(positions: np.ndarray,
-                      heights: np.ndarray,
-                      normals: np.ndarray) -> float:
-            """Approximate minimum distance from the ground profile among a set
-            of the query points.
-
-            Internally, it uses a first order approximation assuming zero local
-            curvature around each query point.
-
-            :param positions: Position of all the query points from which to
-                              compute from the ground profile, as a 2D array
-                              whose first dimension gathers the 3 position
-                              coordinates (X, Y, Z) while the second correponds
-                              to the N individual query points.
-            :param heights: Vertical height wrt the ground profile of the N
-                            individual query points in world frame as 1D array.
-            :param normals: Normal of the ground profile for the projection in
-                            world plane of all the query points, as a 2D array
-                            whose first dimension gathers the 3 position
-                            coordinates (X, Y, Z) while the second correponds
-                            to the N individual query points.
-            """
-            return np.min((positions[2] - heights) * normals[2])
-
-        self._min_depth = min_depth
-
         # Reference to the heightmap function for the ongoing epsiode
         self._heightmap = jiminy.HeightmapFunction(lambda: None)
 
@@ -496,7 +494,7 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
         # self._normals /= np.linalg.norm(self._normals, axis=0)
 
         # First-order distance estimation assuming no curvature
-        return self._min_depth(positions, self._heights, self._normals)
+        return min_depth(positions, self._heights, self._normals)
 
 
 class FlyingTermination(QuantityTermination):
@@ -579,16 +577,6 @@ class ImpactForceTermination(QuantityTermination):
             training_only=training_only)
 
 
-@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def l2_norm(array: np.ndarray) -> np.floating:
-    """Compute the L2-norm of a N-dimensional array as after flattening as a
-    vector.
-
-    :param array: Input array.
-    """
-    return np.linalg.norm(array.reshape((-1,)))
-
-
 class DriftTrackingBaseOdometryPositionTermination(
         DriftTrackingQuantityTermination):
     """Terminate the episode if the current base odometry position is drifting
@@ -645,11 +633,9 @@ class DriftTrackingBaseOdometryPositionTermination(
                         mode=mode)),
                     axis=0,
                     keys=(0, 1))),
-            None,
             max_position_err,
             horizon,
             grace_period,
-            post_fn=l2_norm,
             is_truncation=False,
             training_only=training_only)
 
@@ -721,6 +707,10 @@ class DriftTrackingBaseOdometryOrientationTermination(
 
     See `BaseOdometryPose` and `DriftTrackingBaseOdometryPositionTermination`
     documentations for details.
+
+    .. note::
+        It takes into account the  number of turns of the yaw angle of the
+        floating base over the whole span of the history.
     """
     def __init__(self,
                  env: InterfaceJiminyEnv,
@@ -754,13 +744,11 @@ class DriftTrackingBaseOdometryOrientationTermination(
                         mode=mode)),
                     axis=0,
                     keys=(2,))),
-            -max_orientation_err,
             max_orientation_err,
             horizon,
             grace_period,
             op=angle_total,
             bounds_only=False,
-            # post_fn=angle_difference,
             is_truncation=False,
             training_only=training_only)
 
@@ -786,7 +774,7 @@ class ShiftTrackingFootOdometryPositionsTermination(
         """
         :param env: Base or wrapped jiminy environment.
         :param max_position_err:
-            Maximum drift error in translation (X, Y) in world plane above
+            Maximum shift error in translation (X, Y) in world plane above
             which termination is triggered.
         :param horizon: Horizon over which values of the quantity will be
                         stacked before computing the shift.

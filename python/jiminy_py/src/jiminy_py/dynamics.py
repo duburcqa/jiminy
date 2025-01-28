@@ -396,7 +396,7 @@ class Trajectory:
             else:
                 t = t_start
         else:
-            t = max(t, t_start)  # Clipping right it is sufficient
+            t = min(max(t, t_start), t_end)
 
         # Rounding time to avoid cache miss issues
         # Note that `int(x + 0.5)` is faster than `round(x)`.

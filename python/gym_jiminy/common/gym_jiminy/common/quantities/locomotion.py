@@ -83,30 +83,6 @@ def sanitize_foot_frame_names(
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
-def translate_position_odom(position: np.ndarray,
-                            odom_pose: np.ndarray,
-                            out: np.ndarray) -> None:
-    """Translate a single or batch of 2D position vector (X, Y) from world to
-    local frame.
-
-    :param position: Batch of positions vectors as a 2D array whose
-                     first dimension gathers the 2 spatial coordinates
-                     (X, Y) while the second corresponds to the
-                     independent points.
-    :param odom_pose: Reference odometry pose as a 1D array gathering the 2
-                      position and 1 orientation coordinates in world plane
-                      (X, Y), (Yaw,) respectively.
-    :param out: Pre-allocated array in which to store the result.
-    """
-    # out = R(yaw).T @ (position - position_ref)
-    position_ref, yaw_ref = odom_pose[:2], odom_pose[2]
-    pos_rel_x, pos_rel_y = position - position_ref
-    cos_yaw, sin_yaw = math.cos(yaw_ref), math.sin(yaw_ref)
-    out[0] = + cos_yaw * pos_rel_x + sin_yaw * pos_rel_y
-    out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
-
-
-@nb.jit(nopython=True, cache=True, fastmath=True)
 def compute_height(base_pos: np.ndarray, contacts_pos: np.ndarray) -> float:
     """Compute the height of the robot, which is defined as the maximum
     vertical difference between the base of the robot and the contact points.
@@ -165,9 +141,11 @@ class BaseRelativeHeight(InterfaceQuantity[float]):
             parent,
             requirements=dict(
                 base_pos=(FramePosition, dict(
-                    frame_name="root_joint")),
+                    frame_name="root_joint",
+                    mode=mode)),
                 contacts_pos=(MultiFramePosition, dict(
-                    frame_names=frame_names))),
+                    frame_names=frame_names,
+                    mode=mode))),
             auto_refresh=False)
 
     def refresh(self) -> float:
@@ -673,6 +651,25 @@ class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
         return self.data.get()
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def translate_positions(position: np.ndarray,
+                        position_ref: np.ndarray,
+                        rotation_ref: np.ndarray,
+                        out: np.ndarray) -> None:
+    """Translate a batch of 3D position vectors (X, Y, Z) from world to local
+    frame.
+
+    :param position: Batch of positions vectors as a 2D array whose first
+                     dimension gathers the 3 spatial coordinates (X, Y, Z)
+                     while the second corresponds to the independent points.
+    :param position_ref: Position of the reference frame in world.
+    :param rotation_ref: Orientation of the reference frame in world as a
+                         rotation matrix.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    out[:] = rotation_ref.T @ (position - position_ref[:, np.newaxis])
+
+
 @dataclass(unsafe_hash=True)
 class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
     """Relative position and orientation of the feet of a legged robot wrt
@@ -741,28 +738,6 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode))),
             auto_refresh=False)
 
-        # Jit-able method translating multiple positions to local frame
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def translate_positions(position: np.ndarray,
-                                position_ref: np.ndarray,
-                                rotation_ref: np.ndarray,
-                                out: np.ndarray) -> None:
-            """Translate a batch of 3D position vectors (X, Y, Z) from world to
-            local frame.
-
-            :param position: Batch of positions vectors as a 2D array whose
-                             first dimension gathers the 3 spatial coordinates
-                             (X, Y, Z) while the second corresponds to the
-                             independent points.
-            :param position_ref: Position of the reference frame in world.
-            :param rotation_ref: Orientation of the reference frame in world as
-                                 a rotation matrix.
-            :param out: Pre-allocated array in which to store the result.
-            """
-            out[:] = rotation_ref.T @ (position - position_ref[:, np.newaxis])
-
-        self._translate = translate_positions
-
         # Mean orientation as a rotation matrix
         self._rot_mean = np.zeros((3, 3))
 
@@ -793,10 +768,10 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
         # (double geodesic), to be consistent with the method that was used to
         # compute the mean foot pose. This way, the norm of the relative
         # position is not affected by the orientation of the feet.
-        self._translate(positions,
-                        position_mean,
-                        self._rot_mean,
-                        self._foot_position_view)
+        translate_positions(positions,
+                            position_mean,
+                            self._rot_mean,
+                            self._foot_position_view)
 
         # Compute relative frame orientations
         quat_multiply(quat_mean[:, np.newaxis],
@@ -882,6 +857,29 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
         # Return proxy directly without copy
         return self._com_data
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def translate_position_odom(position: np.ndarray,
+                            odom_pose: np.ndarray,
+                            out: np.ndarray) -> None:
+    """Translate a single or batch of 2D position vector (X, Y) from world to
+    local frame.
+
+    :param position: Batch of positions vectors as a 2D array whose first
+                     dimension gathers the 2 spatial coordinates (X, Y) while
+                     the second corresponds to the independent points.
+    :param odom_pose: Reference odometry pose as a 1D array gathering the 2
+                      position and 1 orientation coordinates in world plane
+                      (X, Y), (Yaw,) respectively.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    # out = R(yaw).T @ (position - position_ref)
+    position_ref, yaw_ref = odom_pose[:2], odom_pose[2]
+    pos_rel_x, pos_rel_y = position - position_ref
+    cos_yaw, sin_yaw = math.cos(yaw_ref), math.sin(yaw_ref)
+    out[0] = + cos_yaw * pos_rel_x + sin_yaw * pos_rel_y
+    out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
 
 
 @dataclass(unsafe_hash=True)
@@ -1098,6 +1096,36 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         return self._dcm
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def normalize_spatial_forces(lambda_c: np.ndarray,
+                             index_start: int,
+                             index_end: int,
+                             robot_weight: float,
+                             out: np.ndarray) -> None:
+    """Compute the spatial forces of all the constraints associated with
+    contact frames and collision bodies, normalized by the total weight of the
+    robot.
+
+    :param lambda_c: Stacked lambda multipliers all the constraints.
+    :param index_start: First index of the constraints associated with contact
+                        frames and collisions bodies.
+    :param index_end: One-past-last index of the constraints associated with
+                      contact frames and collisions bodies.
+    :param robot_weight: Total weight of the robot which will be used to
+                         rescale the spatial forces.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    # Extract constraint lambdas of contacts and collisions from state
+    lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
+
+    # Extract references to all the spatial forces
+    forces_linear, forces_angular_z = lambda_[:3], lambda_[3]
+
+    # Scale the spatial forces by the weight of the robot
+    out[:3] = forces_linear / robot_weight
+    out[5] = forces_angular_z / robot_weight
+
+
 @dataclass(unsafe_hash=True)
 class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
     """Standardized spatial forces applied on all contact points and collision
@@ -1139,38 +1167,6 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
                     update_kinematics=False))),
             mode=mode,
             auto_refresh=False)
-
-        # Jit-able method computing the normalized spatial forces
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def normalize_spatial_forces(lambda_c: np.ndarray,
-                                     index_start: int,
-                                     index_end: int,
-                                     robot_weight: float,
-                                     out: np.ndarray) -> None:
-            """Compute the spatial forces of all the constraints associated
-            with contact frames and collision bodies, normalized by the total
-            weight of the robot.
-
-            :param lambda_c: Stacked lambda multipliers all the constraints.
-            :param index_start: First index of the constraints associated with
-                                contact frames and collisions bodies.
-            :param index_end: One-past-last index of the constraints associated
-                              with contact frames and collisions bodies.
-            :param robot_weight: Total weight of the robot which will be used
-                                 to rescale the spatial forces.
-            :param out: Pre-allocated array in which to store the result.
-            """
-            # Extract constraint lambdas of contacts and collisions from state
-            lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
-
-            # Extract references to all the spatial forces
-            forces_linear, forces_angular_z = lambda_[:3], lambda_[3]
-
-            # Scale the spatial forces by the weight of the robot
-            out[:3] = forces_linear / robot_weight
-            out[5] = forces_angular_z / robot_weight
-
-        self._normalize_spatial_forces = normalize_spatial_forces
 
         # Weight of the robot
         self._robot_weight: float = float("nan")
@@ -1235,13 +1231,56 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         state = self.state.get()
-        self._normalize_spatial_forces(
+        normalize_spatial_forces(
             state.lambda_c,
             *self._contact_slice,
             self._robot_weight,
             self._force_spatial_rel_batch)
 
         return self._force_spatial_rel_batch
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def normalize_vertical_forces(
+        lambda_c: np.ndarray,
+        foot_slices: Tuple[Tuple[int, int], ...],
+        vertical_transform_batches: Tuple[np.ndarray, ...],
+        robot_weight: float,
+        out: np.ndarray) -> None:
+    """Compute the sum of the vertical forces in world frame of all the
+    constraints associated with contact frames and collision bodies, normalized
+    by the total weight of the robot.
+
+    :param lambda_c: Stacked lambda multipliers all the constraints.
+    :param foot_slices: Slices of lambda multiplier of the constraints
+                        associated with contact frames and collisions bodies
+                        acting each foot, as a sequence of pairs (index_start,
+                        index_end) corresponding to the first and one-past-last
+                        indices respectively.
+    :param vertical_transform_batches:
+        Last row of the rotation matrices from world to local contact frame
+        associated with all contact and collision constraints acting on each
+        foot, as a list of 2D arrays. The first dimension gathers the 3 spatial
+        coordinates while the second corresponds to the N individual
+        constraints on each foot.
+    :param robot_weight: Total weight  of the robot which will be used to
+                         rescale the vertical forces.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    for i, ((index_start, index_end), vertical_transforms) in (
+            enumerate(zip(foot_slices, vertical_transform_batches))):
+        # Extract constraint multipliers from state
+        lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
+
+        # Extract references to all the linear forces
+        # forces_angular = np.array([0.0, 0.0, lambda_[3]])
+        forces_linear = lambda_[:3]
+
+        # Compute vertical forces in world frame and aggregate them
+        f_z_world = np.sum(vertical_transforms * forces_linear)
+
+        # Scale the vertical forces by the weight of the robot
+        out[i] = f_z_world / robot_weight
 
 
 @dataclass(unsafe_hash=True)
@@ -1298,51 +1337,6 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
                     update_kinematics=False))),
             mode=mode,
             auto_refresh=False)
-
-        # Jit-able method computing the normalized vertical forces
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def normalize_vertical_forces(
-                lambda_c: np.ndarray,
-                foot_slices: Tuple[Tuple[int, int], ...],
-                vertical_transform_batches: Tuple[np.ndarray, ...],
-                robot_weight: float,
-                out: np.ndarray) -> None:
-            """Compute the sum of the vertical forces in world frame of all the
-            constraints associated with contact frames and collision bodies,
-            normalized by the total weight of the robot.
-
-            :param lambda_c: Stacked lambda multipliers all the constraints.
-            :param foot_slices: Slices of lambda multiplier of the constraints
-                                associated with contact frames and collisions
-                                bodies acting each foot, as a sequence of pairs
-                                (index_start, index_end) corresponding to the
-                                first and one-past-last indices respectively.
-            :param vertical_transform_batches:
-                Last row of the rotation matrices from world to local contact
-                frame associated with all contact and collision constraints
-                acting on each foot, as a list of 2D arrays. The first
-                dimension gathers the 3 spatial coordinates while the second
-                corresponds to the N individual constraints on each foot.
-            :param robot_weight: Total weight  of the robot which will be used
-                                 to rescale the vertical forces.
-            :param out: Pre-allocated array in which to store the result.
-            """
-            for i, ((index_start, index_end), vertical_transforms) in (
-                    enumerate(zip(foot_slices, vertical_transform_batches))):
-                # Extract constraint multipliers from state
-                lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
-
-                # Extract references to all the linear forces
-                # forces_angular = np.array([0.0, 0.0, lambda_[3]])
-                forces_linear = lambda_[:3]
-
-                # Compute vertical forces in world frame and aggregate them
-                f_z_world = np.sum(vertical_transforms * forces_linear)
-
-                # Scale the vertical forces by the weight of the robot
-                out[i] = f_z_world / robot_weight
-
-        self._normalize_vertical_forces = normalize_vertical_forces
 
         # Weight of the robot
         self._robot_weight: float = float("nan")
@@ -1450,11 +1444,11 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
 
         # Compute the normalized sum of the vertical forces in world frame
         state = self.state.get()
-        self._normalize_vertical_forces(state.lambda_c,
-                                        self._foot_slices,
-                                        self._vertical_transform_batches,
-                                        self._robot_weight,
-                                        self._vertical_force_batch)
+        normalize_vertical_forces(state.lambda_c,
+                                  self._foot_slices,
+                                  self._vertical_transform_batches,
+                                  self._robot_weight,
+                                  self._vertical_force_batch)
 
         return self._vertical_force_batch
 

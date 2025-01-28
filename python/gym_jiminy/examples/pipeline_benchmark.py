@@ -43,7 +43,7 @@ env = reduce(
     ),
 )
 
-# Run in 30.7s on jiminy==1.8.11 (29.7s with PGO, 28.4s with eigen-dev)
+# Run in 27.4s on jiminy==1.8.11 (PGO + eigen-dev)
 env.reset()
 action = env.action
 time_start = time.time()

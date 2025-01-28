@@ -6,9 +6,13 @@ the low-level observers and controllers.
 This modular approach allows for standardization of usual metrics. Overall, it
 greatly reduces code duplication and bugs.
 """
+import inspect
+from functools import partial
 from abc import abstractmethod, ABCMeta
 from enum import IntEnum
-from typing import Tuple, Sequence, Callable, Union, Optional, Generic, TypeVar
+from typing import (
+    Tuple, Sequence, Callable, Union, Optional, Generic, Any, TypeVar,
+    TYPE_CHECKING)
 
 import numpy as np
 
@@ -23,6 +27,53 @@ ValueT = TypeVar('ValueT')
 Number = Union[float, int, bool, complex]
 ArrayOrScalar = Union[np.ndarray, np.number, Number]
 ArrayLikeOrScalar = Union[ArrayOrScalar, Sequence[Union[Number, np.number]]]
+
+
+class partial_hashable(partial):  # pylint: disable=invalid-name
+    """Extends standard `functools.Partial` class with hash and equality
+    operator.
+
+    Two partial instances are equal if they are wrapping the exact same
+    function (i.e. pointing to the same memory address as per `id` build-in
+    function), and bindings the same arguments (i.e. all arguments are equal
+    as per `==` operator). Note that it does not matter if the constructor
+    arguments of `Partial` itself are positional or keyword-based. Internally,
+    they will be stored in an ordered list of keyword-only arguments for
+    equality check.
+
+    .. warning::
+        Try to instantiate this class with invalid arguments for the method
+        being wrapped (e.g. specifying multiple values for the same argument)
+        would raise a `TypeError` exception, unlike `functools.partial` that
+        would only fail when calling the resulting callable object.
+    """
+
+    if TYPE_CHECKING:
+        _normalized_args: Tuple[Any, ...]
+
+    def __new__(cls,
+                func: Callable, /,
+                *args: Any,
+                **kwargs: Any) -> "partial_hashable":
+        # Call base implementation
+        self = super(partial_hashable, cls).__new__(cls, func, *args, **kwargs)
+
+        # Pre-compute normalized arguments once and for all
+        sig = inspect.signature(self.func)
+        bound = sig.bind_partial(*self.args, **(self.keywords or {}))
+        bound.apply_defaults()
+        self._normalized_args = tuple(bound.arguments.values())
+
+        return self
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, partial_hashable):
+            return False
+        return self.func == other.func and (
+            self._normalized_args == other._normalized_args)
+
+    def __hash__(self) -> int:
+        return hash((self.func, self._normalized_args))
 
 
 class AbstractReward(metaclass=ABCMeta):
@@ -514,7 +565,7 @@ class AbstractTerminationCondition(metaclass=ABCMeta):
         return is_terminated, is_truncated
 
 
-class QuantityTermination(AbstractTerminationCondition, Generic[ValueT]):
+class QuantityTermination(AbstractTerminationCondition):
     """Convenience class making it easy to derive termination conditions from
     generic quantities.
 
