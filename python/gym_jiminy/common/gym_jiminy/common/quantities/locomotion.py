@@ -333,6 +333,9 @@ class BaseOdometryAverageVelocity(InterfaceQuantity[np.ndarray]):
                     keys=(0, 1, 5)))),
             auto_refresh=False)
 
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
     def refresh(self) -> np.ndarray:
         return self.data.get()
 
@@ -467,6 +470,9 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                     frame_names=self.frame_names,
                     mode=mode))),
             auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
 
     def refresh(self) -> np.ndarray:
         return self.data.get()
@@ -665,6 +671,9 @@ class ReferencePositionVector(InterfaceQuantity[np.ndarray]):
             requirements=dict(
                 data=position_vector),
             auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
 
     def refresh(self) -> np.ndarray:
         return self.data.get()
@@ -1623,6 +1632,9 @@ class DeltaBaseOdometryPosition(InterfaceQuantity[ArrayOrScalar]):
                     bounds_only=True))),
             auto_refresh=False)
 
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
     def refresh(self) -> ArrayOrScalar:
         return self.data.get()
 
@@ -1684,6 +1696,9 @@ class DeltaBaseOdometryOrientation(InterfaceQuantity[ArrayOrScalar]):
                     op=angle_total,
                     bounds_only=False))),
             auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
 
     def refresh(self) -> ArrayOrScalar:
         return self.data.get()
