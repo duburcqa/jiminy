@@ -622,7 +622,7 @@ class ReferencePositionVector(InterfaceQuantity[np.ndarray]):
                     "'odometry_mode' must be either 'foot' or 'base'.")
 
             # Mixing the reference position vector with estimated odometry pose
-            position_vector: QuantityCreator = (ConcatenatedQuantity, dict(
+            position_vector = (ConcatenatedQuantity, dict(
                     quantities=(
                         (MaskedQuantity, dict(
                             quantity=odometry_pose,

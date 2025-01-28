@@ -84,8 +84,13 @@ class Rewards(unittest.TestCase):
                 np.testing.assert_allclose(value_left, value_right)
 
             if isinstance(reward, TrackingBaseHeightReward):
-                np.testing.assert_allclose(
-                    value_left, self.env.robot_state.q[2])
+                contact_height_min = float("inf")
+                for frame_index in self.env.robot.contact_frame_indices:
+                    oMf = self.env.robot.pinocchio_data.oMf[frame_index]
+                    height = oMf.translation[2]
+                    contact_height_min = min(contact_height_min, height)
+                robot_height = self.env.robot_state.q[2] - contact_height_min
+                np.testing.assert_allclose(value_left, robot_height)
 
             gamma = - np.log(CUTOFF_ESP) / cutoff ** 2
             value = np.exp(- gamma * np.sum(

@@ -1,7 +1,6 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
 from functools import partial
-from operator import attrgetter
 from dataclasses import dataclass
 from typing import Optional, Union, Sequence, Literal, Callable, cast
 
@@ -12,8 +11,7 @@ import jiminy_py.core as jiminy
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, StateQuantity, InterfaceQuantity, QuantityEvalMode,
-    QuantityReward)
+    InterfaceJiminyEnv, InterfaceQuantity, QuantityEvalMode, QuantityReward)
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
     OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,

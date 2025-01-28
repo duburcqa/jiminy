@@ -4,6 +4,7 @@ from .manager import QuantityManager
 from .transform import (StackedQuantity,
                         MaskedQuantity,
                         ConcatenatedQuantity,
+                        DeltaQuantity,
                         UnaryOpQuantity,
                         BinaryOpQuantity,
                         MultiAryOpQuantity)
@@ -48,6 +49,7 @@ __all__ = [
     'StackedQuantity',
     'MaskedQuantity',
     'ConcatenatedQuantity',
+    'DeltaQuantity',
     'UnaryOpQuantity',
     'BinaryOpQuantity',
     'MultiAryOpQuantity',

@@ -1291,9 +1291,9 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
-    the average pose of a given frame over the whole agent step.
+    the midpoint pose of a given frame over the whole agent step.
 
-    The average frame pose is obtained by integration of the average velocity
+    The midpoint frame pose is obtained by integration of the average velocity
     over the whole agent step, backward in time from the state at the end of
     the step to the midpoint. See `_DifferenceFrameXYZQuat` documentation for
     details.
