@@ -14,16 +14,19 @@ from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, QuantityEvalMode, QuantityReward)
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
-    OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,
-    BaseRelativeHeight, BaseOdometryPose, BaseOdometryAverageVelocity,
-    CapturePoint, MultiFramePosition, MultiFootRelativeXYZQuat,
-    MultiContactNormalizedSpatialForce, MultiFootNormalizedForceVertical,
-    MultiFootCollisionDetection, AverageBaseMomentum)
+    OrientationType, MaskedQuantity, UnaryOpQuantity, ConcatenatedQuantity,
+    FrameOrientation, BaseRelativeHeight, BaseOdometryPose,
+    DeltaBaseOdometryPosition, DeltaBaseOdometryOrientation,
+    BaseOdometryAverageVelocity, CapturePoint, MultiFramePosition,
+    MultiFootRelativeXYZQuat, MultiContactNormalizedSpatialForce,
+    MultiFootNormalizedForceVertical, MultiFootCollisionDetection,
+    AverageBaseMomentum)
 from ..utils import quat_difference, quat_to_yaw
 
 from .generic import (
     TrackingQuantityReward, QuantityTermination,
     DriftTrackingQuantityTermination, ShiftTrackingQuantityTermination)
+from ..quantities.locomotion import angle_total
 from .mixin import radial_basis_function
 
 
@@ -632,66 +635,6 @@ class DriftTrackingBaseOdometryPositionTermination(
             training_only=training_only)
 
 
-@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def angle_difference(delta: ArrayOrScalar) -> ArrayOrScalar:
-    """Compute the signed element-wise difference (aka. oriented angle) between
-    two batches of angles.
-
-    The oriented angle is defined as the smallest angle in absolute value
-    between right and left angles (ignoring multi-turns), signed in accordance
-    with the angle going from right to left angles.
-
-    .. seealso::
-        This proposed implementation is the most efficient one for batch size
-        of 1000. See this posts for reference about other implementations:
-        https://stackoverflow.com/a/7869457/4820605
-
-    :param delta: Pre-computed difference between left and right angles.
-    """
-    return delta - np.floor((delta + np.pi) / (2 * np.pi)) * (2 * np.pi)
-
-
-@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def angle_distance(angle_left: ArrayOrScalar,
-                   angle_right: ArrayOrScalar) -> ArrayOrScalar:
-    """Compute the element-wise distance between two batches of angles.
-
-    The distance is defined as the smallest angle in absolute value between
-    right and left angles (ignoring multi-turns).
-
-    .. seealso::
-        See `angle_difference` documentation for details.
-
-    :param angle_left: Left-hand side angles.
-    :param angle_right: Right-hand side angles.
-    """
-    delta = angle_left - angle_right
-    delta -= np.floor(delta / (2 * np.pi)) * (2 * np.pi)
-    return np.pi - np.abs(delta - np.pi)
-
-
-@nb.jit(nopython=True, cache=True, fastmath=True)
-def angle_total(angles: np.ndarray) -> np.ndarray:
-    """Compute the total signed multi-turn angle from start to end of
-    time-series of angles.
-
-    The method is fully compliant with individual angles restricted between
-    [-pi, pi], but it requires the distance between the angles at successive
-    timesteps to be smaller than pi.
-
-    .. seealso::
-        See `angle_difference` documentation for details.
-
-    :param angle: Temporal sequence of angles as a multi-dimensional array
-                  whose last dimension gathers all the successive timesteps.
-    """
-    # Note that `angle_difference` has been manually inlined as it results in
-    # about 50% speedup, which is surprising.
-    delta = angles[..., 1:] - angles[..., :-1]
-    delta -= np.floor((delta + np.pi) / (2.0 * np.pi)) * (2 * np.pi)
-    return np.sum(delta)
-
-
 class DriftTrackingBaseOdometryOrientationTermination(
         DriftTrackingQuantityTermination):
     """Terminate the episode if the current base odometry orientation is
@@ -798,6 +741,25 @@ class ShiftTrackingFootOdometryPositionsTermination(
             grace_period,
             is_truncation=False,
             training_only=training_only)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def angle_distance(angle_left: ArrayOrScalar,
+                   angle_right: ArrayOrScalar) -> ArrayOrScalar:
+    """Compute the element-wise distance between two batches of angles.
+
+    The distance is defined as the smallest angle in absolute value between
+    right and left angles (ignoring multi-turns).
+
+    .. seealso::
+        See `angle_difference` documentation for details.
+
+    :param angle_left: Left-hand side angles.
+    :param angle_right: Right-hand side angles.
+    """
+    delta = angle_left - angle_right
+    delta -= np.floor(delta / (2 * np.pi)) * (2 * np.pi)
+    return np.pi - np.abs(delta - np.pi)
 
 
 class ShiftTrackingFootOdometryOrientationsTermination(

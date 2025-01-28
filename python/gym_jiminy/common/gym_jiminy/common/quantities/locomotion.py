@@ -1,7 +1,7 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
 import math
-from operator import attrgetter
+from operator import sub, attrgetter
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Sequence, Literal, Union
 
@@ -16,11 +16,13 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode, QuantityCreator)
+from ..bases.compositions import ArrayOrScalar
 from ..quantities import (
     OrientationType, UnaryOpQuantity, MultiAryOpQuantity, MaskedQuantity,
-    ConcatenatedQuantity, FramePosition, FrameOrientation, MultiFramePosition,
-    MultiFrameXYZQuat, MultiFrameMeanXYZQuat, FrameSpatialAverageVelocity,
-    AverageFrameRollPitch, MultiFrameCollisionDetection)
+    ConcatenatedQuantity, DeltaQuantity, FramePosition, FrameOrientation,
+    MultiFramePosition, MultiFrameXYZQuat, MultiFrameMeanXYZQuat,
+    FrameSpatialAverageVelocity, AverageFrameRollPitch,
+    MultiFrameCollisionDetection)
 from ..utils import (
     matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply,
     rpy_to_quat)
@@ -1520,3 +1522,166 @@ class MultiFootCollisionDetection(InterfaceQuantity[bool]):
 
     def refresh(self) -> bool:
         return self.is_colliding.get()
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def angle_difference(delta: ArrayOrScalar) -> ArrayOrScalar:
+    """Compute the signed element-wise difference (aka. oriented angle) between
+    two batches of angles.
+
+    The oriented angle is defined as the smallest angle in absolute value
+    between right and left angles (ignoring multi-turns), signed in accordance
+    with the angle going from right to left angles.
+
+    .. seealso::
+        This proposed implementation is the most efficient one for batch size
+        of 1000. See this posts for reference about other implementations:
+        https://stackoverflow.com/a/7869457/4820605
+
+    :param delta: Pre-computed difference between left and right angles.
+    """
+    return delta - np.floor((delta + np.pi) / (2 * np.pi)) * (2 * np.pi)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def angle_total(angles: np.ndarray) -> np.ndarray:
+    """Compute the total signed multi-turn angle from start to end of
+    time-series of angles.
+
+    The method is fully compliant with individual angles restricted between
+    [-pi, pi], but it requires the distance between the angles at successive
+    timesteps to be smaller than pi.
+
+    .. seealso::
+        See `angle_difference` documentation for details.
+
+    :param angle: Temporal sequence of angles as a multi-dimensional array
+                  whose last dimension gathers all the successive timesteps.
+    """
+    # Note that `angle_difference` has been manually inlined as it results in
+    # about 50% speedup, which is surprising.
+    delta = angles[..., 1:] - angles[..., :-1]
+    delta -= np.floor((delta + np.pi) / (2.0 * np.pi)) * (2 * np.pi)
+    return np.sum(delta, axis=-1)
+
+
+@dataclass(unsafe_hash=True)
+class DeltaBaseOdometryPosition(InterfaceQuantity[ArrayOrScalar]):
+    """Variation of the base odometry position (X, Y) over a given horizon.
+
+    See `BaseOdometryPose` and `DeltaQuantity` documentations for details.
+    """
+
+    max_stack: int
+    """Time horizon over which to compute the variation.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 horizon: float,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(DeltaQuantity, dict(
+                    quantity=(MaskedQuantity, dict(
+                        quantity=(BaseOdometryPose, dict(
+                            mode=mode)),
+                        axis=0,
+                        keys=(0, 1))),
+                    horizon=horizon,
+                    op=sub,
+                    bounds_only=True))),
+            auto_refresh=False)
+
+    def refresh(self) -> ArrayOrScalar:
+        return self.data.get()
+
+
+@dataclass(unsafe_hash=True)
+class DeltaBaseOdometryOrientation(InterfaceQuantity[ArrayOrScalar]):
+    """Variation of the base odometry orientation (Yaw,) over a given horizon.
+
+    See `BaseOdometryPose` and `DeltaQuantity` documentations for details.
+    """
+
+    max_stack: int
+    """Time horizon over which to compute the variation.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 horizon: float,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(DeltaQuantity, dict(
+                    quantity=(MaskedQuantity, dict(
+                        quantity=(BaseOdometryPose, dict(
+                            mode=mode)),
+                        axis=0,
+                        keys=(2,))),
+                    horizon=horizon,
+                    op=angle_total,
+                    bounds_only=False))),
+            auto_refresh=False)
+
+    def refresh(self) -> ArrayOrScalar:
+        return self.data.get()
