@@ -72,6 +72,38 @@ class TrackingBaseOdometryVelocityReward(TrackingQuantityReward):
             cutoff)
 
 
+class DriftTrackingBaseOdometryPoseReward(TrackingQuantityReward):
+    """Reward the agent for tracking the drift of the odometry pose over a
+    horizon wrt some reference trajectory.
+
+    .. seealso::
+        See `DeltaBaseOdometryPosition`, `DeltaBaseOdometryOrientation` and
+        `TrackingQuantityReward` documentations for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float,
+                 horizon: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        """
+        super().__init__(
+            env,
+            "reward_tracking_odometry_pose",
+            lambda mode: (ConcatenatedQuantity, dict(
+                quantities=(
+                    (DeltaBaseOdometryPosition, dict(
+                        horizon=horizon,
+                        mode=mode)),
+                    (DeltaBaseOdometryOrientation, dict(
+                        horizon=horizon,
+                        mode=mode))))),
+            cutoff)
+
+
 class TrackingCapturePointReward(TrackingQuantityReward):
     """Reward the agent for tracking the capture point wrt some reference
     trajectory.

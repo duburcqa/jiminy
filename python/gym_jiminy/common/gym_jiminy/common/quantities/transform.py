@@ -641,7 +641,8 @@ class BinaryOpQuantity(InterfaceQuantity[ValueT],
             env,
             parent,
             requirements=dict(
-                quantity_left=quantity_left, quantity_right=quantity_right),
+                quantity_left=quantity_left,
+                quantity_right=quantity_right),
             auto_refresh=False)
 
     def refresh(self) -> ValueT:

@@ -1605,6 +1605,7 @@ class DeltaBaseOdometryPosition(InterfaceQuantity[ArrayOrScalar]):
 
         # Backup some of the user-arguments
         self.max_stack = max_stack
+        self.mode = mode
 
         # Call base implementation
         super().__init__(
@@ -1666,6 +1667,7 @@ class DeltaBaseOdometryOrientation(InterfaceQuantity[ArrayOrScalar]):
 
         # Backup some of the user-arguments
         self.max_stack = max_stack
+        self.mode = mode
 
         # Call base implementation
         super().__init__(
