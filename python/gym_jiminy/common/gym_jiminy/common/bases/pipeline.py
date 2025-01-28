@@ -432,7 +432,7 @@ class BasePipelineWrapper(
     def evaluate(self,
                  policy_fn: PolicyCallbackFun,
                  seed: Optional[int] = None,
-                 horizon: Optional[int] = None,
+                 horizon: Optional[float] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
                  **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
