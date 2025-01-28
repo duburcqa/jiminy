@@ -550,7 +550,7 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
+class ReferencePositionVector(InterfaceQuantity[np.ndarray]):
     """Reference position vector (aka. configuration) of the robot, for which
     the odometry pose (X, Y, Yaw) has been overwritten with the true one.
 
@@ -562,53 +562,67 @@ class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
     recommanded. See `MultiFootMeanXYZQuat` documentation for details.
     """
 
-    is_foot_based: bool
-    """ Whether to estimate the odometry pose from the mean foot pose instead
-    of the floating base pose.
+    odometry_mode: Optional[Literal['base', 'foot']]
+    """The modes 'foot' and 'base' estimate the odometry pose from the mean
+    foot pose or the floating base pose respectively. `None` to keep the
+    original odometry pose from the reference trajectory.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  *,
-                 is_foot_based: bool = True) -> None:
+                 odometry_mode: Optional[Literal['base', 'foot']] = 'foot'
+                 ) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
-        :para is_foot_based: Whether to estimate the odometry pose from the
-                             mean foot pose instead of the floating base pose.
-                             Optional: `True` by default.
+        :para odometry_mode: The modes 'foot' and 'base' estimate the odometry
+                             pose from the mean foot pose or the floating base
+                             pose respectively. `None` to keep the original
+                             odometry pose from the reference trajectory.
+                             Optional: 'foot' by default.
         """
         # Backup some user argument(s)
-        self.is_foot_based = is_foot_based
+        self.odometry_mode = odometry_mode
 
-        # Define the quantity corresponding to the odometry pose.
-        # Note that even though it appears twice in the computation graph of
-        # this quantity, it will only be computed once thanks to the quantity
-        # caching mechanism. It works because the exact same quantity
-        # specification is used at both places, otherwise it would not work
-        # because equality check falls back to identity check for lambdas.
-        if is_foot_based:
-            odometry_pose: QuantityCreator = (MultiAryOpQuantity, dict(
-                quantities=(
-                    (BaseOdometryPose, dict(
-                        mode=QuantityEvalMode.REFERENCE)),
-                    (MultiFootMeanOdometryPose, dict(
-                        frame_names="auto",
-                        mode=QuantityEvalMode.TRUE)),
-                    (MultiFootMeanOdometryPose, dict(
-                        frame_names="auto",
-                        mode=QuantityEvalMode.REFERENCE))),
-                op=lambda args: args[0] + args[1] - args[2]))
-        else:
-            odometry_pose = (BaseOdometryPose, dict(
-                mode=QuantityEvalMode.TRUE))
+        # Define the quantity corresponding to the reference position vector
+        position_vector: QuantityCreator = (UnaryOpQuantity, dict(
+            quantity=(StateQuantity, dict(
+                update_kinematics=False,
+                mode=QuantityEvalMode.REFERENCE)),
+            op=attrgetter('q')))
 
-        # Call base implementation
-        super().__init__(
-            env, parent, requirements=dict(
-                data=(ConcatenatedQuantity, dict(
+        # Overwrite the odometry pose based on true robot state if requested
+        if odometry_mode is not None:
+            # Define the quantity corresponding to the odometry pose.
+            # Note that even though it appears twice in the computation graph
+            # of this quantity, it will only be computed once thanks to the
+            # quantity caching mechanism. It works because the exact same
+            # quantity creator is used at both places, because equality check
+            # falls back to identity check for lambdas.
+            if odometry_mode == 'foot':
+                odometry_pose: QuantityCreator = (MultiAryOpQuantity, dict(
+                    quantities=(
+                        (BaseOdometryPose, dict(
+                            mode=QuantityEvalMode.REFERENCE)),
+                        (MultiFootMeanOdometryPose, dict(
+                            frame_names="auto",
+                            mode=QuantityEvalMode.TRUE)),
+                        (MultiFootMeanOdometryPose, dict(
+                            frame_names="auto",
+                            mode=QuantityEvalMode.REFERENCE))),
+                    op=lambda args: args[0] + args[1] - args[2]))
+            elif odometry_mode == 'base':
+                odometry_pose = (BaseOdometryPose, dict(
+                    mode=QuantityEvalMode.TRUE))
+            else:
+                raise ValueError(
+                    "'odometry_mode' must be either 'foot' or 'base'.")
+
+            # Mixing the reference position vector with estimated odometry pose
+            position_vector: QuantityCreator = (ConcatenatedQuantity, dict(
                     quantities=(
                         (MaskedQuantity, dict(
                             quantity=odometry_pose,
@@ -637,15 +651,18 @@ class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
                                 axis=0)),
                             op=rpy_to_quat)),
                         (MaskedQuantity, dict(
-                            quantity=(UnaryOpQuantity, dict(
-                                quantity=(StateQuantity, dict(
-                                    update_kinematics=False,
-                                    mode=QuantityEvalMode.REFERENCE)),
-                                op=attrgetter('q'))),
+                            quantity=position_vector,
                             axis=0,
                             keys=(7, ...)))),
                     axis=0))
-            ), auto_refresh=False)
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=position_vector),
+            auto_refresh=False)
 
     def refresh(self) -> np.ndarray:
         return self.data.get()
