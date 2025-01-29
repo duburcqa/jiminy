@@ -1264,7 +1264,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         observation_spaces['states'] = (
             spaces.Dict(agent=get_robot_state_space(self.robot)))
         observation_spaces['measurements'] = (
-            get_robot_measurements_space(self.robot))
+            get_robot_measurements_space(self.robot, is_finite=False))
         self.observation_space = cast(spaces.Space[Obs], spaces.Dict(
             **observation_spaces))  # type: ignore[arg-type]
 

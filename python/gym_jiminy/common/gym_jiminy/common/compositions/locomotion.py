@@ -72,6 +72,16 @@ class TrackingBaseOdometryVelocityReward(TrackingQuantityReward):
             cutoff)
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def l2_norm(vec: np.ndarray) -> np.ndarray:
+    """Compute the L2-norm of a vector.
+
+    :param array: Input array.
+    """
+    assert vec.ndim == 1
+    return np.sqrt(np.sum(np.square(vec)))
+
+
 class DriftTrackingBaseOdometryPoseReward(TrackingQuantityReward):
     """Reward the agent for tracking the drift of the odometry pose over a
     horizon wrt some reference trajectory.
@@ -90,14 +100,20 @@ class DriftTrackingBaseOdometryPoseReward(TrackingQuantityReward):
         :param horizon: Horizon over which values of the quantity will be
                         stacked before computing the drift.
         """
+        # Note that it is essential to operate on the Cartesian distance rather
+        # than the absolute position in world plan in order to decouple drift
+        # in position from drift in orientation. Otherwise, any drift on
+        # orientation would cause the drift in absolute position to diverge.
         super().__init__(
             env,
             "reward_tracking_odometry_pose",
             lambda mode: (ConcatenatedQuantity, dict(
                 quantities=(
-                    (DeltaBaseOdometryPosition, dict(
-                        horizon=horizon,
-                        mode=mode)),
+                    (UnaryOpQuantity, dict(
+                        quantity=(DeltaBaseOdometryPosition, dict(
+                            horizon=horizon,
+                            mode=mode)),
+                        op=l2_norm)),
                     (DeltaBaseOdometryOrientation, dict(
                         horizon=horizon,
                         mode=mode))))),
