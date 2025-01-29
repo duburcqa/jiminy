@@ -458,6 +458,11 @@ class ConcatenatedQuantity(InterfaceQuantity[np.ndarray]):
 
     All the quantities must have the same shape, except for the dimension
     corresponding to concatenation axis.
+
+    .. note::
+        For efficiency and convenience, built-in scalars and 0-D arrays are
+        treated as 1D arrays. For instance, multiple floats can be concatenated
+        as a vector.
     """
 
     quantities: Tuple[InterfaceQuantity[np.ndarray], ...]
@@ -516,10 +521,14 @@ class ConcatenatedQuantity(InterfaceQuantity[np.ndarray]):
         super().initialize()
 
         # Get current value of all the quantities
-        values = [quantity.get() for quantity in self.quantities]
+        # Dealing with special case where value is a float, as it would impede
+        # performance to force allocating a 1D array before concatenation.
+        values = tuple(
+            np.atleast_1d(quantity.get()) for quantity in self.quantities)
 
         # Allocate contiguous memory
-        self._data = np.concatenate(values, axis=self.axis)
+        self._data = np.concatenate(
+            values, axis=self.axis)
 
         # Compute slices of data
         self._data_slices.clear()
