@@ -640,6 +640,7 @@ def train(algo_config: AlgorithmConfig,
                     ),
                 },
                 render_env=False,
+                callbacks_class=DefaultCallbacks,
                 explore=False,
             )
         )
@@ -1038,8 +1039,12 @@ def sample_from_runner(
     # Collect metrics
     metrics = env_runner.get_metrics()
 
-    # Remove log paths from metrics to prevent irrelevant tensorboard logging
-    del metrics['log_path']
+    # Remove log paths from metrics to prevent irrelevant tensorboard logging.
+    # Note that 'log_path' is not stored as metrics by default with official
+    # RLlib algo config. Nevertheless, `gym_jiminy.rllib.utilities.train`
+    # forces all infos to be stored as metrics for the evaluation runners via
+    # `MonitorEpisodeCallback`, which includes 'log_path'.
+    metrics.pop('log_path', None)
 
     # Enable once-again auto-reset, to avoid starting back training from where
     # evaluation stopped.
