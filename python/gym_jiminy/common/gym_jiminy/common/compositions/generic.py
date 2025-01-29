@@ -205,7 +205,7 @@ def compute_drift_error(delta_true: Union[np.ndarray, float],
     drift = delta_true - delta_ref
     if isinstance(drift, float):
         return abs(drift)
-    return np.linalg.norm(drift.reshape((-1,)))  # type: ignore[return-value]
+    return np.sqrt(np.sum(np.square(drift)))
 
 
 class DriftTrackingQuantityTermination(QuantityTermination):
