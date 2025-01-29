@@ -1026,7 +1026,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
     def evaluate(self,
                  policy_fn: PolicyCallbackFun,
                  seed: Optional[int] = None,
-                 horizon: Optional[int] = None,
+                 horizon: Optional[float] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
                  **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
@@ -1053,7 +1053,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         reward_episode: List[float] = []
         info_episode = [info]
         try:
-            while horizon is None or self.num_steps < horizon:
+            while horizon is None or self.stepper_state.t < horizon:
                 action = policy_fn(
                     obs, action, reward, terminated, truncated, info)
                 if terminated or truncated:

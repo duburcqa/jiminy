@@ -1,7 +1,6 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
 from functools import partial
-from operator import attrgetter
 from dataclasses import dataclass
 from typing import Optional, Union, Sequence, Literal, Callable, cast
 
@@ -12,26 +11,28 @@ import jiminy_py.core as jiminy
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, StateQuantity, InterfaceQuantity, QuantityEvalMode,
-    QuantityReward)
+    InterfaceJiminyEnv, InterfaceQuantity, QuantityEvalMode, QuantityReward)
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
-    OrientationType, MaskedQuantity, UnaryOpQuantity, FrameOrientation,
-    BaseRelativeHeight, BaseOdometryPose, BaseOdometryAverageVelocity,
-    CapturePoint, MultiFramePosition, MultiFootRelativeXYZQuat,
-    MultiContactNormalizedSpatialForce, MultiFootNormalizedForceVertical,
-    MultiFootCollisionDetection, AverageBaseMomentum)
+    OrientationType, MaskedQuantity, UnaryOpQuantity, ConcatenatedQuantity,
+    FrameOrientation, BaseRelativeHeight, BaseOdometryPose,
+    DeltaBaseOdometryPosition, DeltaBaseOdometryOrientation,
+    BaseOdometryAverageVelocity, CapturePoint, MultiFramePosition,
+    MultiFootRelativeXYZQuat, MultiContactNormalizedSpatialForce,
+    MultiFootNormalizedForceVertical, MultiFootCollisionDetection,
+    AverageBaseMomentum)
 from ..utils import quat_difference, quat_to_yaw
 
 from .generic import (
     TrackingQuantityReward, QuantityTermination,
     DriftTrackingQuantityTermination, ShiftTrackingQuantityTermination)
+from ..quantities.locomotion import angle_total
 from .mixin import radial_basis_function
 
 
 class TrackingBaseHeightReward(TrackingQuantityReward):
     """Reward the agent for tracking the height of the floating base of the
-    robot wrt some reference trajectory.
+    robot relative to lowest contact point wrt some reference trajectory.
 
     .. seealso::
         See `TrackingQuantityReward` documentation for technical details.
@@ -46,14 +47,7 @@ class TrackingBaseHeightReward(TrackingQuantityReward):
         super().__init__(
             env,
             "reward_tracking_base_height",
-            lambda mode: (MaskedQuantity, dict(
-                quantity=(UnaryOpQuantity, dict(
-                    quantity=(StateQuantity, dict(
-                        update_kinematics=False,
-                        mode=mode)),
-                    op=attrgetter("q"))),
-                axis=0,
-                keys=(2,))),
+            lambda mode: (BaseRelativeHeight, dict(mode=mode)),
             cutoff)
 
 
@@ -75,6 +69,38 @@ class TrackingBaseOdometryVelocityReward(TrackingQuantityReward):
             env,
             "reward_tracking_odometry_velocity",
             lambda mode: (BaseOdometryAverageVelocity, dict(mode=mode)),
+            cutoff)
+
+
+class DriftTrackingBaseOdometryPoseReward(TrackingQuantityReward):
+    """Reward the agent for tracking the drift of the odometry pose over a
+    horizon wrt some reference trajectory.
+
+    .. seealso::
+        See `DeltaBaseOdometryPosition`, `DeltaBaseOdometryOrientation` and
+        `TrackingQuantityReward` documentations for technical details.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 cutoff: float,
+                 horizon: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param cutoff: Cutoff threshold for the RBF kernel transform.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        """
+        super().__init__(
+            env,
+            "reward_tracking_odometry_pose",
+            lambda mode: (ConcatenatedQuantity, dict(
+                quantities=(
+                    (DeltaBaseOdometryPosition, dict(
+                        horizon=horizon,
+                        mode=mode)),
+                    (DeltaBaseOdometryOrientation, dict(
+                        horizon=horizon,
+                        mode=mode))))),
             cutoff)
 
 
@@ -347,7 +373,8 @@ class FallingTermination(QuantityTermination):
         super().__init__(
             env,
             "termination_base_height",
-            (BaseRelativeHeight, {}),  # type: ignore[arg-type]
+            (BaseRelativeHeight, dict(  # type: ignore[arg-type]
+                mode=QuantityEvalMode.TRUE)),
             min_base_height,
             None,
             grace_period,
@@ -640,66 +667,6 @@ class DriftTrackingBaseOdometryPositionTermination(
             training_only=training_only)
 
 
-@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def angle_difference(delta: ArrayOrScalar) -> ArrayOrScalar:
-    """Compute the signed element-wise difference (aka. oriented angle) between
-    two batches of angles.
-
-    The oriented angle is defined as the smallest angle in absolute value
-    between right and left angles (ignoring multi-turns), signed in accordance
-    with the angle going from right to left angles.
-
-    .. seealso::
-        This proposed implementation is the most efficient one for batch size
-        of 1000. See this posts for reference about other implementations:
-        https://stackoverflow.com/a/7869457/4820605
-
-    :param delta: Pre-computed difference between left and right angles.
-    """
-    return delta - np.floor((delta + np.pi) / (2 * np.pi)) * (2 * np.pi)
-
-
-@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def angle_distance(angle_left: ArrayOrScalar,
-                   angle_right: ArrayOrScalar) -> ArrayOrScalar:
-    """Compute the element-wise distance between two batches of angles.
-
-    The distance is defined as the smallest angle in absolute value between
-    right and left angles (ignoring multi-turns).
-
-    .. seealso::
-        See `angle_difference` documentation for details.
-
-    :param angle_left: Left-hand side angles.
-    :param angle_right: Right-hand side angles.
-    """
-    delta = angle_left - angle_right
-    delta -= np.floor(delta / (2 * np.pi)) * (2 * np.pi)
-    return np.pi - np.abs(delta - np.pi)
-
-
-@nb.jit(nopython=True, cache=True, fastmath=True)
-def angle_total(angles: np.ndarray) -> np.ndarray:
-    """Compute the total signed multi-turn angle from start to end of
-    time-series of angles.
-
-    The method is fully compliant with individual angles restricted between
-    [-pi, pi], but it requires the distance between the angles at successive
-    timesteps to be smaller than pi.
-
-    .. seealso::
-        See `angle_difference` documentation for details.
-
-    :param angle: Temporal sequence of angles as a multi-dimensional array
-                  whose last dimension gathers all the successive timesteps.
-    """
-    # Note that `angle_difference` has been manually inlined as it results in
-    # about 50% speedup, which is surprising.
-    delta = angles[..., 1:] - angles[..., :-1]
-    delta -= np.floor((delta + np.pi) / (2.0 * np.pi)) * (2 * np.pi)
-    return np.sum(delta)
-
-
 class DriftTrackingBaseOdometryOrientationTermination(
         DriftTrackingQuantityTermination):
     """Terminate the episode if the current base odometry orientation is
@@ -806,6 +773,25 @@ class ShiftTrackingFootOdometryPositionsTermination(
             grace_period,
             is_truncation=False,
             training_only=training_only)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def angle_distance(angle_left: ArrayOrScalar,
+                   angle_right: ArrayOrScalar) -> ArrayOrScalar:
+    """Compute the element-wise distance between two batches of angles.
+
+    The distance is defined as the smallest angle in absolute value between
+    right and left angles (ignoring multi-turns).
+
+    .. seealso::
+        See `angle_difference` documentation for details.
+
+    :param angle_left: Left-hand side angles.
+    :param angle_right: Right-hand side angles.
+    """
+    delta = angle_left - angle_right
+    delta -= np.floor(delta / (2 * np.pi)) * (2 * np.pi)
+    return np.pi - np.abs(delta - np.pi)
 
 
 class ShiftTrackingFootOdometryOrientationsTermination(

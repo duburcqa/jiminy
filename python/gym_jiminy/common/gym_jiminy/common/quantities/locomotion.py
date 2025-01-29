@@ -1,7 +1,7 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
 import math
-from operator import attrgetter
+from operator import sub, attrgetter
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Sequence, Literal, Union
 
@@ -16,11 +16,13 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode, QuantityCreator)
+from ..bases.compositions import ArrayOrScalar
 from ..quantities import (
     OrientationType, UnaryOpQuantity, MultiAryOpQuantity, MaskedQuantity,
-    ConcatenatedQuantity, FramePosition, FrameOrientation, MultiFramePosition,
-    MultiFrameXYZQuat, MultiFrameMeanXYZQuat, FrameSpatialAverageVelocity,
-    AverageFrameRollPitch, MultiFrameCollisionDetection)
+    ConcatenatedQuantity, DeltaQuantity, FramePosition, FrameOrientation,
+    MultiFramePosition, MultiFrameXYZQuat, MultiFrameMeanXYZQuat,
+    FrameSpatialAverageVelocity, AverageFrameRollPitch,
+    MultiFrameCollisionDetection)
 from ..utils import (
     matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply,
     rpy_to_quat)
@@ -331,6 +333,9 @@ class BaseOdometryAverageVelocity(InterfaceQuantity[np.ndarray]):
                     keys=(0, 1, 5)))),
             auto_refresh=False)
 
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
     def refresh(self) -> np.ndarray:
         return self.data.get()
 
@@ -466,6 +471,9 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode))),
             auto_refresh=False)
 
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
     def refresh(self) -> np.ndarray:
         return self.data.get()
 
@@ -550,7 +558,7 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
+class ReferencePositionVector(InterfaceQuantity[np.ndarray]):
     """Reference position vector (aka. configuration) of the robot, for which
     the odometry pose (X, Y, Yaw) has been overwritten with the true one.
 
@@ -562,53 +570,67 @@ class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
     recommanded. See `MultiFootMeanXYZQuat` documentation for details.
     """
 
-    is_foot_based: bool
-    """ Whether to estimate the odometry pose from the mean foot pose instead
-    of the floating base pose.
+    odometry_mode: Optional[Literal['base', 'foot']]
+    """The modes 'foot' and 'base' estimate the odometry pose from the mean
+    foot pose or the floating base pose respectively. `None` to keep the
+    original odometry pose from the reference trajectory.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  *,
-                 is_foot_based: bool = True) -> None:
+                 odometry_mode: Optional[Literal['base', 'foot']] = 'foot'
+                 ) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
-        :para is_foot_based: Whether to estimate the odometry pose from the
-                             mean foot pose instead of the floating base pose.
-                             Optional: `True` by default.
+        :para odometry_mode: The modes 'foot' and 'base' estimate the odometry
+                             pose from the mean foot pose or the floating base
+                             pose respectively. `None` to keep the original
+                             odometry pose from the reference trajectory.
+                             Optional: 'foot' by default.
         """
         # Backup some user argument(s)
-        self.is_foot_based = is_foot_based
+        self.odometry_mode = odometry_mode
 
-        # Define the quantity corresponding to the odometry pose.
-        # Note that even though it appears twice in the computation graph of
-        # this quantity, it will only be computed once thanks to the quantity
-        # caching mechanism. It works because the exact same quantity
-        # specification is used at both places, otherwise it would not work
-        # because equality check falls back to identity check for lambdas.
-        if is_foot_based:
-            odometry_pose: QuantityCreator = (MultiAryOpQuantity, dict(
-                quantities=(
-                    (BaseOdometryPose, dict(
-                        mode=QuantityEvalMode.REFERENCE)),
-                    (MultiFootMeanOdometryPose, dict(
-                        frame_names="auto",
-                        mode=QuantityEvalMode.TRUE)),
-                    (MultiFootMeanOdometryPose, dict(
-                        frame_names="auto",
-                        mode=QuantityEvalMode.REFERENCE))),
-                op=lambda args: args[0] + args[1] - args[2]))
-        else:
-            odometry_pose = (BaseOdometryPose, dict(
-                mode=QuantityEvalMode.TRUE))
+        # Define the quantity corresponding to the reference position vector
+        position_vector: QuantityCreator = (UnaryOpQuantity, dict(
+            quantity=(StateQuantity, dict(
+                update_kinematics=False,
+                mode=QuantityEvalMode.REFERENCE)),
+            op=attrgetter('q')))
 
-        # Call base implementation
-        super().__init__(
-            env, parent, requirements=dict(
-                data=(ConcatenatedQuantity, dict(
+        # Overwrite the odometry pose based on true robot state if requested
+        if odometry_mode is not None:
+            # Define the quantity corresponding to the odometry pose.
+            # Note that even though it appears twice in the computation graph
+            # of this quantity, it will only be computed once thanks to the
+            # quantity caching mechanism. It works because the exact same
+            # quantity creator is used at both places, because equality check
+            # falls back to identity check for lambdas.
+            if odometry_mode == 'foot':
+                odometry_pose: QuantityCreator = (MultiAryOpQuantity, dict(
+                    quantities=(
+                        (BaseOdometryPose, dict(
+                            mode=QuantityEvalMode.REFERENCE)),
+                        (MultiFootMeanOdometryPose, dict(
+                            frame_names="auto",
+                            mode=QuantityEvalMode.TRUE)),
+                        (MultiFootMeanOdometryPose, dict(
+                            frame_names="auto",
+                            mode=QuantityEvalMode.REFERENCE))),
+                    op=lambda args: args[0] + args[1] - args[2]))
+            elif odometry_mode == 'base':
+                odometry_pose = (BaseOdometryPose, dict(
+                    mode=QuantityEvalMode.TRUE))
+            else:
+                raise ValueError(
+                    "'odometry_mode' must be either 'foot' or 'base'.")
+
+            # Mixing the reference position vector with estimated odometry pose
+            position_vector = (ConcatenatedQuantity, dict(
                     quantities=(
                         (MaskedQuantity, dict(
                             quantity=odometry_pose,
@@ -637,15 +659,21 @@ class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
                                 axis=0)),
                             op=rpy_to_quat)),
                         (MaskedQuantity, dict(
-                            quantity=(UnaryOpQuantity, dict(
-                                quantity=(StateQuantity, dict(
-                                    update_kinematics=False,
-                                    mode=QuantityEvalMode.REFERENCE)),
-                                op=attrgetter('q'))),
+                            quantity=position_vector,
                             axis=0,
                             keys=(7, ...)))),
                     axis=0))
-            ), auto_refresh=False)
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=position_vector),
+            auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
 
     def refresh(self) -> np.ndarray:
         return self.data.get()
@@ -1503,3 +1531,174 @@ class MultiFootCollisionDetection(InterfaceQuantity[bool]):
 
     def refresh(self) -> bool:
         return self.is_colliding.get()
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def angle_difference(delta: ArrayOrScalar) -> ArrayOrScalar:
+    """Compute the signed element-wise difference (aka. oriented angle) between
+    two batches of angles.
+
+    The oriented angle is defined as the smallest angle in absolute value
+    between right and left angles (ignoring multi-turns), signed in accordance
+    with the angle going from right to left angles.
+
+    .. seealso::
+        This proposed implementation is the most efficient one for batch size
+        of 1000. See this posts for reference about other implementations:
+        https://stackoverflow.com/a/7869457/4820605
+
+    :param delta: Pre-computed difference between left and right angles.
+    """
+    return delta - np.floor((delta + np.pi) / (2 * np.pi)) * (2 * np.pi)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def angle_total(angles: np.ndarray) -> np.ndarray:
+    """Compute the total signed multi-turn angle from start to end of
+    time-series of angles.
+
+    The method is fully compliant with individual angles restricted between
+    [-pi, pi], but it requires the distance between the angles at successive
+    timesteps to be smaller than pi.
+
+    .. seealso::
+        See `angle_difference` documentation for details.
+
+    :param angle: Temporal sequence of angles as a multi-dimensional array
+                  whose last dimension gathers all the successive timesteps.
+    """
+    # Note that `angle_difference` has been manually inlined as it results in
+    # about 50% speedup, which is surprising.
+    delta = angles[..., 1:] - angles[..., :-1]
+    delta -= np.floor((delta + np.pi) / (2.0 * np.pi)) * (2 * np.pi)
+    return np.sum(delta, axis=-1)
+
+
+@dataclass(unsafe_hash=True)
+class DeltaBaseOdometryPosition(InterfaceQuantity[ArrayOrScalar]):
+    """Variation of the base odometry position (X, Y) over a given horizon.
+
+    See `BaseOdometryPose` and `DeltaQuantity` documentations for details.
+    """
+
+    max_stack: int
+    """Time horizon over which to compute the variation.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 horizon: float,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(DeltaQuantity, dict(
+                    quantity=(MaskedQuantity, dict(
+                        quantity=(BaseOdometryPose, dict(
+                            mode=mode)),
+                        axis=0,
+                        keys=(0, 1))),
+                    horizon=horizon,
+                    op=sub,
+                    bounds_only=True))),
+            auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
+    def refresh(self) -> ArrayOrScalar:
+        return self.data.get()
+
+
+@dataclass(unsafe_hash=True)
+class DeltaBaseOdometryOrientation(InterfaceQuantity[ArrayOrScalar]):
+    """Variation of the base odometry orientation (Yaw,) over a given horizon.
+
+    See `BaseOdometryPose` and `DeltaQuantity` documentations for details.
+    """
+
+    max_stack: int
+    """Time horizon over which to compute the variation.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 horizon: float,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(DeltaQuantity, dict(
+                    quantity=(MaskedQuantity, dict(
+                        quantity=(BaseOdometryPose, dict(
+                            mode=mode)),
+                        axis=0,
+                        keys=(2,))),
+                    horizon=horizon,
+                    op=angle_total,
+                    bounds_only=False))),
+            auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
+    def refresh(self) -> ArrayOrScalar:
+        return self.data.get()

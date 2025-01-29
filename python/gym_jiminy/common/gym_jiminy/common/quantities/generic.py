@@ -507,8 +507,12 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        value = self.data.get()
-        return value[self.frame_name]
+        # Return a slice of batched data.
+        # Note that mapping from frame names to frame index in batched data
+        # cannot be pre-computed as it may changed dynamically.
+        # Note that avoiding defining a temporary variable to store the current
+        # value of the quantity slightly improves performance.
+        return self.data.get()[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
@@ -588,11 +592,7 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        # Return a slice of batched data.
-        # Note that mapping from frame names to frame index in batched data
-        # cannot be pre-computed as it may changed dynamically.
-        value = self.data.get()
-        return value[self.frame_names]
+        return self.data.get()[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -742,8 +742,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        value = self.data.get()
-        return value[self.frame_name]
+        return self.data.get()[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
@@ -806,8 +805,7 @@ class MultiFramePosition(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        value = self.data.get()
-        return value[self.frame_names]
+        return self.data.get()[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -1291,9 +1289,9 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
-    the average pose of a given frame over the whole agent step.
+    the midpoint pose of a given frame over the whole agent step.
 
-    The average frame pose is obtained by integration of the average velocity
+    The midpoint frame pose is obtained by integration of the average velocity
     over the whole agent step, backward in time from the state at the end of
     the step to the midpoint. See `_DifferenceFrameXYZQuat` documentation for
     details.
@@ -1806,6 +1804,9 @@ class MechanicalPowerConsumption(InterfaceQuantity[float]):
                     op=partial_hashable(
                         compute_power, int(self.generator_mode))))),
             auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
 
     def refresh(self) -> float:
         return self.data.get()

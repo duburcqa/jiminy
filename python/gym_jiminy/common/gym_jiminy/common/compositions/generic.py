@@ -3,7 +3,7 @@ regardless its topology (multiple or single branch, fixed or floating base...)
 and the application (locomotion, grasping...).
 """
 from functools import partial
-from operator import sub, itemgetter
+from operator import sub
 from dataclasses import dataclass
 from typing import Optional, Callable, Tuple, Sequence, Union, TypeVar
 
@@ -17,7 +17,7 @@ from ..bases import (
     AbstractTerminationCondition, QuantityTermination, partial_hashable)
 from ..bases.compositions import ArrayOrScalar, Number
 from ..quantities import (
-    EnergyGenerationMode, StackedQuantity, UnaryOpQuantity, BinaryOpQuantity,
+    EnergyGenerationMode, StackedQuantity, BinaryOpQuantity, DeltaQuantity,
     MultiActuatedJointKinematic, MechanicalPowerConsumption,
     AverageMechanicalPowerConsumption)
 
@@ -192,8 +192,8 @@ class MinimizeMechanicalPowerConsumption(QuantityReward):
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def compute_drift_error(delta_true: np.ndarray,
-                        delta_ref: np.ndarray) -> float:
+def compute_drift_error(delta_true: Union[np.ndarray, float],
+                        delta_ref: Union[np.ndarray, float]) -> float:
     """Compute the difference between the true and reference variation of a
     quantity over a given horizon, then apply some post-processing on it if
     requested.
@@ -213,11 +213,8 @@ class DriftTrackingQuantityTermination(QuantityTermination):
     current and reference values of a given quantity over a horizon.
 
     The drift is defined as the difference between the current and reference
-    variation of the quantity over a variable-length horizon bounded by
-    'max_stack'. This variation is computed from the whole history of values
-    corresponding to this horizon, which is basically a sliding window. For
-    Euclidean spaces, this variation is simply computed as the difference
-    between most recent and oldest values stored in the history.
+    variation of the quantity over a sliding window of length 'horizon'. See
+    `DeltaQuantity` quantity for details.
 
     In practice, no bound check is applied on the drift directly, which may be
     multi-variate at this point. Instead, the L2-norm is used as metric in the
@@ -290,52 +287,36 @@ class DriftTrackingQuantityTermination(QuantityTermination):
         """
         # pylint: disable=unnecessary-lambda-assignment
 
-        # Convert horizon in stack length, assuming constant env timestep
-        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
-
         # Backup user argument(s)
-        self.max_stack = max_stack
+        self.horizon = horizon
         self.op = op
         self.bounds_only = bounds_only
 
-        # Define drift of quantity
-        delta_creator: Callable[[QuantityEvalMode], QuantityCreator]
-        if self.bounds_only:
-            stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
-                quantity=quantity_creator(mode),
-                max_stack=max_stack))
-            delta_creator = lambda mode: (BinaryOpQuantity, dict(  # noqa: E731
-                quantity_left=(UnaryOpQuantity, dict(
-                    quantity=stack_creator(mode),
-                    op=itemgetter(-1))),
-                quantity_right=(UnaryOpQuantity, dict(
-                    quantity=stack_creator(mode),
-                    op=itemgetter(0))),
-                op=op))
-        else:
-            delta_creator = lambda mode: (UnaryOpQuantity, dict(  # noqa: E731
-                quantity=(StackedQuantity, dict(
-                    quantity=quantity_creator(mode),
-                    max_stack=max_stack,
-                    is_wrapping=False,
-                    as_array=True)),
-                op=op))
+        # Define variation quantity
+        delta_creator: Callable[
+            [QuantityEvalMode], QuantityCreator[ArrayOrScalar]]
+        delta_creator = lambda mode: (DeltaQuantity, dict(  # noqa: E731
+            quantity=quantity_creator(mode),
+            horizon=horizon,
+            op=op,
+            bounds_only=bounds_only))
 
-        # Add drift quantity to the set of quantities managed by environment
+        # Define drift quantity
         drift_tracking_quantity = (BinaryOpQuantity, dict(
             quantity_left=delta_creator(QuantityEvalMode.TRUE),
             quantity_right=delta_creator(QuantityEvalMode.REFERENCE),
             op=compute_drift_error))
 
         # Call base implementation
-        super().__init__(env,
-                         name,
-                         drift_tracking_quantity,  # type: ignore[arg-type]
-                         None,
-                         np.array(thr),
-                         grace_period,
-                         is_truncation=is_truncation,
-                         training_only=training_only)
+        super().__init__(
+            env,
+            name,
+            drift_tracking_quantity,  # type: ignore[arg-type]
+            None,
+            np.array(thr),
+            grace_period,
+            is_truncation=is_truncation,
+            training_only=training_only)
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
@@ -444,12 +425,12 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
         """
         # pylint: disable=unnecessary-lambda-assignment
 
+        # Backup user argument(s)
+        self.horizon = horizon
+        self.op = op
+
         # Convert horizon in stack length, assuming constant env timestep
         max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
-
-        # Backup user argument(s)
-        self.max_stack = max_stack
-        self.op = op
 
         # Define drift of quantity
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731
