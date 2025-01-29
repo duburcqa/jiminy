@@ -155,7 +155,8 @@ def get_robot_state_space(robot: jiminy.Robot,
                          dtype=np.float64))
 
 
-def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
+def get_robot_measurements_space(robot: jiminy.Robot,
+                                 is_finite: bool = True) -> gym.spaces.Dict:
     """Get the sensor space associated with a given robot.
 
     It gathers the sensors data in a dictionary. It maps each available type of
@@ -178,6 +179,12 @@ def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
             sensor = env.robot.sensors[key][j]
 
     :param robot: Jiminy robot to consider.
+    :param is_finite: Whether to set infer finite bounds from physical
+                      properties of the robot whenever possible. For now, this
+                      only has an effect for encoders (position only) and
+                      effort sensors. In pratice, it may be worth to disable
+                      finite bounds if sensors are flawed (noise and bias),
+                      causing their measurement to be out-of-bounds.
     """
     # Make sure that the robot is initialized
     assert robot.is_initialized
@@ -196,40 +203,41 @@ def get_robot_measurements_space(robot: jiminy.Robot) -> gym.spaces.Dict:
         for key, value in sensor_measurements.items())
 
     # Replace inf bounds of the encoder sensor space
-    for sensor in robot.sensors.get(EncoderSensor.type, ()):
-        # Get the position bounds of the sensor.
-        # Note that for rotary unbounded encoders, the sensor bounds cannot be
-        # extracted from the motor because only the principal value of the
-        # angle is observed by the sensor.
-        assert isinstance(sensor, EncoderSensor)
-        joint = robot.pinocchio_model.joints[sensor.joint_index]
-        joint_type = jiminy.get_joint_type(joint)
-        if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
-            sensor_position_lower = - np.pi
-            sensor_position_upper = + np.pi
-        else:
-            try:
-                motor = robot.motors[sensor.motor_index]
-                sensor_position_lower = motor.position_limit_lower
-                sensor_position_upper = motor.position_limit_upper
-            except IndexError:
-                sensor_position_lower = position_limit_lower[joint.idx_q]
-                sensor_position_upper = position_limit_upper[joint.idx_q]
+    if is_finite:
+        for sensor in robot.sensors.get(EncoderSensor.type, ()):
+            # Get the position bounds of the sensor.
+            # Note that for rotary unbounded encoders, the sensor bounds cannot
+            # be extracted from the motor because only the principal value of
+            # the angle is observed by the sensor.
+            assert isinstance(sensor, EncoderSensor)
+            joint = robot.pinocchio_model.joints[sensor.joint_index]
+            joint_type = jiminy.get_joint_type(joint)
+            if joint_type == jiminy.JointModelType.ROTARY_UNBOUNDED:
+                sensor_position_lower = - np.pi
+                sensor_position_upper = + np.pi
+            else:
+                try:
+                    motor = robot.motors[sensor.motor_index]
+                    sensor_position_lower = motor.position_limit_lower
+                    sensor_position_upper = motor.position_limit_upper
+                except IndexError:
+                    sensor_position_lower = position_limit_lower[joint.idx_q]
+                    sensor_position_upper = position_limit_upper[joint.idx_q]
 
-        # Update the bounds accordingly
-        sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
-            sensor_position_lower)
-        sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
-            sensor_position_upper)
+            # Update the bounds accordingly
+            sensor_space_lower[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_lower)
+            sensor_space_upper[EncoderSensor.type][0, sensor.index] = (
+                sensor_position_upper)
 
-    # Replace inf bounds of the effort sensor space
-    for sensor in robot.sensors.get(EffortSensor.type, ()):
-        assert isinstance(sensor, EffortSensor)
-        motor = robot.motors[sensor.motor_index]
-        sensor_space_lower[EffortSensor.type][0, sensor.index] = (
-            - motor.effort_limit)
-        sensor_space_upper[EffortSensor.type][0, sensor.index] = (
-            motor.effort_limit)
+        # Replace inf bounds of the effort sensor space
+        for sensor in robot.sensors.get(EffortSensor.type, ()):
+            assert isinstance(sensor, EffortSensor)
+            motor = robot.motors[sensor.motor_index]
+            sensor_space_lower[EffortSensor.type][0, sensor.index] = (
+                - motor.effort_limit)
+            sensor_space_upper[EffortSensor.type][0, sensor.index] = (
+                motor.effort_limit)
 
     return gym.spaces.Dict([
         (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
