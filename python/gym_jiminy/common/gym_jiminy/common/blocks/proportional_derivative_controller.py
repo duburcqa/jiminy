@@ -108,7 +108,6 @@ def pd_controller(encoder_data: np.ndarray,
                   kp: np.ndarray,
                   kd: np.ndarray,
                   motors_effort_limit: np.ndarray,
-                  motors_velocity_deadband: Optional[np.ndarray],
                   control_dt: float,
                   out: np.ndarray) -> None:
     """Compute command torques under discrete-time proportional-derivative
@@ -143,8 +142,6 @@ def pd_controller(encoder_data: np.ndarray,
     :param kp: PD controller position-proportional gain in motor order.
     :param kd: PD controller velocity-proportional gain in motor order.
     :param motors_effort_limit: Maximum effort that the actuators can output.
-    :param velocity_deadband: Target velocity deadband for which the target
-                              motor velocity will be cancelled out completely.
     :param control_dt: Controller update period. It will be involved in the
                        integration of the command state.
     :param out: Pre-allocated memory to store the command motor torques.
@@ -154,11 +151,6 @@ def pd_controller(encoder_data: np.ndarray,
                   command_state_lower,
                   command_state_upper,
                   control_dt)
-
-    # Velocity/Acceleration dead-band to avoid slow drift of target position
-    if motors_velocity_deadband is not None:
-        is_zero_velocity = np.abs(command_state[1]) < motors_velocity_deadband
-        command_state[1, is_zero_velocity] = 0.0
 
     # Compute the joint tracking error
     q_error, v_error = command_state[:2] - encoder_data
@@ -178,6 +170,7 @@ def pd_adapter(action: np.ndarray,
                command_state_lower: np.ndarray,
                command_state_upper: np.ndarray,
                is_instantaneous: bool,
+               motors_velocity_deadband: Optional[np.ndarray],
                step_dt: float,
                out: np.ndarray) -> None:
     """Compute the target motor accelerations that must be held constant for a
@@ -201,6 +194,8 @@ def pd_adapter(action: np.ndarray,
                                 satisfied at all cost.
     :param command_state_upper: Upper bound of the command state that must be
                                 satisfied at all cost.
+    :param motors_velocity_deadband: Target velocity deadband for which the target
+                              motor velocity will be cancelled out completely.
     :param step_dt: Time interval during which the target motor accelerations
                     will be held constant.
     :param out: Pre-allocated memory to store the target motor accelerations.
@@ -220,10 +215,18 @@ def pd_adapter(action: np.ndarray,
             velocity = np.minimum(np.maximum(
                 velocity, command_state_lower[1]), command_state_upper[1])
 
+            # Velocity dead-band to avoid slow drift of target position
+            if motors_velocity_deadband is not None:
+                velocity[np.abs(velocity) < motors_velocity_deadband] = 0.0
+
             # Update command position instantaneously
             command_state[0] += velocity * step_dt
             command_state[1] = 0.0
         else:
+            # Velocity dead-band to avoid slow drift of target position
+            if motors_velocity_deadband is not None:
+                action = action * (np.abs(action) > motors_velocity_deadband)
+
             # Compute command acceleration
             acceleration = (action - command_state[1]) / step_dt
 
@@ -247,6 +250,10 @@ def pd_adapter(action: np.ndarray,
         # Clip command velocity
         velocity = np.minimum(np.maximum(
             velocity, command_state_lower[1]), command_state_upper[1])
+
+        # Velocity dead-band to avoid slow drift of target position
+        if motors_velocity_deadband is not None:
+            velocity[np.abs(velocity) < motors_velocity_deadband] = 0.0
 
         # Compute command acceleration
         out[:] = (velocity - command_state[1]) / step_dt
@@ -322,7 +329,6 @@ class PDController(
                  kd: Union[float, List[float], np.ndarray],
                  joint_position_margin: float = 0.0,
                  joint_velocity_limit: float = float("inf"),
-                 joint_velocity_deadband: float = 0.0,
                  joint_acceleration_limit: Optional[float] = None) -> None:
         """
         :param name: Name of the block.
@@ -340,12 +346,6 @@ class PDController(
             Further restrict maximum joint target velocities wrt their
             hardware specifications.
             Optional: 'inf' by default.
-        :param joint_velocity_deadband:
-            Target velocity deadband to avoid high-frequency vibrations and
-            drifting of the target motor positions that would result internal
-            efforts in the mechanical structure for hyperstatic postures.
-            Note that it is only enabled during evaluation, not training.
-            Optional: 0.0 by default.
         :param joint_acceleration_limit:
             Maximum joint target acceleration. `None` to infer acceleration
             bounds (from prescribed PD gains plus maximum motor velocities and
@@ -412,9 +412,6 @@ class PDController(
         motors_velocity_limit = np.array([
             min(motor.velocity_limit, ratio * joint_velocity_limit)
             for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
-        self._motors_velocity_deadband = np.array([
-            ratio * joint_velocity_deadband
-            for motor, ratio in zip(env.robot.motors, encoder_to_joint_ratio)])
 
         # Define acceleration bounds allowing unrestricted bang-bang control
         if joint_acceleration_limit is None:
@@ -443,9 +440,6 @@ class PDController(
 
         # Initialize the controller
         super().__init__(name, env, update_ratio)
-
-        # Whether deadband is enabled
-        self._enable_deadband = False
 
         # Make sure that the state is within bounds
         self._command_state[:2] = zeros(self.state_space)
@@ -486,9 +480,6 @@ class PDController(
         # Reset the command state
         fill(self._command_state, 0)
 
-        # Enable deadband in evaluation mode only.
-        # Note that training/evaluation cannot be changed at this point.
-        self._enable_deadband = not self.env.training
 
     @property
     def fieldnames(self) -> List[str]:
@@ -540,7 +531,6 @@ class PDController(
             self.kp,
             self.kd,
             self.motors_effort_limit,
-            self._motors_velocity_deadband if self._enable_deadband else None,
             self.control_dt if is_simulation_running else 0.0,
             command)
 
@@ -576,6 +566,7 @@ class PDAdapter(
                  *,
                  update_ratio: int = -1,
                  order: int = 1,
+                 joint_velocity_deadband: float = 0.0,
                  is_instantaneous: bool = False) -> None:
         """
         :param update_ratio: Ratio between the update period of the controller
@@ -585,6 +576,12 @@ class PDAdapter(
         :param order: Derivative order of the action. It accepts position or
                       velocity (respectively 0 or 1).
                       Optional: 1 by default.
+        :param joint_velocity_deadband:
+            Target velocity deadband to avoid high-frequency vibrations and
+            drifting of the target motor positions that would result internal
+            efforts in the mechanical structure for hyperstatic postures.
+            Note that it is only enabled during evaluation, not training.
+            Optional: 0.0 by default.
         :param is_instantaneous: Whether to consider that the command state
                                  must be updated instantaneously, breaking
                                  continuity of higher-order derivatives, or
@@ -608,8 +605,23 @@ class PDAdapter(
         # Define some proxies for convenience
         self._pd_controller = controller
 
+        # Refresh mechanical reduction ratio.
+        # FIXME: Is it considered invariant ?
+        encoder_to_joint_ratio = []
+        for motor in env.robot.motors:
+            motor_options = motor.get_options()
+            encoder_to_joint_ratio.append(motor_options["mechanicalReduction"])
+
+        # Define the motors target velocity bounds
+        self._motors_velocity_deadband = np.array([
+            ratio * joint_velocity_deadband
+            for ratio in encoder_to_joint_ratio])
+
         # Initialize the controller
         super().__init__(name, env, update_ratio)
+
+        # Whether deadband is enabled
+        self._enable_deadband = False
 
     def _initialize_action_space(self) -> None:
         """Configure the action space of the controller.
@@ -621,6 +633,19 @@ class PDAdapter(
             low=self._pd_controller._command_state_lower[self.order],
             high=self._pd_controller._command_state_upper[self.order],
             dtype=np.float64)
+
+    def _setup(self) -> None:
+        # Call base implementation
+        super()._setup()
+
+        # Make sure control update is discrete-time
+        if self.env.control_dt <= 0.0:
+            raise ValueError(
+                "This block does not support time-continuous update.")
+
+        # Enable deadband in evaluation mode only.
+        # Note that training/evaluation cannot be changed at this point.
+        self._enable_deadband = not self.env.training
 
     @property
     def fieldnames(self) -> List[str]:
@@ -641,5 +666,6 @@ class PDAdapter(
             self._pd_controller._command_state_lower,
             self._pd_controller._command_state_upper,
             self.is_instantaneous,
+            self._motors_velocity_deadband if self._enable_deadband else None,
             self.control_dt if self.env.is_simulation_running else 0.0,
             command)

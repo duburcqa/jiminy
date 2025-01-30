@@ -527,8 +527,7 @@ class ConcatenatedQuantity(InterfaceQuantity[np.ndarray]):
             np.atleast_1d(quantity.get()) for quantity in self.quantities)
 
         # Allocate contiguous memory
-        self._data = np.concatenate(
-            values, axis=self.axis)
+        self._data = np.concatenate(values, axis=self.axis)
 
         # Compute slices of data
         self._data_slices.clear()
