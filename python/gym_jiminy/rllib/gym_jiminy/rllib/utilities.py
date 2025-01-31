@@ -197,7 +197,8 @@ class MonitorEpisodeCallback(DefaultCallbacks):
         # Drop all partial episodes associated with the environment at hand
         # when starting a fresh new one since it will never be done anyway.
         if env_index in self._ongoing_episodes:
-            self._partial_episodes.pop(self._ongoing_episodes[env_index], None)
+            episode_id_prev = self._ongoing_episodes[env_index]
+            self._partial_episodes.pop(episode_id_prev, None)
         self._ongoing_episodes[env_index] = episode.id_
 
     def on_episode_end(self,

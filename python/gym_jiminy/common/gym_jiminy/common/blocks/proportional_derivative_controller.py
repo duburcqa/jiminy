@@ -194,8 +194,9 @@ def pd_adapter(action: np.ndarray,
                                 satisfied at all cost.
     :param command_state_upper: Upper bound of the command state that must be
                                 satisfied at all cost.
-    :param motors_velocity_deadband: Target velocity deadband for which the target
-                              motor velocity will be cancelled out completely.
+    :param motors_velocity_deadband: Target velocity deadband for which the
+                                     target motor velocity will be cancelled
+                                     out completely.
     :param step_dt: Time interval during which the target motor accelerations
                     will be held constant.
     :param out: Pre-allocated memory to store the target motor accelerations.
@@ -479,7 +480,6 @@ class PDController(
 
         # Reset the command state
         fill(self._command_state, 0)
-
 
     @property
     def fieldnames(self) -> List[str]:
