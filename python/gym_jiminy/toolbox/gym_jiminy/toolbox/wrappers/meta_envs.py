@@ -2,8 +2,7 @@
 """
 from abc import abstractmethod
 from typing import (
-    Any, Optional, List, Tuple, Sequence, Union, Generic, SupportsFloat,
-    TypeVar, cast)
+    Any, Optional, List, Tuple, Sequence, Dict, Union, Generic, TypeVar, cast)
 
 import numpy as np
 
@@ -29,7 +28,7 @@ class BaseTaskSettableWrapper(BasePipelineWrapper[Obs, Act, BaseObs, Act],
                               Generic[Obs, Act, Task, BaseObs]):
     """Wrapper extending a base jiminy environment to make it task-settable.
 
-    A new task will be randomly sampled at the beginning of the every episode,
+    A new task will be randomly sampled at the beginning of every episode,
     based on a user-specified probability tree `proba_task_tree`. Although one
     can manually call `set_task` to forceable set the current task at any point
     in time, this approach is not recommended unless you know exactly what you
@@ -172,10 +171,7 @@ class BaseTaskSettableWrapper(BasePipelineWrapper[Obs, Act, BaseObs, Act],
             None))
 
         # Enable direct forwarding by default for efficiency
-        methods_names = ["compute_command"]
-        if self.augment_observation and self.num_tasks:
-            methods_names.append("refresh_observation")
-        for method_name in methods_names:
+        for method_name in ("compute_command", "refresh_observation"):
             method_orig = getattr(BaseTaskSettableWrapper, method_name)
             method = getattr(type(self), method_name)
             if method_orig is method:
@@ -322,40 +318,34 @@ class BaseTaskSettableWrapper(BasePipelineWrapper[Obs, Act, BaseObs, Act],
         """
         self.env.compute_command(action, command)
 
-    def step(self,  # type: ignore[override]
-             action: Act
-             ) -> Tuple[DataNested, SupportsFloat, bool, bool, InfoType]:
-        """Run a simulation step for a given action.
+    def reset(self,  # type: ignore[override]
+              *,
+              seed: Optional[int] = None,
+              options: Optional[Dict[str, Any]] = None
+              ) -> Tuple[DataNested, InfoType]:
+        """Reset the unified environment.
 
-        This method monitors the performance of the agent for the task at hand
-        at the end of the episode. This information is stored under key "task"
-        of `info` a tuple `(task, score)`.
+        In practice, all it doeson top of the original implementation is
+        storing under key `task_index` of the extra `info` output the current
+        task index. See `BasePipelineWrapper.reset` documentation for details.
 
-        :param terminated: Whether the episode has reached the terminal state
-                           of the MDP at the current step. This flag can be
-                           used to compute a specific terminal reward.
-        :param info: Dictionary of extra information for monitoring.
+        :param seed: Random seed, as a positive integer.
+                     Optional: `None` by default. If `None`, then the internal
+                     random generator of the environment will be kept as-is,
+                     without updating its seed.
+        :param options: Additional information to specify how the environment
+                        is reset. The field 'reset_hook' is reserved for
+                        chaining multiple `BasePipelineWrapper`. It is not
+                        meant to be defined manually.
+                        Optional: None by default.
         """
         # Call base implementation
-        obs, reward, terminated, truncated, info = super().step(action)
+        obs, info = super().reset(seed=seed, options=options)
 
-        # FIXME: Add the score of the agent at the end of the episode for the
-        # task at hand if any, otherwise just move on.
-        # Note that, at this point, the flags `terminated` and `truncated` have
-        # been evaluated for the top-most layer of the pipeline. As a result,
-        # the score is guarantee to be added at the end of the episode as long
-        # as no additional termination condition is triggered by some higher-
-        # level classical wrappers deriving from `gym.Wrapper`. Unfortunately,
-        # scenario is quite common, especially via `gym.wrappers.TimeLimit`.
-        # Because of this limitation, it is preferrable to store the score at
-        # every step.
-        if self.num_tasks:  # and (terminated or truncated):
-            assert "task" not in info
-            score = float(self.get_score())
-            info["task"] = (int(self.task_index), score)
+        # Store the current task index in extra information
+        info['task_index'] = int(self.task_index)
 
-        # Return total reward
-        return obs, reward, terminated, truncated, info
+        return obs, info
 
     # methods to override:
     # ----------------------------
@@ -370,10 +360,66 @@ class BaseTaskSettableWrapper(BasePipelineWrapper[Obs, Act, BaseObs, Act],
         """Set the task that the agent will have to address from now on.
         """
 
-    @abstractmethod
-    def get_score(self) -> float:
-        """Assess how well the agent is performing so far for the current task.
 
-        .. warning::
-            This score must be standardized between 0.0 and 1.0.
+class TrajectorySettableJiminyEnv(
+        BaseTaskSettableWrapper[
+            Obs, Act, Union[np.int64, Tuple[()]], BaseObs],
+        Generic[Obs, Act, BaseObs]):
+    """Simple wrapper to expose reference trajectories as individual tasks
+    of a task-settable environment.
+
+    All the trajectories managed by the environment will be considered. These
+    trajectories can be added either using `ComposedJiminyEnv` wrapper or by
+    calling `env.quantities.trajectory_dataset.add` manually. It is assumed
+    that all these tasks are independent from each other, which means that the
+    trajectories are unrelated. As such, the task hierarachy is flat.
+
+    A new reference trajectory will be randomly sampled at the beginning of
+    every episode. See `BaseTaskSettableWrapper` for details.
+    """
+
+    task_space: Union[spaces.Discrete, spaces.Tuple]
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv[BaseObs, Act],
+                 *,
+                 initial_proba_task_tree: Optional[Sequence[float]] = None,
+                 augment_observation: bool = True
+                 ) -> None:
         """
+        :param env: Environment to extend, eventually already wrapped.
+        :param initial_proba_task_tree: Initial probability tree associated
+                                        with the task tree of the environment.
+        :param augment_observation: Whether to add the current task to the
+                                    observation of the environment.
+                                    Optional: `True` by default.
+        """
+        # Make sure that the trajectory database is already locked
+        if not env.quantities.trajectory_dataset.is_locked:
+            raise RuntimeError(
+                "The trajectory dataset managed by the base environment must "
+                "be locked being wrapped by `TrajectorySettableJiminyEnv`.")
+
+        # Call base implementation
+        super().__init__(env,
+                         initial_proba_task_tree=initial_proba_task_tree,
+                         augment_observation=augment_observation)
+
+        # Make sure that the environment is derived from InterfaceJiminyEnv
+        assert isinstance(self, InterfaceJiminyEnv)
+
+        # Define proxy for fast access
+        self._trajectory_names = tuple(self.quantities.trajectory_dataset)
+        self._simulation_duration_max = (
+            self.env.unwrapped.simulation_duration_max)
+
+    def _initialize_task_space(self) -> None:
+        num_trajectories = len(self.quantities.trajectory_dataset)
+        if num_trajectories:
+            self.task_space = spaces.Discrete(num_trajectories)
+        else:
+            self.task_space = spaces.Tuple([])
+
+    def set_task(self, task_index: int) -> None:
+        trajectory_name = self._trajectory_names[task_index]
+        self.quantities.trajectory_dataset.select(trajectory_name)
