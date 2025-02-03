@@ -1298,22 +1298,22 @@ def evaluate_from_algo(algo: Algorithm,
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
 
-    # Backup only the log file corresponding to the best and worst trial
+    # Backup only the log file corresponding to the best and worst trial, while
+    # deleting all the others.
     all_returns = [
         episode.get_return() for episode in all_episodes]
     idx_worst, idx_best = np.argsort(all_returns)[[0, -1]]
     log_labels, log_paths = [], []
-    for label, idx in (
-            ("best", idx_best), ("worst", idx_worst))[:num_episodes]:
-        ext = Path(all_log_paths[idx]).suffix
+    for idx, log_path_orig in tuple(enumerate(all_log_paths))[::-1]:
+        if idx not in (idx_worst, idx_best):
+            os.remove(log_path_orig)
+            continue
+        ext = Path(log_path_orig).suffix
+        label = "best" if idx == idx_best else "worst"
         log_path = f"{algo.logdir}/iter_{algo.iteration}-{label}{ext}"
-        try:
-            shutil.move(all_log_paths[idx], log_path)
-        except FileNotFoundError:
-            LOGGER.warning("Failed to save log file during evaluation.")
-        else:
-            log_paths.append(log_path)
-            log_labels.append(label)
+        shutil.move(log_path_orig, log_path)
+        log_paths.append(log_path)
+        log_labels.append(label)
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
@@ -1378,13 +1378,15 @@ def evaluate_from_algo(algo: Algorithm,
     return results
 
 
-def evaluate_from_runner(env_runner: EnvRunner,
-                         num_episodes: int = 1,
-                         print_stats: Optional[bool] = None,
-                         enable_replay: Optional[bool] = None,
-                         block: bool = True,
-                         **kwargs: Any
-                         ) -> Tuple[Sequence[EpisodeType], Sequence[str]]:
+def evaluate_from_runner(
+        env_runner: EnvRunner,
+        num_episodes: int = 1,
+        print_stats: Optional[bool] = None,
+        enable_replay: Optional[bool] = None,
+        delete_log_files: bool = True,
+        block: bool = True,
+        **kwargs: Any
+        ) -> Tuple[Sequence[EpisodeType], Optional[Sequence[str]]]:
     """Evaluates the performance of a given local worker.
 
     This method is specifically tailored for Gym environments inheriting from
@@ -1400,20 +1402,31 @@ def evaluate_from_runner(env_runner: EnvRunner,
                           Optional: True by default if `record_video_path` is
                           not provided and the default/current backend supports
                           it, False otherwise.
+    :param delete_log_files: Whether to delete log files instead of returning
+                             them. Note that this option is not supported if
+                             `enable_replay=True` and `block=False`.
     :param block: Whether calling this method should be blocking.
                   Optional: True by default.
     :param kwargs: Extra keyword arguments to forward to the viewer if any.
 
-    :returns: Tuple gathering the sequences of episodes and log files.
+    :returns: Sequences of episodes, along with the sequence of corresponding
+              log files if `delete_log_files=False`, None otherwise.
     """
     # Assert(s) for type checker
     assert isinstance(env_runner, SingleAgentEnvRunner)
+
+    # Make sure that the input arguments are valid
+    if delete_log_files and enable_replay and not block:
+        raise ValueError(
+            "Specifying `delete_log_files=True` is not available in "
+            "conjunction with `enable_replay=True` and `block=True`.")
 
     # Handling of default argument(s)
     if print_stats is None:
         print_stats = num_episodes >= 10
 
     # Sample episodes
+    all_log_paths: Optional[Sequence[str]]
     _, all_episodes, all_log_paths = (
         sample_from_runner(env_runner, num_episodes))
 
@@ -1451,6 +1464,12 @@ def evaluate_from_runner(env_runner: EnvRunner,
             assert thread.ident is not None
             ctypes.pythonapi.PyThreadState_SetAsyncExc(
                 ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
+
+    # Delete log files if requested
+    if delete_log_files:
+        for log_path in all_log_paths:
+            os.remove(log_path)
+        all_log_paths = None
 
     # Return all collected data
     return all_episodes, all_log_paths
