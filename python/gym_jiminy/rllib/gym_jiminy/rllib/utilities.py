@@ -25,8 +25,8 @@ from collections import defaultdict
 from tempfile import mkdtemp
 from traceback import TracebackException
 from typing import (
-    Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Type,
-    DefaultDict, Iterable, overload, cast)
+    Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Callable,
+    DefaultDict, Collection, Iterable, overload, cast)
 
 import tree
 import numpy as np
@@ -63,13 +63,15 @@ from ray.rllib.env.single_agent_episode import SingleAgentEpisode
 from ray.rllib.env.env_runner import EnvRunner
 from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
 from ray.rllib.env.env_runner_group import EnvRunnerGroup
+from ray.rllib.utils.checkpoints import Checkpointable
 from ray.rllib.utils.filter import MeanStdFilter as _MeanStdFilter, RunningStat
 from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED_LIFETIME, NUM_AGENT_STEPS_SAMPLED_LIFETIME,
     NUM_EPISODES_LIFETIME, EPISODE_RETURN_MEAN, EPISODE_RETURN_MAX,
     EPISODE_LEN_MEAN, EVALUATION_RESULTS, ENV_RUNNER_RESULTS, NUM_EPISODES)
 from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
-from ray.rllib.utils.typing import AgentID, EpisodeID, ResultDict, EpisodeType
+from ray.rllib.utils.typing import (
+    AgentID, EpisodeID, ResultDict, EpisodeType, StateDict)
 
 from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.bases import Obs, Act
@@ -445,75 +447,118 @@ def initialize(num_cpus: int,
     return log_path
 
 
-def make_multi_callbacks(
-        callback_class_list: Sequence[Type[DefaultCallbacks]]
-        ) -> Type[DefaultCallbacks]:
-    """Allows combining multiple sub-callbacks into one new callbacks class.
+class MultiCallbacks(DefaultCallbacks, Checkpointable):
+    """Wrapper to combine multiple callback classes as one to fit with the
+    standard RLlib API.
 
-    The resulting DefaultCallbacks will call all the sub-callbacks' callbacks
-    when called.
-
-    .. warning::
-        This wrapper only supports the new API, unlike the original helper
-        `ray.rllib.algorithms.callbacks.make_multi_callbacks`.
-
-    :param callback_class_list: The list of sub-classes of DefaultCallbacks to
-                                be baked into the to-be-returned class. All of
-                                these sub-classes' implemented methods will be
-                                called in the given order.
+    .. note::
+        Based on `ray.rllib.algorithms.callbacks.make_multi_callbacks`, which
+        has been extended to support stateful callbacks and the so-called new
+        API.
     """
-    class MultiCallbacks(DefaultCallbacks):
-        """A DefaultCallbacks subclass that combines all the given sub-classes.
+    def __init__(self,
+                 callbacks_list: Tuple[Callable[[], DefaultCallbacks], ...]
+                 ) -> None:
         """
-        def __init__(self) -> None:
-            self._callback_list = [
-                callback_class() for callback_class in callback_class_list]
+        :param callbacks_list: The list of sub-classes of DefaultCallbacks to
+                               be baked into the to-be-returned class. All of
+                               these sub-classes' implemented methods will be
+                               called in the given order.
+        """
+        self._ctor_kwargs = dict(callbacks_list=callbacks_list)
+        self._callbacks_list = tuple(
+            callback_class() for callback_class in callbacks_list)
 
-        def on_algorithm_init(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_algorithm_init(**kwargs)
+    def on_algorithm_init(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_algorithm_init(**kwargs)
 
-        def on_workers_recreated(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_workers_recreated(**kwargs)
+    def on_workers_recreated(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_workers_recreated(**kwargs)
 
-        def on_checkpoint_loaded(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_checkpoint_loaded(**kwargs)
+    def on_checkpoint_loaded(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_checkpoint_loaded(**kwargs)
 
-        def on_environment_created(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_environment_created(**kwargs)
+    def on_environment_created(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_environment_created(**kwargs)
 
-        def on_episode_start(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_episode_start(**kwargs)
+    def on_episode_start(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_episode_start(**kwargs)
 
-        def on_episode_step(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_episode_step(**kwargs)
+    def on_episode_step(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_episode_step(**kwargs)
 
-        def on_episode_end(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_episode_end(**kwargs)
+    def on_episode_end(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_episode_end(**kwargs)
 
-        def on_evaluate_start(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_evaluate_start(**kwargs)
+    def on_evaluate_start(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_evaluate_start(**kwargs)
 
-        def on_evaluate_end(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_evaluate_end(**kwargs)
+    def on_evaluate_end(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_evaluate_end(**kwargs)
 
-        def on_sample_end(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_sample_end(**kwargs)
+    def on_sample_end(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_sample_end(**kwargs)
 
-        def on_train_result(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_train_result(**kwargs)
+    def on_train_result(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_train_result(**kwargs)
 
-    return MultiCallbacks
+    def get_state(self,
+                  components: Optional[Union[str, Collection[str]]] = None,
+                  *,
+                  not_components: Optional[Union[str, Collection[str]]] = None,
+                  **kwargs: Any) -> StateDict:
+        # Sanitize input argument(s)
+        if isinstance(components, str):
+            components = (components,)
+        if isinstance(not_components, str):
+            not_components = (not_components,)
+
+        # Aggregate sequentially states of all the wrapped callbacks if any.
+        # Note that the wrapper itself is stateless.
+        state = {}
+        for i, callbacks in enumerate(self._callbacks_list):
+            # Skip individual callbacks are not requested
+            key = str(i)
+            if components is not None and key not in components:
+                continue
+            if not_components is not None and key in not_components:
+                continue
+
+            # Append the state of the individual callback
+            if isinstance(callbacks, Checkpointable):
+                state[key] = callbacks.get_state()
+        return state
+
+    def set_state(self, state: StateDict) -> None:
+        for i, callbacks in enumerate(self._callbacks_list):
+            key = str(i)
+            state_i = state.get(key, None)
+            if state_i:
+                assert isinstance(callbacks, Checkpointable)
+                callbacks.set_state(state_i)
+
+    def get_checkpointable_components(
+            self) -> List[Tuple[str, Checkpointable]]:
+        return [(str(i), callbacks)
+                for i, callbacks in enumerate(self._callbacks_list)
+                if isinstance(callbacks, Checkpointable)]
+
+    def get_ctor_args_and_kwargs(self) -> Tuple[Tuple, Dict[str, Any]]:
+        return (
+            (),  # *args
+            self._ctor_kwargs,  # **kwargs
+        )
 
 
 def train(algo_config: AlgorithmConfig,
@@ -615,8 +660,8 @@ def train(algo_config: AlgorithmConfig,
     if algo_config.callbacks_class is DefaultCallbacks:
         algo_config.callbacks(MonitorEpisodeCallback)
     else:
-        algo_config.callbacks(make_multi_callbacks(
-            [algo_config.callbacks_class, MonitorEpisodeCallback]))
+        algo_config.callbacks(partial(MultiCallbacks, (
+            algo_config.callbacks_class, MonitorEpisodeCallback)))
 
     # Configure evaluation
     algo_config.evaluation(
@@ -743,7 +788,14 @@ def train(algo_config: AlgorithmConfig,
         str(path) for path in Path(logdir).iterdir()
         if path.is_dir() and path.name.startswith("checkpoint_")])
     if checkpoints_paths:
-        algo.restore(checkpoints_paths[-1])
+        checkpoint_dir = checkpoints_paths[-1]
+        algo.restore(checkpoint_dir)
+        if isinstance(algo.callbacks, Checkpointable):
+            algo.callbacks.restore_from_path(
+                os.path.join(checkpoint_dir, "callbacks"))
+            state_callbacks = algo.callbacks.get_state()
+            algo.env_runner_group.foreach_worker(
+                lambda worker: worker._callbacks.set_state(state_callbacks))
 
     # Synchronize connectors of training and evaluation remote workers with the
     # local training runner. This is necessary if a checkpoint has just been
@@ -921,7 +973,12 @@ def train(algo_config: AlgorithmConfig,
             # Backup the policy
             iter_num = result[TRAINING_ITERATION]
             if checkpoint_interval > 0 and iter_num % checkpoint_interval == 0:
-                algo.save(os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
+                checkpoint_dir = os.path.join(
+                    logdir, f"checkpoint_{iter_num:06d}")
+                algo.save(checkpoint_dir)
+                if isinstance(algo.callbacks, Checkpointable):
+                    algo.callbacks.save_to_path(
+                        os.path.join(checkpoint_dir, "callbacks"))
 
             # Check terminal conditions
             num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
