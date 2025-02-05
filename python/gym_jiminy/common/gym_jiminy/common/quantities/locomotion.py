@@ -1229,7 +1229,7 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
             if index_first is None:
                 if is_contact:
                     index_first = i
-            elif index_last is None:  # type: ignore[unreachable]
+            elif index_last is None:
                 if not is_contact:
                     index_last = i
             elif is_contact:
@@ -1600,7 +1600,8 @@ class DeltaBaseOdometryPosition(InterfaceQuantity[ArrayOrScalar]):
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
-def angle_difference(delta: ArrayOrScalar) -> ArrayOrScalar:
+def angle_difference(angle_left: ArrayOrScalar,
+                     angle_right: ArrayOrScalar) -> ArrayOrScalar:
     """Compute the signed element-wise difference (aka. oriented angle) between
     two batches of angles.
 
@@ -1608,36 +1609,22 @@ def angle_difference(delta: ArrayOrScalar) -> ArrayOrScalar:
     between right and left angles (ignoring multi-turns), signed in accordance
     with the angle going from right to left angles.
 
+    .. warning::
+        This method is fully compliant with angles restricted between
+        [-pi, pi], but it requires the "physical" distance between the two
+        angles to be smaller than pi.
+
     .. seealso::
         This proposed implementation is the most efficient one for batch size
         of 1000. See this posts for reference about other implementations:
         https://stackoverflow.com/a/7869457/4820605
 
-    :param delta: Pre-computed difference between left and right angles.
+    :param angle_left: Left-hand side angles.
+    :param angle_right: Right-hand side angles.
     """
-    return delta - np.floor((delta + np.pi) / (2 * np.pi)) * (2 * np.pi)
-
-
-@nb.jit(nopython=True, cache=True, fastmath=True)
-def angle_total(angles: np.ndarray) -> np.ndarray:
-    """Compute the total signed multi-turn angle from start to end of
-    time-series of angles.
-
-    The method is fully compliant with individual angles restricted between
-    [-pi, pi], but it requires the distance between the angles at successive
-    timesteps to be smaller than pi.
-
-    .. seealso::
-        See `angle_difference` documentation for details.
-
-    :param angle: Temporal sequence of angles as a multi-dimensional array
-                  whose last dimension gathers all the successive timesteps.
-    """
-    # Note that `angle_difference` has been manually inlined as it results in
-    # about 50% speedup, which is surprising.
-    delta = angles[..., 1:] - angles[..., :-1]
+    delta = angle_left - angle_right
     delta -= np.floor((delta + np.pi) / (2.0 * np.pi)) * (2 * np.pi)
-    return np.sum(delta, axis=-1)
+    return delta
 
 
 @dataclass(unsafe_hash=True)
@@ -1695,7 +1682,7 @@ class DeltaBaseOdometryOrientation(InterfaceQuantity[ArrayOrScalar]):
                         axis=0,
                         keys=(2,))),
                     horizon=horizon,
-                    op=angle_total,
+                    op=angle_difference,
                     bounds_only=False))),
             auto_refresh=False)
 

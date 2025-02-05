@@ -715,65 +715,44 @@ class MultiAryOpQuantity(InterfaceQuantity[ValueT]):
 class DeltaQuantity(InterfaceQuantity[ArrayOrScalar]):
     """Variation of a given quantity over the whole span of a horizon.
 
-    The value of the quantity is accumulated over a variable-length history
-    bounded by 'max_stack', which is basically a sliding window. This variation
-    is computed from the whole history. For Euclidean spaces, this variation is
+    If `bounds_only=False`, then the differences of the value of the quantity
+    between successive timesteps is accumulated over a variable-length history
+    bounded by 'max_stack', which  is basically a sliding window. The total
+    variation over this horizon is defined as the sum of all the successive
+    differences stored in the history.
+
+    If `bounds_only=True`, then the value of the quantity is accumulated over
+    a variable-length history bounded by 'max_stack'. The total variation is
     simply computed as the difference between most recent and oldest values
     stored in the history.
     """
 
-    quantity_stack: InterfaceQuantity[
+    quantity: InterfaceQuantity[
         Union[np.ndarray, Sequence[ArrayOrScalar]]]
-    """Stacked quantity from which to compute the variation over the history.
+    """Quantity from which to compute the total variation over the history.
     """
 
-    op: Union[
-        Callable[[ArrayOrScalar, ArrayOrScalar], ArrayOrScalar],
-        Callable[[np.ndarray], np.ndarray]]
-    """Any callable taking as input argument either the complete history of
-    values of the quantity or only the most recent and oldest value stored in
-    the history (in that exact order) depending on `bounds_only`, and returning
-    its variation over the whole history.
+    op: Callable[[ArrayOrScalar, ArrayOrScalar], ArrayOrScalar]
+    """Any callable taking as input argument the current and some previous
+    value of the quantity in that exact order, and returning the signed
+    difference between them.
     """
 
     bounds_only: bool
-    """Whether to pass only the recent and oldest value stored in the history
-    as input argument of `op` instead of the complete history (stacked as last
-    dimenstion).
+    """Whether to compute the total variation as the difference between the
+    most recent and oldest value stored in the history, or the sum of
+    differences between successive timesteps.
     """
 
-    @overload
-    def __init__(self: "DeltaQuantity",
-                 env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity],
-                 quantity: QuantityCreator[ArrayOrScalar],
-                 horizon: float,
-                 *,
-                 op: Callable[[np.ndarray], np.ndarray],
-                 bounds_only: Literal[False]) -> None:
-        ...
-
-    @overload
-    def __init__(self: "DeltaQuantity",
-                 env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity],
-                 quantity: QuantityCreator[ArrayOrScalar],
-                 horizon: float,
-                 *,
-                 op: Callable[[ArrayOrScalar, ArrayOrScalar], ArrayOrScalar],
-                 bounds_only: Literal[True]) -> None:
-        ...
-
-    def __init__(self,
-                 env: InterfaceJiminyEnv,
-                 parent: Optional[InterfaceQuantity],
-                 quantity: QuantityCreator[ArrayOrScalar],
-                 horizon: float,
-                 *,
-                 op: Union[
-                    Callable[[ArrayOrScalar, ArrayOrScalar], ArrayOrScalar],
-                    Callable[[np.ndarray], np.ndarray]] = sub,
-                 bounds_only: bool = True) -> None:
+    def __init__(
+            self,
+            env: InterfaceJiminyEnv,
+            parent: Optional[InterfaceQuantity],
+            quantity: QuantityCreator[ArrayOrScalar],
+            horizon: Optional[float],
+            *,
+            op: Callable[[ArrayOrScalar, ArrayOrScalar], ArrayOrScalar] = sub,
+            bounds_only: bool = True) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
@@ -782,46 +761,66 @@ class DeltaQuantity(InterfaceQuantity[ArrayOrScalar]):
                          to compute the variation, plus any keyword-arguments
                          of its constructor except 'env' and 'parent'.
         :param horizon: Horizon over which values of the quantity will be
-                        stacked before computing the drift.
-        :param op: Any callable taking as input argument either the complete
-                   history of true or reference value of the quantity or only
-                   the most recent and oldest value stored in the history (in
-                   that exact order) depending on whether `bounds_only` is
-                   False or True respectively, and returning its variation over
-                   the whole span of the history. For instance, the difference
-                   between the most recent and oldest values stored in the
-                   history is is appropriate for position in Euclidean space,
-                   but not for orientation as it is important to count turns.
+                        stacked before computing the drift. `None` to consider
+                        only two successive timesteps.
+        :param op: Any callable taking as input argument the current and some
+                   previous value of the quantity in that exact order, and
+                   returning the signed difference between them. Typically,
+                   the substraction operation is appropriate for position in
+                   Euclidean space, but not for orientation as it is important
+                   to count turns.
                    Optional: `sub` by default.
-        :param bounds_only: Whether to pass only the recent and oldest value
-                            stored in the history as input argument of `op`
-                            instead of the complete history (stacked as last
-                            dimenstion).
+        :param bounds_only: Whether to compute the total variation as the
+                            difference between the most recent and oldest value
+                            stored in the history, or the sum of differences
+                            between successive timesteps.
                             Optional: True by default.
         """
         # Convert horizon in stack length, assuming constant env timestep
-        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
+        if horizon is None:
+            max_stack = 2
+        else:
+            max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
 
         # Backup some of the user-arguments
         self.op = op
         self.bounds_only = bounds_only
+
+        # Define the appropriate quantity
+        quantity_stack: QuantityCreator
+        if bounds_only:
+            quantity_stack = (StackedQuantity, dict(
+                quantity=quantity,
+                max_stack=max_stack,
+                is_wrapping=False,
+                as_array=False))
+        else:
+            quantity_stack = (StackedQuantity, dict(
+                quantity=(DeltaQuantity, dict(
+                    quantity=quantity,
+                    horizon=None,
+                    bounds_only=True,
+                    op=op)),
+                max_stack=(max_stack - 1),
+                is_wrapping=True,
+                as_array=True))
 
         # Call base implementation
         super().__init__(
             env,
             parent,
             requirements=dict(
-                quantity_stack=(StackedQuantity, dict(
-                    quantity=quantity,
-                    max_stack=max_stack,
-                    is_wrapping=False,
-                    as_array=not bounds_only))),
+                quantity_stack=quantity_stack),
             auto_refresh=False)
+
+        # Keep try of the underlying quantity for equality check
+        if bounds_only:
+            self.quantity = self.quantity_stack.quantity
+        else:
+            self.quantity = self.quantity_stack.quantity.quantity
 
     def refresh(self) -> ArrayOrScalar:
         quantity_stack = self.quantity_stack.get()
         if self.bounds_only:
-            return self.op(
-                quantity_stack[-1],   # type: ignore[call-arg, arg-type]
-                quantity_stack[0])
-        return self.op(quantity_stack)  # type: ignore[call-arg, arg-type]
+            return self.op(quantity_stack[-1], quantity_stack[0])
+        return quantity_stack.sum(axis=-1)

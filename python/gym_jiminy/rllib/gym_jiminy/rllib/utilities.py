@@ -26,7 +26,7 @@ from tempfile import mkdtemp
 from traceback import TracebackException
 from typing import (
     Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Callable,
-    DefaultDict, Collection, Iterable, overload, cast)
+    DefaultDict, Collection, Iterable, SupportsFloat, overload, cast)
 
 import tree
 import numpy as np
@@ -1699,7 +1699,7 @@ def build_module_wrapper(rl_module: RLModule,
 
     def forward(obs: Obs,
                 action_prev: Optional[Act],
-                reward: Optional[float],
+                reward: Optional[SupportsFloat],
                 terminated: bool,
                 truncated: bool,
                 info: Dict[str, Any]) -> Act:
