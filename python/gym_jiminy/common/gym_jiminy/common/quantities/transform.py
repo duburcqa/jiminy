@@ -219,6 +219,8 @@ class StackedQuantity(
                 raise RuntimeError(
                     "Previous step missing in the stack. Please reset the "
                     "environment after adding this quantity.")
+        else:
+            must_refresh = False
 
         # Extract contiguous slice of (future) available data if necessary
         if self.as_array:
@@ -227,18 +229,18 @@ class StackedQuantity(
             if num_stack < self.max_stack:
                 data = self._data[..., :num_stack]
 
-        # Get current index if wrapping around
-        if self.is_wrapping:
-            index = num_steps % self.max_stack
-
         # Append current value of the quantity to the history buffer or update
         # aggregated continuous array directly if necessary.
-        is_stack_full = num_steps >= self.max_stack
         if must_refresh:
             # Get the current value of the quantity
             value = self.quantity.get()
 
+            # Get current index if wrapping around
+            if self.is_wrapping:
+                index = num_steps % self.max_stack
+
             # Append value to the history or aggregate data directly
+            is_stack_full = num_steps >= self.max_stack
             if self.as_array:
                 if self.is_wrapping:
                     array_copyto(data[..., index], value)
@@ -798,7 +800,7 @@ class DeltaQuantity(InterfaceQuantity[ArrayOrScalar]):
                             Optional: True by default.
         """
         # Convert horizon in stack length, assuming constant env timestep
-        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
 
         # Backup some of the user-arguments
         self.op = op

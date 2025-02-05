@@ -430,7 +430,8 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
         self.op = op
 
         # Convert horizon in stack length, assuming constant env timestep
-        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+        assert horizon >= env.step_dt
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
 
         # Define drift of quantity
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731

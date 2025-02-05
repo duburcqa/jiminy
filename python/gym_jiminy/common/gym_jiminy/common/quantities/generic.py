@@ -1862,7 +1862,7 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Convert horizon in stack length, assuming constant env timestep
-        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
 
         # Backup some of the user-arguments
         self.max_stack = max_stack
