@@ -435,7 +435,7 @@ class BasePipelineWrapper(
                  horizon: Optional[float] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
-                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
+                 **kwargs: Any) -> Tuple[List[SupportsFloat], List[InfoType]]:
         # Ensure that this layer is already declared as part of the pipeline
         # environment. If not, update the pipeline manually, considering this
         # layer as top-most. This would be the case if `reset` has never been

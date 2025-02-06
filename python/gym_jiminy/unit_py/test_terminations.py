@@ -122,7 +122,7 @@ class TerminationConditions(unittest.TestCase):
                         (termination_pos, flags_pos, positions, info_pos),
                         (termination_rot, flags_rot, rotations, info_rot)):
                     max_stack = max(int(np.ceil(
-                        termination.horizon / self.env.step_dt)), 1)
+                        termination.horizon / self.env.step_dt)), 1) + 1
                     values = values[-max_stack:]
                     delta = termination.op(values[-1], values[0])
                     value = termination.data.quantity_left.get()
@@ -196,7 +196,7 @@ class TerminationConditions(unittest.TestCase):
                         (termination_pos, flags_pos, positions, info_pos),
                         (termination_rot, flags_rot, rotations, info_rot)):
                     max_stack = max(int(np.ceil(
-                        termination.horizon / self.env.step_dt)), 1)
+                        termination.horizon / self.env.step_dt)), 1) + 1
                     left = termination.data.quantity_left.get()
                     values = values[-max_stack:]
                     stack = np.stack(values, axis=-1)

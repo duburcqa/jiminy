@@ -6,7 +6,7 @@ from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 from typing import (
     Dict, Any, Tuple, List, TypeVar, Generic, TypedDict, Optional, Callable,
-    Mapping, no_type_check, TYPE_CHECKING)
+    Mapping, SupportsFloat, no_type_check, TYPE_CHECKING)
 
 import numpy as np
 import numpy.typing as npt
@@ -39,7 +39,7 @@ SensorMeasurementStackMap = Dict[str, npt.NDArray[np.float64]]
 InfoType = Dict[str, Any]
 
 PolicyCallbackFun = Callable[
-    [Obs, Optional[Act], Optional[float], bool, bool, InfoType], Act]
+    [Obs, Optional[Act], Optional[SupportsFloat], bool, bool, InfoType], Act]
 
 
 class EngineObsType(TypedDict):
@@ -321,7 +321,6 @@ class InterfaceJiminyEnv(
         # that is supposed to be executed before `refresh_observation` is being
         # called for the first time of an episode.
         if not self.__is_observation_refreshed:
-            # Refresh observation
             try:
                 self.refresh_observation(self.measurement)
             except RuntimeError as e:
@@ -441,7 +440,7 @@ class InterfaceJiminyEnv(
                  horizon: Optional[float] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
-                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
+                 **kwargs: Any) -> Tuple[List[SupportsFloat], List[InfoType]]:
         r"""Evaluate a policy on the environment over a complete episode.
 
         .. warning::

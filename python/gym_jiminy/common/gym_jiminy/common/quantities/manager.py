@@ -156,9 +156,12 @@ class QuantityManager:
                 # The objective is to avoid resetting multiple times the same
                 # quantity because of the auto-refresh mechanism.
                 cache = SharedCache()
+                is_key_found = False
                 for i, (cache_key, _) in enumerate(self._caches):
                     if key[0] == cache_key[0]:
-                        self._caches.insert(i + 1, (key, cache))
+                        is_key_found = True
+                    elif is_key_found:
+                        self._caches.insert(i, (key, cache))
                         break
                 else:
                     self._caches.append((key, cache))
