@@ -261,21 +261,17 @@ class DriftTrackingQuantityTermination(QuantityTermination):
                              of the episode, during which the latter is bound
                              to continue whatever happens.
                              Optional: 0.0 by default.
-        :param op: Any callable taking as input argument either the complete
-                   history of true or reference value of the quantity or only
-                   the most recent and oldest value stored in the history (in
-                   that exact order) depending on whether `bounds_only` is
-                   False or True respectively, and returning its variation over
-                   the whole span of the history. For instance, the difference
-                   between the most recent and oldest values stored in the
-                   history is is appropriate for position in Euclidean space,
-                   but not for orientation as it is important to count turns.
+        :param op: Any callable taking as input argument the current and some
+                   previous value of the quantity in that exact order, and
+                   returning the signed difference between them. Typically,
+                   the substraction operation is appropriate for position in
+                   Euclidean space, but not for orientation as it is important
+                   to count turns.
                    Optional: `sub` by default.
-        :param bounds_only: Whether to pass only the recent and oldest value
-                            stored in the history as input argument of `op`
-                            instead of the complete history (stacked as last
-                            dimenstion).
-                            Optional: True by default.
+        :param bounds_only: Whether to compute the total variation as the
+                            difference between the most recent and oldest value
+                            stored in the history, or the sum of differences
+                            between successive timesteps.
         :param is_truncation: Whether the episode should be considered
                               terminated or truncated whenever the termination
                               condition is triggered.
@@ -430,7 +426,8 @@ class ShiftTrackingQuantityTermination(QuantityTermination):
         self.op = op
 
         # Convert horizon in stack length, assuming constant env timestep
-        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+        assert horizon >= env.step_dt
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
 
         # Define drift of quantity
         stack_creator = lambda mode: (StackedQuantity, dict(  # noqa: E731

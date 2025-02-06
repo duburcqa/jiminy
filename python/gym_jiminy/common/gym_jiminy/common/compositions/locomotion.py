@@ -26,7 +26,7 @@ from ..utils import quat_difference, quat_to_yaw
 from .generic import (
     TrackingQuantityReward, QuantityTermination,
     DriftTrackingQuantityTermination, ShiftTrackingQuantityTermination)
-from ..quantities.locomotion import angle_total
+from ..quantities.locomotion import angle_difference
 from .mixin import radial_basis_function
 
 
@@ -730,7 +730,7 @@ class DriftTrackingBaseOdometryOrientationTermination(
             max_orientation_err,
             horizon,
             grace_period,
-            op=angle_total,
+            op=angle_difference,
             bounds_only=False,
             is_truncation=False,
             training_only=training_only)

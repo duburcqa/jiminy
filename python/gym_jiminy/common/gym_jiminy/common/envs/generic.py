@@ -1029,7 +1029,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                  horizon: Optional[float] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
-                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
+                 **kwargs: Any) -> Tuple[List[SupportsFloat], List[InfoType]]:
         # Handling of default arguments
         if enable_replay is None:
             enable_replay = (
@@ -1046,11 +1046,12 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
             self.eval()
 
         # Initialize the simulation
+        reward: Optional[SupportsFloat]
         obs, info = env.reset(seed=seed)
         action, reward, terminated, truncated = None, None, False, False
 
         # Run the simulation
-        reward_episode: List[float] = []
+        reward_episode: List[SupportsFloat] = []
         info_episode = [info]
         try:
             while horizon is None or self.stepper_state.t < horizon:
@@ -1063,7 +1064,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
                     break
                 obs, reward, terminated, truncated, info = env.step(action)
                 info_episode.append(info)
-                reward_episode.append(float(reward))
+                reward_episode.append(reward)
         except KeyboardInterrupt:
             pass
 
@@ -1077,7 +1078,7 @@ class BaseJiminyEnv(InterfaceJiminyEnv[Obs, Act],
         # Display some statistic if requested
         if enable_stats:
             print("env.num_steps:", self.num_steps)
-            print("cumulative reward:", sum(reward_episode))
+            print("cumulative reward:", sum(map(float, reward_episode)))
 
         # Replay the result if requested
         if enable_replay:

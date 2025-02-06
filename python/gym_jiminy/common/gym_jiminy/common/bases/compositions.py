@@ -59,10 +59,19 @@ class partial_hashable(partial):  # pylint: disable=invalid-name
         self = super(partial_hashable, cls).__new__(cls, func, *args, **kwargs)
 
         # Pre-compute normalized arguments once and for all
-        sig = inspect.signature(self.func)
-        bound = sig.bind_partial(*self.args, **(self.keywords or {}))
-        bound.apply_defaults()
-        self._normalized_args = tuple(bound.arguments.values())
+        try:
+            sig = inspect.signature(self.func)
+            bound = sig.bind_partial(*self.args, **(self.keywords or {}))
+            bound.apply_defaults()
+            self._normalized_args = tuple(bound.arguments.values())
+        except ValueError as e:
+            # Impossible to get signature from Python bindings. Keyword-only is
+            # enforced to ensure that equality check can be implemented.
+            if self.args:
+                raise ValueError(
+                    "Specifying position arguments is not supported for "
+                    "methods whose signature cannot be inspected.") from e
+            _, self._normalized_args = zip(*sorted(self.keywords.items()))
 
         return self
 
