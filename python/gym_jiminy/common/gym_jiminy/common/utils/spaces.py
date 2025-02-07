@@ -52,9 +52,6 @@ def _array_clip(value: np.ndarray,
     :param low: Optional lower bound.
     :param high: Optional upper bound.
     """
-    # Note that in-place clipping is actually slower than out-of-place in
-    # Numba when 'fastmath' compilation flag is set.
-
     # Short circuit if there is neither low or high bounds
     if low is None and high is None:
         return value.copy()
