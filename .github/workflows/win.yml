@@ -123,9 +123,7 @@ jobs:
         ${env:Path} += ";$InstallDir/lib"
 
         # Generate stubs
-        # FIXME: stubgen does not work with Numpy 2.X without option `--no-analysis`
-        # (see https://github.com/python/mypy/issues/17396)
-        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src --no-analysis
+        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
         python "$RootDir/build_tools/stubgen.py" `
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         Copy-Item -Force -Path "$RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi" `
