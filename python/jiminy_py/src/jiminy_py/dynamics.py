@@ -9,7 +9,8 @@
 import logging
 from bisect import bisect_left
 from dataclasses import dataclass, fields
-from typing import List, Union, Optional, Tuple, Sequence, Callable, Literal
+from typing import (
+    List, Union, Optional, Tuple, Sequence, Callable, Dict, Literal)
 
 import numpy as np
 
@@ -215,7 +216,7 @@ class Trajectory:
         self._t_prev = 0.0
         self._index_prev = 1
 
-        # List of optional state fields that are provided
+        # List of optional state fields that have been specified.
         # Note that looking for keys in such a small set is not worth the
         # hassle of using Python `set`, which breaks ordering and index access.
         fields_: List[str] = []
@@ -227,7 +228,7 @@ class Trajectory:
                         raise ValueError(
                             "The state information being set must be the same "
                             "for all the timesteps of a given trajectory.")
-                else:
+                elif field not in fields_:
                     fields_.append(field)
         self._fields = tuple(fields_)
 
@@ -286,10 +287,11 @@ class Trajectory:
 
         It raises an exception if no data is available.
         """
-        if not self.has_data:
-            raise RuntimeError(
+        try:
+            return (self._times[0], self._times[-1])
+        except IndexError:
+            raise RuntimeError(  # pylint: disable=raise-missing-from
                 "State sequence is empty. Time interval undefined.")
-        return (self._times[0], self._times[-1])
 
     def get(self, t: float, mode: TrajectoryTimeMode = 'raise') -> State:
         """Query the state at a given timestamp.
@@ -311,20 +313,19 @@ class Trajectory:
         """
         # pylint: disable=possibly-used-before-assignment
 
-        # Raise exception if state sequence is empty
-        if not self.has_data:
-            raise RuntimeError(
-                "State sequence is empty. Impossible to interpolate data.")
-
         # Backup the original query time
         t_orig = t
 
         # Handling of the desired mode
         n_steps = 0.0
-        t_start, t_end = self.time_interval
+        try:
+            t_start, t_end = self._times[0], self._times[-1]
+        except IndexError:
+            raise RuntimeError(  # pylint: disable=raise-missing-from
+                "State sequence is empty. Impossible to interpolate data.")
         if mode == "raise":
             if t - t_end > TRAJ_INTERP_TOL or t_start - t > TRAJ_INTERP_TOL:
-                raise RuntimeError("Time is out-of-range.")
+                raise RuntimeError("Query time out-of-range.")
         elif mode == "wrap":
             if t_end > t_start:
                 n_steps, t_rel = divmod(t - t_start, t_end - t_start)
@@ -365,17 +366,17 @@ class Trajectory:
         else:
             position = pin.interpolate(
                 self._pinocchio_model, s_left.q, s_right.q, alpha)
-        data = {"q": position}
+        state: Dict[str, Union[float, np.ndarray]] = dict(t=t_orig, q=position)
         for field in self._fields:
             value_left = getattr(s_left, field)
             if return_left:
-                data[field] = value_left.copy()
+                state[field] = value_left.copy()
                 continue
             value_right = getattr(s_right, field)
             if return_right:
-                data[field] = value_right.copy()
+                state[field] = value_right.copy()
             else:
-                data[field] = value_left + alpha * (value_right - value_left)
+                state[field] = value_left + alpha * (value_right - value_left)
 
         # Perform odometry if time is wrapping
         if self._stride_offset_log6 is not None and n_steps:
@@ -383,8 +384,8 @@ class Trajectory:
             ff_xyzquat = stride_offset * pin.XYZQUATToSE3(position[:7])
             position[:7] = pin.SE3ToXYZQUAT(ff_xyzquat)
 
-        # Return state instances bundling all data
-        return State(t=t_orig, **data)
+        # Return a State object
+        return State(**state)  # type: ignore[arg-type]
 
 
 # #####################################################################
