@@ -200,7 +200,8 @@ class Quantities(unittest.TestCase):
         assert len(registry["rpy_2"].data.cache.owners) == 1
 
         quantity_manager.discard("rpy_2")
-        for (cls, _), cache in quantity_manager._caches:
+        for (cls, _), cache in zip(
+                quantity_manager._cache_keys, quantity_manager._caches):
             assert len(cache.owners) == (cls is DatasetTrajectoryQuantity)
 
     def test_env(self):

@@ -55,7 +55,7 @@ jobs:
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false
-        python -m pip install setuptools wheel "pip>=20.3"
+        python -m pip install setuptools wheel "pip>=20.3,<25.1"
         python -m pip install pefile machomachomangler
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
       run: |

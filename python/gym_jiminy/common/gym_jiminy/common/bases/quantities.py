@@ -337,7 +337,14 @@ class SharedCache(Generic[ValueT]):
 
                 # Initialize quantity if not already done manually
                 if not owner._is_initialized:
-                    owner.initialize()
+                    try:
+                        owner.initialize()
+                    except Exception:
+                        # Revert initialization of this quantity as it failed
+                        owner.reset(reset_tracking=False,
+                                    ignore_requirements=True,
+                                    ignore_others=True)
+                        raise
                 assert owner._is_initialized
 
             # Get first owning quantity systematically
@@ -577,7 +584,9 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
 
     def reset(self,
               reset_tracking: bool = False,
-              *, ignore_other_instances: bool = False) -> None:
+              *,
+              ignore_requirements: bool = False,
+              ignore_others: bool = False) -> None:
         """Consider that the quantity must be re-initialized before being
         evaluated once again.
 
@@ -595,9 +604,11 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         :param reset_tracking: Do not consider this quantity as active anymore
                                until the `get` method gets called once again.
                                Optional: False by default.
-        :param ignore_other_instances:
-            Whether to skip reset of intermediary quantities as well as any
-            shared cache co-owner quantity instances.
+        :param ignore_requirements:
+            Whether to skip reset reset of intermediary quantities.
+            Optional: False by default.
+        :param ignore_others:
+            Whether to ignore any shared cache co-owner quantity instances.
             Optional: False by default.
         """
         # Make sure that auto-refresh can be honored
@@ -609,9 +620,14 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         # Reset all requirements first.
         # This is necessary to avoid auto-refreshing quantities with deprecated
         # cache if enabled.
-        if not ignore_other_instances:
+        if not ignore_requirements:
             for quantity in self.requirements.values():
-                quantity.reset(reset_tracking, ignore_other_instances=False)
+                quantity.reset(reset_tracking,
+                               ignore_requirements=False,
+                               ignore_others=ignore_others)
+
+        # No longer consider this exact instance as initialized
+        self._is_initialized = False
 
         # Skip reset if dynamic computation graph update is not allowed
         if self.env.is_simulation_running and not self.allow_update_graph:
@@ -621,27 +637,26 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         if reset_tracking:
             self._is_active = False
 
-        # No longer consider this exact instance as initialized
-        self._is_initialized = False
-
         # More work must to be done if this quantity has a shared cache that
         # has not been completely reset yet.
         if self.has_cache and self.cache.sm_state is not _IS_RESET:
             # Reset shared cache state machine first, to avoid triggering reset
             # propagation to all identical quantities.
-            self.cache.reset(
-                ignore_auto_refresh=True, reset_state_machine=True)
+            self.cache.reset(ignore_auto_refresh=True,
+                             reset_state_machine=True)
 
             # Reset all identical quantities except itself since already done
-            for owner in self.cache.owners:
-                if owner is not self:
-                    owner.reset(reset_tracking=reset_tracking,
-                                ignore_other_instances=True)
+            if not ignore_others:
+                for owner in self.cache.owners:
+                    if owner is not self:
+                        owner.reset(reset_tracking=reset_tracking,
+                                    ignore_requirements=True,
+                                    ignore_others=True)
 
             # Reset shared cache afterward with auto-refresh enabled if needed
             if self.env.is_simulation_running:
-                self.cache.reset(
-                    ignore_auto_refresh=False, reset_state_machine=False)
+                self.cache.reset(ignore_auto_refresh=False,
+                                 reset_state_machine=False)
 
     def initialize(self) -> None:
         """Initialize internal buffers.
@@ -793,6 +808,11 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         try:
             self.state.initialize()
         except RuntimeError:
+            # Revert state initialization
+            self.state.reset(reset_tracking=False,
+                             ignore_requirements=True,
+                             ignore_others=True)
+
             # It may have failed because no simulation running, which may be
             # problematic but not blocking at this point. Just checking that
             # the pinocchio model has been properly initialized.

@@ -738,6 +738,10 @@ class DeltaQuantity(InterfaceQuantity[ArrayOrScalar]):
     difference between them.
     """
 
+    max_stack: int
+    """Time horizon over which to compute the variation.
+    """
+
     bounds_only: bool
     """Whether to compute the total variation as the difference between the
     most recent and oldest value stored in the history, or the sum of
@@ -784,6 +788,7 @@ class DeltaQuantity(InterfaceQuantity[ArrayOrScalar]):
 
         # Backup some of the user-arguments
         self.op = op
+        self.max_stack = max_stack
         self.bounds_only = bounds_only
 
         # Define the appropriate quantity
