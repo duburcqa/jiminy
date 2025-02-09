@@ -804,20 +804,21 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         # Call base implementation
         super().initialize()
 
-        # Force initializing state quantity if possible
-        try:
-            self.state.initialize()
-        except RuntimeError:
-            # Revert state initialization
-            self.state.reset(reset_tracking=False,
-                             ignore_requirements=True,
-                             ignore_others=True)
+        # Try forcing initialization of state quantity if not already done
+        if not self.state._is_initialized:
+            try:
+                self.state.initialize()
+            except RuntimeError:
+                # Revert state initialization
+                self.state.reset(reset_tracking=False,
+                                 ignore_requirements=True,
+                                 ignore_others=False)
 
-            # It may have failed because no simulation running, which may be
-            # problematic but not blocking at this point. Just checking that
-            # the pinocchio model has been properly initialized.
-            if self.state.pinocchio_model.nq == 0:
-                raise
+                # It may have failed because no simulation running, which may
+                # be problematic but not blocking at this point. Just checking
+                # that the pinocchio model has been properly initialized.
+                if self.state.pinocchio_model.nq == 0:
+                    raise
 
         # Refresh robot proxy
         assert isinstance(self.state, StateQuantity)
@@ -1365,6 +1366,23 @@ class StateQuantity(InterfaceQuantity[State]):
             self._update_energy |= owner.update_energy
             self._update_jacobian |= owner.update_jacobian
 
+        # Backup previous robot, which will be used to check if it has changed
+        robot_prev = self.robot
+
+        # Update pinocchio model and data proxies
+        if self.mode is QuantityEvalMode.TRUE:
+            self.robot = self.env.robot
+            use_theoretical_model = False
+        else:
+            self.robot = self.trajectory.robot
+            use_theoretical_model = self.trajectory.use_theoretical_model
+        if use_theoretical_model:
+            self.pinocchio_model = self.robot.pinocchio_model_th
+            self.pinocchio_data = self.robot.pinocchio_data_th
+        else:
+            self.pinocchio_model = self.robot.pinocchio_model
+            self.pinocchio_data = self.robot.pinocchio_data
+
         # Refresh robot and pinocchio proxies for co-owners of shared cache.
         # Note that automatic refresh is not sufficient to guarantee that
         # `initialize` will be called unconditionally, because it will be
@@ -1376,24 +1394,35 @@ class StateQuantity(InterfaceQuantity[State]):
         # computation graph tracking.
         for owner in owners:
             assert isinstance(owner, StateQuantity)
-            if owner._is_initialized:
-                continue
-            if owner.mode is QuantityEvalMode.TRUE:
-                owner.robot = owner.env.robot
-                use_theoretical_model = False
-            else:
-                owner.robot = owner.trajectory.robot
-                use_theoretical_model = owner.trajectory.use_theoretical_model
-            if use_theoretical_model:
-                owner.pinocchio_model = owner.robot.pinocchio_model_th
-                owner.pinocchio_data = owner.robot.pinocchio_data_th
-            else:
-                owner.pinocchio_model = owner.robot.pinocchio_model
-                owner.pinocchio_data = owner.robot.pinocchio_data
+            owner.robot = self.robot
+            owner.pinocchio_model = self.pinocchio_model
+            owner.pinocchio_data = self.pinocchio_data
+
+        # Early-return if the main cache owner is already initialized
+        owner = self.cache._owner if self.has_cache else None
+        if owner is not None and owner._is_initialized:
+            return
 
         # Call base implementation.
         # The quantity will be considered initialized and active at this point.
         super().initialize()
+
+        # Raise exception is not simulation is running
+        if self.mode is QuantityEvalMode.TRUE:
+            if not self.env.is_simulation_running:
+                raise RuntimeError("No simulation running. Impossible to "
+                                   "initialize this quantity.")
+
+        # Early return if a complete refresh is not necessary.
+        # Note that memory is systematically re-allocated for `robot_state` at
+        # every reset, which must that proxies must always be reset in TRUE
+        # evaluation mode, even if the robot did not changed. On the contrary,
+        # it is safe to assume that the options of the robot are never
+        # updated in REFERENCE evaluation mode. As a result, it is sufficient
+        # to check that its address did not changed since last reset.
+        if (self.mode is QuantityEvalMode.REFERENCE and
+                self.robot is robot_prev and self._f_external_list):
+            return
 
         # Refresh proxies and allocate memory for storing external forces
         if self.mode is QuantityEvalMode.TRUE:
@@ -1440,9 +1469,6 @@ class StateQuantity(InterfaceQuantity[State]):
 
         # Allocate state for which the quantity must be evaluated if needed
         if self.mode is QuantityEvalMode.TRUE:
-            if not self.env.is_simulation_running:
-                raise RuntimeError("No simulation running. Impossible to "
-                                   "initialize this quantity.")
             self._state = State(
                 0.0,
                 self.env.robot_state.q,
