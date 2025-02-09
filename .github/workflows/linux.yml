@@ -65,7 +65,7 @@ jobs:
         sudo apt update
         sudo apt install -y gdb gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
-        "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
+        "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3,<25.1"
 
         git config --global advice.detachedHead false
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
@@ -140,9 +140,7 @@ jobs:
       if: matrix.BUILD_TYPE != 'Debug' && matrix.PYTHON_VERSION == '3.10'
       run: |
         # Generate stubs
-        # FIXME: stubgen does not work with Numpy 2.X without option `--no-analysis`
-        # (see https://github.com/python/mypy/issues/17396)
-        stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src --no-analysis
+        stubgen -p jiminy_py -o ${RootDir}/build/pypi/jiminy_py/src
         "${PYTHON_EXECUTABLE}" "${RootDir}/build_tools/stubgen.py" \
           -o ${RootDir}/build/stubs --ignore-invalid=all jiminy_py
         cp ${RootDir}/build/stubs/jiminy_py-stubs/core/__init__.pyi \

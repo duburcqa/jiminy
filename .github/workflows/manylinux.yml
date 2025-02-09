@@ -62,7 +62,7 @@ jobs:
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
         echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
 
-        "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3"
+        "${PYTHON_EXECUTABLE}" -m pip install setuptools wheel "pip>=20.3,<25.1"
         "${PYTHON_EXECUTABLE}" -m pip install twine cmake
     - name: Install latest numpy version at build-time for run-time binary compatibility
       run: |
@@ -112,9 +112,7 @@ jobs:
         export LD_LIBRARY_PATH="$InstallDir/lib:$InstallDir/lib64:/usr/local/lib"
 
         # Generate stubs
-        # FIXME: stubgen does not work with Numpy 2.X without option `--no-analysis`
-        # (see https://github.com/python/mypy/issues/17396)
-        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src --no-analysis
+        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
         "${PYTHON_EXECUTABLE}" "$RootDir/build_tools/stubgen.py" \
           -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
         \cp $RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi \

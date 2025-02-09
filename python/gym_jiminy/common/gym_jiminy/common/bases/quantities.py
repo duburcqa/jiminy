@@ -337,7 +337,14 @@ class SharedCache(Generic[ValueT]):
 
                 # Initialize quantity if not already done manually
                 if not owner._is_initialized:
-                    owner.initialize()
+                    try:
+                        owner.initialize()
+                    except Exception:
+                        # Revert initialization of this quantity as it failed
+                        owner.reset(reset_tracking=False,
+                                    ignore_requirements=True,
+                                    ignore_others=True)
+                        raise
                 assert owner._is_initialized
 
             # Get first owning quantity systematically
@@ -577,7 +584,9 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
 
     def reset(self,
               reset_tracking: bool = False,
-              *, ignore_other_instances: bool = False) -> None:
+              *,
+              ignore_requirements: bool = False,
+              ignore_others: bool = False) -> None:
         """Consider that the quantity must be re-initialized before being
         evaluated once again.
 
@@ -595,9 +604,11 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         :param reset_tracking: Do not consider this quantity as active anymore
                                until the `get` method gets called once again.
                                Optional: False by default.
-        :param ignore_other_instances:
-            Whether to skip reset of intermediary quantities as well as any
-            shared cache co-owner quantity instances.
+        :param ignore_requirements:
+            Whether to skip reset reset of intermediary quantities.
+            Optional: False by default.
+        :param ignore_others:
+            Whether to ignore any shared cache co-owner quantity instances.
             Optional: False by default.
         """
         # Make sure that auto-refresh can be honored
@@ -609,9 +620,14 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         # Reset all requirements first.
         # This is necessary to avoid auto-refreshing quantities with deprecated
         # cache if enabled.
-        if not ignore_other_instances:
+        if not ignore_requirements:
             for quantity in self.requirements.values():
-                quantity.reset(reset_tracking, ignore_other_instances=False)
+                quantity.reset(reset_tracking,
+                               ignore_requirements=False,
+                               ignore_others=ignore_others)
+
+        # No longer consider this exact instance as initialized
+        self._is_initialized = False
 
         # Skip reset if dynamic computation graph update is not allowed
         if self.env.is_simulation_running and not self.allow_update_graph:
@@ -621,27 +637,26 @@ class InterfaceQuantity(Generic[ValueT], metaclass=ABCMeta):
         if reset_tracking:
             self._is_active = False
 
-        # No longer consider this exact instance as initialized
-        self._is_initialized = False
-
         # More work must to be done if this quantity has a shared cache that
         # has not been completely reset yet.
         if self.has_cache and self.cache.sm_state is not _IS_RESET:
             # Reset shared cache state machine first, to avoid triggering reset
             # propagation to all identical quantities.
-            self.cache.reset(
-                ignore_auto_refresh=True, reset_state_machine=True)
+            self.cache.reset(ignore_auto_refresh=True,
+                             reset_state_machine=True)
 
             # Reset all identical quantities except itself since already done
-            for owner in self.cache.owners:
-                if owner is not self:
-                    owner.reset(reset_tracking=reset_tracking,
-                                ignore_other_instances=True)
+            if not ignore_others:
+                for owner in self.cache.owners:
+                    if owner is not self:
+                        owner.reset(reset_tracking=reset_tracking,
+                                    ignore_requirements=True,
+                                    ignore_others=True)
 
             # Reset shared cache afterward with auto-refresh enabled if needed
             if self.env.is_simulation_running:
-                self.cache.reset(
-                    ignore_auto_refresh=False, reset_state_machine=False)
+                self.cache.reset(ignore_auto_refresh=False,
+                                 reset_state_machine=False)
 
     def initialize(self) -> None:
         """Initialize internal buffers.
@@ -793,6 +808,11 @@ class AbstractQuantity(InterfaceQuantity, Generic[ValueT]):
         try:
             self.state.initialize()
         except RuntimeError:
+            # Revert state initialization
+            self.state.reset(reset_tracking=False,
+                             ignore_requirements=True,
+                             ignore_others=True)
+
             # It may have failed because no simulation running, which may be
             # problematic but not blocking at this point. Just checking that
             # the pinocchio model has been properly initialized.
@@ -847,9 +867,9 @@ def sync(fun: Callable[..., None]) -> Callable[..., None]:
 
 @dataclass(unsafe_hash=True)
 class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
-    """This class manages a database of trajectories.
+    """This class manages a dataset of trajectories.
 
-    The database is empty by default. Trajectories must be added or discarded
+    The dataset is empty by default. Trajectories must be added or discarded
     manually. Only one trajectory can be selected at once. Once a trajectory
     has been selecting, its state at the current simulation can be easily
     retrieved.
@@ -1129,13 +1149,13 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
         self._registry.clear()
 
     @sync
-    def select(self, name: str) -> None:
-        """Select an existing trajectory from the database shared synchronized
-        all managed quantities.
+    def _select(self, name: str) -> None:
+        """Select an existing trajectory from the dataset shared amongst all
+        managed quantities without resetting the quantity itself at this point.
 
-        .. note::
-            There is no way to select a different reference trajectory for
-            individual quantities at the time being.
+        .. warning::
+            This method is used internally by `select` method. It is not meant
+             o be called manually.
 
         :param name: Name of the trajectory to select.
         """
@@ -1144,15 +1164,28 @@ class DatasetTrajectoryQuantity(InterfaceQuantity[State]):
             raise ValueError("Cannot select trajectory on a empty dataset.")
 
         # Select the desired trajectory for all identical instances
-        self._trajectory_mode_pair = self._registry[name]
+        trajectory, _ = self._trajectory_mode_pair = self._registry[name]
         self._name = name
 
         # Update the absolute time ratio
-        time_start, time_end = self.trajectory.time_interval
+        time_start, time_end = trajectory.time_interval
         time_delta = time_end - time_start
-        self._time_offset = time_start + self.time_offset_ratio * time_delta
+        self._time_offset = time_start + self._time_offset_ratio * time_delta
 
-        # Un-initialize quantity when the selected trajectory changes
+    def select(self, name: str) -> None:
+        """Select an existing trajectory from the dataset shared amongst all
+        managed quantities, then reset the quantity itself.
+
+        .. note::
+            There is no way to select a different reference trajectory for
+            individual quantities at the time being.
+
+        :param name: Name of the trajectory to select.
+        """
+        # Update the selected trajectory for all the instances at once
+        self._select(name)
+
+        # Un-initialize all instances of this quantity
         self.reset(reset_tracking=False)
 
     @sync

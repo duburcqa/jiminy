@@ -52,7 +52,7 @@ class QuantityManager:
         # Backup user argument(s)
         self.env = env
 
-        # List of instantiated quantities to manager
+        # List of managed top-level quantities
         self._registry: Dict[str, InterfaceQuantity] = {}
 
         # Initialize shared caches for all managed quantities.
@@ -64,45 +64,62 @@ class QuantityManager:
         # using `hash(dataclasses.astuple(quantity))`. This is clearly not
         # unique, as all it requires to be the same is being built from the
         # same nested ordered arguments. To get around this issue, we need to
-        # store (key, value) pairs in a list.
-        self._caches: List[Tuple[
-            Tuple[Type[InterfaceQuantity], int], SharedCache]] = []
+        # store keys in a list.
+        self._cache_keys: List[Tuple[Type[InterfaceQuantity], int]] = []
+        self._caches: List[SharedCache] = []
 
         # Instantiate trajectory database.
         # Note that this quantity is not added to the global registry to avoid
-        # exposing directly to the user. This way, it cannot be deleted.
+        # exposing it directly to the user. This way, it cannot be deleted.
         self.trajectory_dataset = cast(
             DatasetTrajectoryQuantity, self._build_quantity(
                 (DatasetTrajectoryQuantity, {})))
 
-    def reset(self, reset_tracking: bool = False) -> None:
-        """Consider that all managed quantity must be re-initialized before
-        being able to evaluate them once again.
+        # Ordered list of all managed quantities including dependencies.
+        # Note that quantities are ordered from highest to lowest-level
+        # depencency. This way, intermediate quantities are guaranteed to be
+        # reset before their parent without having to resort on downsteream
+        # reset propagation at quantity-level. This avoids resetting the same
+        # quantity multiple times if it is a dependency of multiple quantities
+        # for which auto-refresh is enabled.
+        self._quantity_chain = self._get_managed_quantities()
+
+    def _get_managed_quantities(self) -> Tuple[InterfaceQuantity, ...]:
+        """Get the list of all managed quantities including dependencies.
 
         .. note::
-            The cache is cleared automatically by the quantities themselves.
-
-        .. note::
-            This method is supposed to be called before starting a simulation.
-
-        :param reset_tracking: Do not consider any quantity as active anymore.
-                               Optional: False by default.
+            This method is not meant to be called manually. It is used
+            internally to determine in which order quantities should be reset
+            for optimal efficiency.
         """
-        for quantity in self._registry.values():
-            quantity.reset(reset_tracking)
+        # Get all dependency branches, sorted from highest to lowest level
+        quantity_paths = []
+        quantity_stack: List[Tuple[InterfaceQuantity, ...]] = [
+            (quantity,) for quantity in (
+                self.trajectory_dataset, *self._registry.values())]
+        while quantity_stack:
+            quantity_path = quantity_stack.pop()
+            quantities = quantity_path[-1].requirements.values()
+            if quantities:
+                for quantity in quantities:
+                    quantity_stack.append((*quantity_path, quantity))
+            else:
+                quantity_paths.append(quantity_path)
 
-    def clear(self) -> None:
-        """Clear internal cache of quantities to force re-evaluating them the
-        next time their value is fetched.
-
-        .. note::
-            This method is supposed to be called every time the state of the
-            environment has changed (ie either the agent or world itself),
-            thereby invalidating the value currently stored in cache if any.
-        """
-        ignore_auto_refresh = not self.env.is_simulation_running
-        for _, cache in self._caches:
-            cache.reset(ignore_auto_refresh=ignore_auto_refresh)
+        # Merge each ordered dependencies list in a single ordered chain
+        quantities_sorted: List[InterfaceQuantity] = []
+        for quantity_path in quantity_paths:
+            parent_index = len(quantities_sorted)
+            for quantity in quantity_path:
+                for i, quantity_ in tuple(enumerate(
+                        quantities_sorted))[:parent_index][::-1]:
+                    if quantity == quantity_:
+                        parent_index = i
+                        break
+                else:
+                    assert quantity not in quantities_sorted[parent_index:]
+                    quantities_sorted.insert(parent_index, quantity)
+        return tuple(quantities_sorted)
 
     def _build_quantity(
             self, quantity_creator: QuantityCreator) -> InterfaceQuantity:
@@ -130,41 +147,31 @@ class QuantityManager:
         top_quantity = quantity_cls(self.env, None, **(quantity_kwargs or {}))
 
         # Get the list of all quantities involved in computations of the top
-        # level quantity, sorted from highest level to lowest level.
-        quantities_all, quantities_sorted_all = [top_quantity], [top_quantity]
+        # level quantity, sorted from highest to lowest level.
+        quantities_all, quantity_path = [top_quantity], [top_quantity]
         while quantities_all:
             quantities = quantities_all.pop().requirements.values()
             quantities_all += quantities
-            quantities_sorted_all += quantities
+            quantity_path += quantities
 
         # Set a shared cache entry for all quantities involved in computations.
         # Make sure that the cache associated with requirements precedes their
         # parents in global cache registry. This is essential for automatic
         # refresh, to ensure that cached values of all the intermediary
         # quantities have been cleared before refresh.
-        for quantity in quantities_sorted_all[::-1]:
+        for quantity in quantity_path[::-1]:
             # Get already available cache entry if any, otherwise create it
             key = (type(quantity), hash(quantity))
-            for cache_key, cache in self._caches:
+            for cache_key, cache in zip(self._cache_keys, self._caches):
                 if key == cache_key:
                     owner, *_ = cache.owners
                     if quantity == owner:
                         break
             else:
-                # Partially sort cache entries to reset all quantity instances
-                # of the same class at once.
-                # The objective is to avoid resetting multiple times the same
-                # quantity because of the auto-refresh mechanism.
+                # Create new cache entry
                 cache = SharedCache()
-                is_key_found = False
-                for i, (cache_key, _) in enumerate(self._caches):
-                    if key[0] == cache_key[0]:
-                        is_key_found = True
-                    elif is_key_found:
-                        self._caches.insert(i, (key, cache))
-                        break
-                else:
-                    self._caches.append((key, cache))
+                self._cache_keys.append(key)
+                self._caches.append(cache)
 
             # Set shared cache of the quantity
             quantity.cache = cache
@@ -197,6 +204,9 @@ class QuantityManager:
         # Add it to the global registry of already managed quantities
         self._registry[name] = quantity
 
+        # Backup the updated sequence of managed quantities
+        self._quantity_chain = self._get_managed_quantities()
+
         return quantity
 
     def discard(self, name: str) -> None:
@@ -223,11 +233,44 @@ class QuantityManager:
             cache = quantity.cache
             quantity.cache = None  # type: ignore[assignment]
             if len(cache.owners) == 0:
-                for i, (_, _cache) in enumerate(self._caches):
+                for i, _cache in enumerate(self._caches):
                     if cache is _cache:
+                        del self._cache_keys[i]
                         del self._caches[i]
                         break
             quantities_all += quantity.requirements.values()
+
+        # Update global quantity chain
+        self._quantity_chain = self._get_managed_quantities()
+
+    def reset(self, reset_tracking: bool = False) -> None:
+        """Consider that all managed quantity must be re-initialized before
+        being able to evaluate them once again.
+
+        .. note::
+            The cache is cleared automatically by the quantities themselves.
+
+        .. note::
+            This method is supposed to be called before starting a simulation.
+
+        :param reset_tracking: Do not consider any quantity as active anymore.
+                               Optional: False by default.
+        """
+        for quantity in self._quantity_chain:
+            quantity.reset(reset_tracking, ignore_requirements=True)
+
+    def clear(self) -> None:
+        """Clear internal cache of quantities to force re-evaluating them the
+        next time their value is fetched.
+
+        .. note::
+            This method is supposed to be called every time the state of the
+            environment has changed (ie either the agent or world itself),
+            thereby invalidating the value currently stored in cache if any.
+        """
+        ignore_auto_refresh = not self.env.is_simulation_running
+        for cache in self._caches:
+            cache.reset(ignore_auto_refresh=ignore_auto_refresh)
 
     def get(self, name: str) -> Any:
         """Fetch the value of a given quantity.
