@@ -6,7 +6,8 @@ import sys
 import math
 import warnings
 import unittest
-from typing import Any, Callable, Dict
+from functools import partial
+from typing import Any, Callable, Dict, Tuple, Optional
 
 import numpy as np
 import gymnasium as gym
@@ -15,6 +16,7 @@ try:
     import ray
     from ray.tune.registry import register_env
     from ray.rllib.algorithms import PPOConfig
+    from ray.rllib.utils.typing import EpisodeType
     from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
     IS_RAY_AVAILABLE = True
 except ImportError:
@@ -25,7 +27,7 @@ from gym_jiminy.envs import AcrobotJiminyEnv
 from gym_jiminy.toolbox.wrappers.meta_envs import BaseTaskSettableWrapper
 if IS_RAY_AVAILABLE:
     from gym_jiminy.rllib.utilities import initialize, train
-    from gym_jiminy.rllib.curriculum import build_task_scheduling_callback
+    from gym_jiminy.rllib.curriculum import TaskSchedulingSamplingCallback
 
 
 # Fix the seed for CI stability
@@ -60,11 +62,16 @@ class DummyTaskWrapper(BaseTaskSettableWrapper):
     def set_task(self, task_index: int) -> None:
         pass
 
-    def get_score(self) -> float:
-        ratio = self.task_index / self.num_tasks
-        score = TASK_SCORE_MIN + ratio * (TASK_SCORE_MAX - TASK_SCORE_MIN)
-        score += self.np_random.uniform(low=-1.0, high=1.0) * TASK_SCORE_STD
-        return float(score)
+
+def compute_score(episode_chunks: Tuple["EpisodeType", ...],
+                  env: gym.vector.VectorEnv,
+                  env_index: int) -> float:
+    task_index = env.get_attr("task_index")[env_index]
+    num_tasks = env.get_attr("num_tasks")[env_index]
+    ratio = task_index / num_tasks
+    score = TASK_SCORE_MIN + ratio * (TASK_SCORE_MAX - TASK_SCORE_MIN)
+    score += np.random.uniform(low=-1.0, high=1.0) * TASK_SCORE_STD
+    return float(score)
 
 
 @unittest.skipIf(not IS_RAY_AVAILABLE, "Ray is not available.")
@@ -79,6 +86,9 @@ class AcrobotTaskCurriculum(unittest.TestCase):
     def test_task_curriculum(self):
         """ TODO: Write documentation.
         """
+        # Reset numpy global seed
+        np.random.seed(0)
+
         # Start Ray and Tensorboard background processes.
         # Note that it is necessary to specify Python Path manually, otherwise
         # serialization of `DummyTaskWrapper` will fail miserably if the tests
@@ -110,8 +120,11 @@ class AcrobotTaskCurriculum(unittest.TestCase):
             num_gpus_per_learner=0)
         algo_config.environment(env="env")
         algo_config.debugging(seed=SEED)
-        algo_config.callbacks(build_task_scheduling_callback(
-            history_length=HISTORY_LENGTH, softmin_beta=SOFTMIN_BETA))
+        algo_config.callbacks(partial(
+            TaskSchedulingSamplingCallback,
+            history_length=HISTORY_LENGTH,
+            softmin_beta=SOFTMIN_BETA,
+            score_fn=compute_score))
         algo_config.training(
             train_batch_size_per_learner=25,
             minibatch_size=25,

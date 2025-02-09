@@ -1,6 +1,7 @@
 # mypy: disable-error-code="no-untyped-def, var-annotated"
 """ TODO: Write documentation
 """
+import gc
 from operator import sub
 import unittest
 
@@ -75,32 +76,30 @@ class TerminationConditions(unittest.TestCase):
     def test_drift_tracking(self):
         """ TODO: Write documentation
         """
-        termination_pos_config = ("pos", (FramePosition, {}), -0.2, 0.3, sub)
+        termination_pos_config = ("pos", (FramePosition, {}), 0.2, sub)
         termination_rot_config = (
             "rot",
             (FrameOrientation, dict(type=OrientationType.QUATERNION)),
-            np.array([-0.5, -0.6, -0.7]),
-            np.array([0.7, 0.5, 0.6]),
+            0.6,
             quat_difference)
 
-        for i, (is_truncation, is_training_only) in enumerate((
-            (False, False), (True, False), (False, True))):
+        for is_truncation, is_training_only in (
+                (False, False), (True, False), (False, True)):
             termination_pos, termination_rot = (
                 DriftTrackingQuantityTermination(
                     self.env,
-                    f"drift_tracking_{name}_{i}",
+                    f"drift_tracking_{name}",
                     lambda mode: (quantity_cls, dict(
                         **quantity_kwargs,
                         frame_name="root_joint",
                         mode=mode)),
-                    low=low,
-                    high=high,
+                    thr=thr,
                     horizon=0.3,
                     grace_period=0.2,
                     op=op,
                     is_truncation=is_truncation,
                     training_only=is_training_only
-                ) for name, (quantity_cls, quantity_kwargs), low, high, op in (
+                ) for name, (quantity_cls, quantity_kwargs), thr, op in (
                     termination_pos_config, termination_rot_config))
 
             self.env.stop()
@@ -122,10 +121,12 @@ class TerminationConditions(unittest.TestCase):
                 for termination, (terminated, truncated), values, info in (
                         (termination_pos, flags_pos, positions, info_pos),
                         (termination_rot, flags_rot, rotations, info_rot)):
-                    values = values[-termination.max_stack:]
-                    drift = termination.op(values[-1], values[0])
+                    max_stack = max(int(np.ceil(
+                        termination.horizon / self.env.step_dt)), 1) + 1
+                    values = values[-max_stack:]
+                    delta = termination.op(values[-1], values[0])
                     value = termination.data.quantity_left.get()
-                    np.testing.assert_allclose(drift, value)
+                    np.testing.assert_allclose(delta, value)
 
                     time = self.env.stepper_state.t
                     is_active = (
@@ -136,11 +137,15 @@ class TerminationConditions(unittest.TestCase):
                         assert terminated ^ termination.is_truncation
                     elif is_active:
                         value = termination.data.get()
-                        assert np.all(value >= termination.low)
-                        assert np.all(value <= termination.high)
+                        assert np.linalg.norm(value) <= termination.high
                 _, _, terminated, truncated, _ = self.env.step(action)
                 if terminated or truncated:
                     break
+
+            del termination
+            del termination_pos
+            del termination_rot
+            gc.collect()
 
     def test_shift_tracking(self):
         """ TODO: Write documentation
@@ -152,12 +157,12 @@ class TerminationConditions(unittest.TestCase):
             0.3,
             quat_difference)
 
-        for i, (is_truncation, training_only) in enumerate((
-            (False, False), (True, False), (False, True))):
+        for is_truncation, training_only in (
+                (False, False), (True, False), (False, True)):
             termination_pos, termination_rot = (
                 ShiftTrackingQuantityTermination(
                     self.env,
-                    f"shift_tracking_{name}_{i}",
+                    f"shift_tracking_{name}",
                     lambda mode: (quantity_cls, dict(
                         **quantity_kwargs,
                         frame_name="root_joint",
@@ -190,12 +195,13 @@ class TerminationConditions(unittest.TestCase):
                 for termination, (terminated, truncated), values, info in (
                         (termination_pos, flags_pos, positions, info_pos),
                         (termination_rot, flags_rot, rotations, info_rot)):
+                    max_stack = max(int(np.ceil(
+                        termination.horizon / self.env.step_dt)), 1) + 1
                     left = termination.data.quantity_left.get()
-                    values = values[-termination.max_stack:]
+                    values = values[-max_stack:]
                     stack = np.stack(values, axis=-1)
                     if termination.data.quantity_left.is_wrapping:
-                        shift = max(
-                            self.env.num_steps + 1 - termination.max_stack, 0)
+                        shift = max(self.env.num_steps + 1 - max_stack, 0)
                         stack = np.roll(stack, shift=shift, axis=-1)
                     np.testing.assert_allclose(stack, left)
 
@@ -218,6 +224,11 @@ class TerminationConditions(unittest.TestCase):
                 _, _, terminated, truncated, _ = self.env.step(action)
                 if terminated or truncated:
                     break
+
+            del termination
+            del termination_pos
+            del termination_rot
+            gc.collect()
 
     def test_base_roll_pitch(self):
         """ TODO: Write documentation
@@ -347,16 +358,16 @@ class TerminationConditions(unittest.TestCase):
             if terminated:
                 break
             terminated, truncated = termination_pos({})
-            value_left = quantity_pos.quantity_left.get()
-            value_right = quantity_pos.quantity_right.get()
-            diff = value_left - value_right
-            is_valid = np.linalg.norm(diff) <= MAX_POS_ERROR
+            delta_true = quantity_pos.quantity_left.get()
+            delta_ref = quantity_pos.quantity_right.get()
+            drift = delta_true - delta_ref
+            is_valid = np.linalg.norm(drift) <= MAX_POS_ERROR
             assert terminated ^ is_valid
-            value_left = quantity_rot.quantity_left.get()
-            value_right = quantity_rot.quantity_right.get()
-            diff = value_left - value_right
+            delta_true = quantity_rot.quantity_left.get()
+            delta_ref = quantity_rot.quantity_right.get()
+            drift = delta_true - delta_ref
             terminated, truncated = termination_rot({})
-            is_valid = np.abs(diff) <= MAX_ROT_ERROR
+            is_valid = np.abs(drift) <= MAX_ROT_ERROR
             assert terminated ^ is_valid
 
     def test_misc(self):

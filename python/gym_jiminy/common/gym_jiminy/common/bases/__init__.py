@@ -24,7 +24,8 @@ from .compositions import (AbstractReward,
                            MixtureReward,
                            AbstractTerminationCondition,
                            QuantityTermination,
-                           EpisodeState)
+                           EpisodeState,
+                           partial_hashable)
 from .blocks import (BlockState,
                      InterfaceBlock,
                      BaseObserverBlock,
@@ -74,5 +75,6 @@ __all__ = [
     'QuantityCreator',
     'EpisodeState',
     'StateQuantity',
-    'DatasetTrajectoryQuantity'
+    'DatasetTrajectoryQuantity',
+    'partial_hashable'
 ]

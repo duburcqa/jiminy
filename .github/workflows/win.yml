@@ -55,7 +55,7 @@ jobs:
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false
-        python -m pip install setuptools wheel "pip>=20.3"
+        python -m pip install setuptools wheel "pip>=20.3,<25.1"
         python -m pip install pefile machomachomangler
     - name: Install pre-compiled binaries for additional gym-jiminy dependencies
       run: |
@@ -123,17 +123,11 @@ jobs:
         ${env:Path} += ";$InstallDir/lib"
 
         # Generate stubs
-        if ("${{ matrix.PYTHON_VERSION }}" -ne "3.13") {
-          # FIXME: stubgen does not work with Numpy 2.X
-          # (see https://github.com/python/mypy/issues/17396)
-          python -m pip install "numpy<2.0"
-          stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
-          python "$RootDir/build_tools/stubgen.py" `
-            -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
-          Copy-Item -Force -Path "$RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi" `
-                    -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi"
-          python -m pip install --upgrade "numpy>=1.24" numba torch
-        }
+        stubgen -p jiminy_py -o $RootDir/build/pypi/jiminy_py/src
+        python "$RootDir/build_tools/stubgen.py" `
+          -o $RootDir/build/stubs --ignore-invalid=all jiminy_py
+        Copy-Item -Force -Path "$RootDir/build/stubs/jiminy_py-stubs/core/__init__.pyi" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core/core.pyi"
 
         # Generate wheels
         Set-Location -Path "$RootDir/build"

@@ -228,7 +228,7 @@ class BasePipelineWrapper(
         except AttributeError as e:
             raise AttributeError(
                 f"None of the layers of the pipeline environment '{self}' "
-                "have attribute '{name}'.") from e
+                f"have attribute '{name}'.") from e
 
     def set_wrapper_attr(self,
                          name: str,
@@ -247,7 +247,7 @@ class BasePipelineWrapper(
                 return
             raise AttributeError(
                 f"None of the layers of the pipeline environment '{self}' "
-                "have attribute '{name}'.") from e
+                f"have attribute '{name}'.") from e
 
     @property
     def render_mode(self) -> Optional[str]:
@@ -432,10 +432,10 @@ class BasePipelineWrapper(
     def evaluate(self,
                  policy_fn: PolicyCallbackFun,
                  seed: Optional[int] = None,
-                 horizon: Optional[int] = None,
+                 horizon: Optional[float] = None,
                  enable_stats: bool = True,
                  enable_replay: Optional[bool] = None,
-                 **kwargs: Any) -> Tuple[List[float], List[InfoType]]:
+                 **kwargs: Any) -> Tuple[List[SupportsFloat], List[InfoType]]:
         # Ensure that this layer is already declared as part of the pipeline
         # environment. If not, update the pipeline manually, considering this
         # layer as top-most. This would be the case if `reset` has never been

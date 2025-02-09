@@ -8,10 +8,9 @@
 # pylint: disable=invalid-name,no-member
 import logging
 from bisect import bisect_left
-from functools import lru_cache
 from dataclasses import dataclass, fields
 from typing import (
-    List, Union, Optional, Tuple, Sequence, Dict, Callable, Literal)
+    List, Union, Optional, Tuple, Sequence, Callable, Dict, Literal)
 
 import numpy as np
 
@@ -217,7 +216,7 @@ class Trajectory:
         self._t_prev = 0.0
         self._index_prev = 1
 
-        # List of optional state fields that are provided
+        # List of optional state fields that have been specified.
         # Note that looking for keys in such a small set is not worth the
         # hassle of using Python `set`, which breaks ordering and index access.
         fields_: List[str] = []
@@ -229,12 +228,9 @@ class Trajectory:
                         raise ValueError(
                             "The state information being set must be the same "
                             "for all the timesteps of a given trajectory.")
-                else:
+                elif field not in fields_:
                     fields_.append(field)
         self._fields = tuple(fields_)
-
-        # Hacky way to enable argument-based function caching at instance-level
-        self.__dict__['_get'] = lru_cache(maxsize=None)(self._get)
 
     @property
     def has_data(self) -> bool:
@@ -291,21 +287,53 @@ class Trajectory:
 
         It raises an exception if no data is available.
         """
-        if not self.has_data:
-            raise RuntimeError(
+        try:
+            return (self._times[0], self._times[-1])
+        except IndexError:
+            raise RuntimeError(  # pylint: disable=raise-missing-from
                 "State sequence is empty. Time interval undefined.")
-        return (self._times[0], self._times[-1])
 
-    def _get(self, t: float) -> Dict[str, np.ndarray]:
+    def get(self, t: float, mode: TrajectoryTimeMode = 'raise') -> State:
         """Query the state at a given timestamp.
 
-        .. note::
-            This method is used internally by `get`. It is not meant to be
-            called manually.
+        Internally, the nearest neighbor states are linearly interpolated,
+        taking into account the corresponding Lie Group of all state attributes
+        that are available.
 
         :param t: Time of the state to extract from the trajectory.
+        :param mode: Fallback strategy when the query time is not in the time
+                     interval 'time_interval' of the trajectory. 'raise' raises
+                     an exception if the query time is out-of-bound wrt the
+                     underlying state sequence of the selected trajectory.
+                     'clip' forces clipping of the query time before
+                     interpolation of the state sequence. 'wrap' wraps around
+                     the query time wrt the time span of the trajectory. This
+                     is useful to store periodic trajectories as finite state
+                     sequences.
         """
         # pylint: disable=possibly-used-before-assignment
+
+        # Backup the original query time
+        t_orig = t
+
+        # Handling of the desired mode
+        n_steps = 0.0
+        try:
+            t_start, t_end = self._times[0], self._times[-1]
+        except IndexError:
+            raise RuntimeError(  # pylint: disable=raise-missing-from
+                "State sequence is empty. Impossible to interpolate data.")
+        if mode == "raise":
+            if t - t_end > TRAJ_INTERP_TOL or t_start - t > TRAJ_INTERP_TOL:
+                raise RuntimeError("Query time out-of-range.")
+        elif mode == "wrap":
+            if t_end > t_start:
+                n_steps, t_rel = divmod(t - t_start, t_end - t_start)
+                t = t_rel + t_start
+            else:
+                t = t_start
+        else:
+            t = min(max(t, t_start), t_end)
 
         # Get nearest neighbors timesteps for linear interpolation.
         # Note that the left and right data points may be associated with the
@@ -330,7 +358,7 @@ class Trajectory:
             return_right = t_right - t < TRAJ_INTERP_TOL
             alpha = (t - t_left) / (t_right - t_left)
 
-        # Interpolate state
+        # Interpolate state data
         if return_left:
             position = s_left.q.copy()
         elif return_right:
@@ -338,81 +366,26 @@ class Trajectory:
         else:
             position = pin.interpolate(
                 self._pinocchio_model, s_left.q, s_right.q, alpha)
-        data = {"q": position}
+        state: Dict[str, Union[float, np.ndarray]] = dict(t=t_orig, q=position)
         for field in self._fields:
             value_left = getattr(s_left, field)
             if return_left:
-                data[field] = value_left.copy()
+                state[field] = value_left.copy()
                 continue
             value_right = getattr(s_right, field)
             if return_right:
-                data[field] = value_right.copy()
+                state[field] = value_right.copy()
             else:
-                data[field] = value_left + alpha * (value_right - value_left)
-
-        # Make sure that data are immutable.
-        # This is essential to make sure that cached values cannot be altered.
-        for arr in data.values():
-            arr.setflags(write=False)
-
-        return data
-
-    def get(self, t: float, mode: TrajectoryTimeMode = 'raise') -> State:
-        """Query the state at a given timestamp.
-
-        Internally, the nearest neighbor states are linearly interpolated,
-        taking into account the corresponding Lie Group of all state attributes
-        that are available.
-
-        :param t: Time of the state to extract from the trajectory.
-        :param mode: Fallback strategy when the query time is not in the time
-                     interval 'time_interval' of the trajectory. 'raise' raises
-                     an exception if the query time is out-of-bound wrt the
-                     underlying state sequence of the selected trajectory.
-                     'clip' forces clipping of the query time before
-                     interpolation of the state sequence. 'wrap' wraps around
-                     the query time wrt the time span of the trajectory. This
-                     is useful to store periodic trajectories as finite state
-                     sequences.
-        """
-        # Raise exception if state sequence is empty
-        if not self.has_data:
-            raise RuntimeError(
-                "State sequence is empty. Impossible to interpolate data.")
-
-        # Backup the original query time
-        t_orig = t
-
-        # Handling of the desired mode
-        n_steps = 0.0
-        t_start, t_end = self.time_interval
-        if mode == "raise":
-            if t - t_end > TRAJ_INTERP_TOL or t_start - t > TRAJ_INTERP_TOL:
-                raise RuntimeError("Time is out-of-range.")
-        elif mode == "wrap":
-            if t_end > t_start:
-                n_steps, t_rel = divmod(t - t_start, t_end - t_start)
-                t = t_rel + t_start
-            else:
-                t = t_start
-        else:
-            t = max(t, t_start)  # Clipping right it is sufficient
-
-        # Rounding time to avoid cache miss issues
-        # Note that `int(x + 0.5)` is faster than `round(x)`.
-        t = int(t / TRAJ_INTERP_TOL + 0.5) * TRAJ_INTERP_TOL
-
-        # Interpolate state at the desired time
-        state = State(t=t_orig, **self._get(t))
+                state[field] = value_left + alpha * (value_right - value_left)
 
         # Perform odometry if time is wrapping
         if self._stride_offset_log6 is not None and n_steps:
-            state.q = position = state.q.copy()
             stride_offset = pin.exp6(n_steps * self._stride_offset_log6)
             ff_xyzquat = stride_offset * pin.XYZQUATToSE3(position[:7])
             position[:7] = pin.SE3ToXYZQUAT(ff_xyzquat)
 
-        return state
+        # Return a State object
+        return State(**state)  # type: ignore[arg-type]
 
 
 # #####################################################################

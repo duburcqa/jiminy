@@ -776,11 +776,13 @@ class DeformationEstimator(BaseObserverBlock[
             # Determine the parent frame of the deformation points
             parent_flex_frame_names = []
             for name in flex_frame_names:
-                frame_idx = pinocchio_model.getFrameId(name)
-                joint_idx = pinocchio_model.frames[frame_idx].parent
+                frame_index = pinocchio_model.getFrameId(name)
+                joint_index = pinocchio_model.frames[frame_index].parent
                 while True:
-                    joint_idx = pinocchio_model.parents[joint_idx]
-                    frame_name = pinocchio_model.names[joint_idx]
+                    joint_index = pinocchio_model.parents[joint_index]
+                    frame_name = pinocchio_model.names[joint_index]
+                    if frame_name not in self.pinocchio_model_th.names:
+                        continue
                     if frame_name not in flexibility_joint_names:
                         break
                 parent_flex_frame_names.append(frame_name)

@@ -25,8 +25,8 @@ from collections import defaultdict
 from tempfile import mkdtemp
 from traceback import TracebackException
 from typing import (
-    Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Type,
-    DefaultDict, Iterable, overload, cast)
+    Optional, Any, Union, Sequence, Tuple, List, Literal, Dict, Set, Callable,
+    DefaultDict, Collection, Iterable, SupportsFloat, overload, cast)
 
 import tree
 import numpy as np
@@ -63,13 +63,15 @@ from ray.rllib.env.single_agent_episode import SingleAgentEpisode
 from ray.rllib.env.env_runner import EnvRunner
 from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
 from ray.rllib.env.env_runner_group import EnvRunnerGroup
+from ray.rllib.utils.checkpoints import Checkpointable
 from ray.rllib.utils.filter import MeanStdFilter as _MeanStdFilter, RunningStat
 from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED_LIFETIME, NUM_AGENT_STEPS_SAMPLED_LIFETIME,
     NUM_EPISODES_LIFETIME, EPISODE_RETURN_MEAN, EPISODE_RETURN_MAX,
     EPISODE_LEN_MEAN, EVALUATION_RESULTS, ENV_RUNNER_RESULTS, NUM_EPISODES)
 from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
-from ray.rllib.utils.typing import AgentID, EpisodeID, ResultDict, EpisodeType
+from ray.rllib.utils.typing import (
+    AgentID, EpisodeID, ResultDict, EpisodeType, StateDict)
 
 from jiminy_py.viewer import async_play_and_record_logs_files
 from gym_jiminy.common.bases import Obs, Act
@@ -197,7 +199,8 @@ class MonitorEpisodeCallback(DefaultCallbacks):
         # Drop all partial episodes associated with the environment at hand
         # when starting a fresh new one since it will never be done anyway.
         if env_index in self._ongoing_episodes:
-            self._partial_episodes.pop(self._ongoing_episodes[env_index], None)
+            episode_id_prev = self._ongoing_episodes[env_index]
+            self._partial_episodes.pop(episode_id_prev, None)
         self._ongoing_episodes[env_index] = episode.id_
 
     def on_episode_end(self,
@@ -444,75 +447,118 @@ def initialize(num_cpus: int,
     return log_path
 
 
-def make_multi_callbacks(
-        callback_class_list: Sequence[Type[DefaultCallbacks]]
-        ) -> Type[DefaultCallbacks]:
-    """Allows combining multiple sub-callbacks into one new callbacks class.
+class MultiCallbacks(DefaultCallbacks, Checkpointable):
+    """Wrapper to combine multiple callback classes as one to fit with the
+    standard RLlib API.
 
-    The resulting DefaultCallbacks will call all the sub-callbacks' callbacks
-    when called.
-
-    .. warning::
-        This wrapper only supports the new API, unlike the original helper
-        `ray.rllib.algorithms.callbacks.make_multi_callbacks`.
-
-    :param callback_class_list: The list of sub-classes of DefaultCallbacks to
-                                be baked into the to-be-returned class. All of
-                                these sub-classes' implemented methods will be
-                                called in the given order.
+    .. note::
+        Based on `ray.rllib.algorithms.callbacks.make_multi_callbacks`, which
+        has been extended to support stateful callbacks and the so-called new
+        API.
     """
-    class MultiCallbacks(DefaultCallbacks):
-        """A DefaultCallbacks subclass that combines all the given sub-classes.
+    def __init__(self,
+                 callbacks_list: Tuple[Callable[[], DefaultCallbacks], ...]
+                 ) -> None:
         """
-        def __init__(self) -> None:
-            self._callback_list = [
-                callback_class() for callback_class in callback_class_list]
+        :param callbacks_list: The list of sub-classes of DefaultCallbacks to
+                               be baked into the to-be-returned class. All of
+                               these sub-classes' implemented methods will be
+                               called in the given order.
+        """
+        self._ctor_kwargs = dict(callbacks_list=callbacks_list)
+        self._callbacks_list = tuple(
+            callback_class() for callback_class in callbacks_list)
 
-        def on_algorithm_init(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_algorithm_init(**kwargs)
+    def on_algorithm_init(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_algorithm_init(**kwargs)
 
-        def on_workers_recreated(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_workers_recreated(**kwargs)
+    def on_workers_recreated(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_workers_recreated(**kwargs)
 
-        def on_checkpoint_loaded(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_checkpoint_loaded(**kwargs)
+    def on_checkpoint_loaded(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_checkpoint_loaded(**kwargs)
 
-        def on_environment_created(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_environment_created(**kwargs)
+    def on_environment_created(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_environment_created(**kwargs)
 
-        def on_episode_start(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_episode_start(**kwargs)
+    def on_episode_start(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_episode_start(**kwargs)
 
-        def on_episode_step(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_episode_step(**kwargs)
+    def on_episode_step(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_episode_step(**kwargs)
 
-        def on_episode_end(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_episode_end(**kwargs)
+    def on_episode_end(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_episode_end(**kwargs)
 
-        def on_evaluate_start(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_evaluate_start(**kwargs)
+    def on_evaluate_start(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_evaluate_start(**kwargs)
 
-        def on_evaluate_end(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_evaluate_end(**kwargs)
+    def on_evaluate_end(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_evaluate_end(**kwargs)
 
-        def on_sample_end(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_sample_end(**kwargs)
+    def on_sample_end(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_sample_end(**kwargs)
 
-        def on_train_result(self, **kwargs: Any) -> None:
-            for callback in self._callback_list:
-                callback.on_train_result(**kwargs)
+    def on_train_result(self, **kwargs: Any) -> None:
+        for callbacks in self._callbacks_list:
+            callbacks.on_train_result(**kwargs)
 
-    return MultiCallbacks
+    def get_state(self,
+                  components: Optional[Union[str, Collection[str]]] = None,
+                  *,
+                  not_components: Optional[Union[str, Collection[str]]] = None,
+                  **kwargs: Any) -> StateDict:
+        # Sanitize input argument(s)
+        if isinstance(components, str):
+            components = (components,)
+        if isinstance(not_components, str):
+            not_components = (not_components,)
+
+        # Aggregate sequentially states of all the wrapped callbacks if any.
+        # Note that the wrapper itself is stateless.
+        state = {}
+        for i, callbacks in enumerate(self._callbacks_list):
+            # Skip individual callbacks are not requested
+            key = str(i)
+            if components is not None and key not in components:
+                continue
+            if not_components is not None and key in not_components:
+                continue
+
+            # Append the state of the individual callback
+            if isinstance(callbacks, Checkpointable):
+                state[key] = callbacks.get_state()
+        return state
+
+    def set_state(self, state: StateDict) -> None:
+        for i, callbacks in enumerate(self._callbacks_list):
+            key = str(i)
+            state_i = state.get(key, None)
+            if state_i:
+                assert isinstance(callbacks, Checkpointable)
+                callbacks.set_state(state_i)
+
+    def get_checkpointable_components(
+            self) -> List[Tuple[str, Checkpointable]]:
+        return [(str(i), callbacks)
+                for i, callbacks in enumerate(self._callbacks_list)
+                if isinstance(callbacks, Checkpointable)]
+
+    def get_ctor_args_and_kwargs(self) -> Tuple[Tuple, Dict[str, Any]]:
+        return (
+            (),  # *args
+            self._ctor_kwargs,  # **kwargs
+        )
 
 
 def train(algo_config: AlgorithmConfig,
@@ -614,8 +660,8 @@ def train(algo_config: AlgorithmConfig,
     if algo_config.callbacks_class is DefaultCallbacks:
         algo_config.callbacks(MonitorEpisodeCallback)
     else:
-        algo_config.callbacks(make_multi_callbacks(
-            [algo_config.callbacks_class, MonitorEpisodeCallback]))
+        algo_config.callbacks(partial(MultiCallbacks, (
+            algo_config.callbacks_class, MonitorEpisodeCallback)))
 
     # Configure evaluation
     algo_config.evaluation(
@@ -640,6 +686,7 @@ def train(algo_config: AlgorithmConfig,
                     ),
                 },
                 render_env=False,
+                callbacks_class=DefaultCallbacks,
                 explore=False,
             )
         )
@@ -657,63 +704,13 @@ def train(algo_config: AlgorithmConfig,
     # Initialize the learning algorithm
     algo = algo_config.build()
 
-    # Assert(s) for type checker
-    assert algo.env_runner_group is not None
-
-    # Restore checkpoint if any
-    checkpoints_paths = sorted([
-        str(path) for path in Path(logdir).iterdir()
-        if path.is_dir() and path.name.startswith("checkpoint_")])
-    if checkpoints_paths:
-        algo.restore(checkpoints_paths[-1])
-
-    # Get the reward threshold of the environment, if any.
-    # Note that the original environment is always re-registered as an new gym
-    # entry-point "rllib-single-agent-env-v0". Most of the original spec are
-    # lost in the process when the environment is a callable that has been
-    # registered through `ray.tune.registry.register_env`. The only way to
-    # access the original spec is by instantiating the entry-point manually
-    # without relying on `gym.make`.
-    env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
-        lambda worker: worker.env.unwrapped.get_attr('spec')))
-    assert env_spec is not None
-    if env_spec.reward_threshold is None:
-        env_spec = env_spec.entry_point().spec
-    if env_spec is None or env_spec.reward_threshold is None:
-        return_threshold = float('inf')
-    else:
-        return_threshold = env_spec.reward_threshold
-
-    # Set the seed of the training and evaluation environments
-    if seed is not None:
-        seed_seq_gen = np.random.SeedSequence(seed)
-        seed_seq = seed_seq_gen.generate_state(2)
-        for seed_seq_gen_i, workers in zip(
-                tuple(map(np.random.SeedSequence, seed_seq)),
-                (algo.env_runner_group, algo.eval_env_runner_group)):
-            if workers is None:
-                continue
-            num_envs = workers.foreach_worker(lambda worker: worker.num_envs)
-            seeds = [seed_seq_gen_i.generate_state(n).tolist()
-                     for n in num_envs]
-            workers.foreach_worker_with_id(
-                lambda idx, worker: worker.env.reset(
-                    seed=seeds[idx]))  # pylint: disable=cell-var-from-loop
-
-    # Instantiate logger that will be used throughout the experiment
-    try:
-        # pylint: disable=import-outside-toplevel,import-error
-        from tensorboardX import SummaryWriter
-        file_writer = SummaryWriter(logdir, flush_secs=30)
-    except ImportError:
-        LOGGER.warning("Tensorboard not available. Cannot start server.")
-
     # Backup some information
     if algo.iteration == 0:
         # Make sure log dir exists
         os.makedirs(logdir, exist_ok=True)
 
         # Backup all environment's source files
+        assert algo.env_runner_group is not None
         (env_type,) = set(chain(*algo.env_runner_group.foreach_worker(
             lambda worker: [
                 type(env.unwrapped) for env in worker.env.unwrapped.envs])))
@@ -744,6 +741,101 @@ def train(algo_config: AlgorithmConfig,
                       sort_keys=True,
                       cls=SafeFallbackEncoder)
 
+    # Instantiate logger that will be used throughout the experiment
+    try:
+        # pylint: disable=import-outside-toplevel,import-error
+        from tensorboardX import SummaryWriter
+        file_writer = SummaryWriter(logdir, flush_secs=30)
+    except ImportError:
+        LOGGER.warning("Tensorboard not available. Cannot start server.")
+
+    # Get the reward threshold of the environment, if any.
+    # Note that the original environment is always re-registered as an new gym
+    # entry-point "rllib-single-agent-env-v0". Most of the original spec are
+    # lost in the process when the environment is a callable that has been
+    # registered through `ray.tune.registry.register_env`. The only way to
+    # access the original spec is by instantiating the entry-point manually
+    # without relying on `gym.make`.
+    assert algo.env_runner_group is not None
+    env_spec, *_ = chain(*algo.env_runner_group.foreach_worker(
+        lambda worker: worker.env.unwrapped.get_attr('spec')))
+    assert env_spec is not None
+    if env_spec.reward_threshold is None:
+        env_spec = env_spec.entry_point().spec
+    if env_spec is None or env_spec.reward_threshold is None:
+        return_threshold = float('inf')
+    else:
+        return_threshold = env_spec.reward_threshold
+
+    # Set the seed of the training and evaluation environments
+    if seed is not None:
+        seed_seq_gen = np.random.SeedSequence(seed)
+        seed_seq = seed_seq_gen.generate_state(2)
+        for seed_seq_gen_i, workers in zip(
+                tuple(map(np.random.SeedSequence, seed_seq)),
+                (algo.env_runner_group, algo.eval_env_runner_group)):
+            if workers is None:
+                continue
+            num_envs = workers.foreach_worker(lambda worker: worker.num_envs)
+            seeds = [seed_seq_gen_i.generate_state(n).tolist()
+                     for n in num_envs]
+            workers.foreach_worker_with_id(
+                lambda idx, worker: worker.env.reset(
+                    seed=seeds[idx]))  # pylint: disable=cell-var-from-loop
+
+    # Restore checkpoint if any
+    checkpoints_paths = sorted([
+        str(path) for path in Path(logdir).iterdir()
+        if path.is_dir() and path.name.startswith("checkpoint_")])
+    if checkpoints_paths:
+        checkpoint_dir = checkpoints_paths[-1]
+        algo.restore(checkpoint_dir)
+        if isinstance(algo.callbacks, Checkpointable):
+            algo.callbacks.restore_from_path(
+                os.path.join(checkpoint_dir, "callbacks"))
+            state_callbacks = algo.callbacks.get_state()
+            algo.env_runner_group.foreach_worker(
+                lambda worker: worker._callbacks.set_state(state_callbacks))
+
+    # Synchronize connectors of training and evaluation remote workers with the
+    # local training runner. This is necessary if a checkpoint has just been
+    # restored, otherwise that is a no-op that does no harm.
+    def sync_connectors(state_connectors: Dict[str, Any],
+                        env_runner: EnvRunner) -> None:
+        """Internal helper to synchronise all the env-to-module
+        connectors of a given runner with a given state.
+
+        :param state_connectors: Expected state of the connectors
+                                    after synchronization.
+        :param env_runner: Environment runner to consider.
+        """
+        assert isinstance(env_runner, SingleAgentEnvRunner)
+        env_runner._env_to_module.set_state(state_connectors)
+
+    state_connectors = algo.env_runner._env_to_module.get_state()
+    algo.env_runner_group.foreach_worker(partial(
+        sync_connectors, state_connectors))
+    if algo.eval_env_runner_group is not None:
+        algo.eval_env_runner_group.foreach_worker(partial(
+            sync_connectors, state_connectors))
+
+    # Disable connector update for evaluation runner
+    def disable_update_connectors(env_runner: EnvRunner) -> None:
+        """Internal helper to disable automatic update of statistics (mean,
+        std) when collecting samples used by MeanStdFilter to empirically
+        normalized the observation.
+
+        :param env_runner: Environment runner to consider.
+        """
+        assert isinstance(env_runner, SingleAgentEnvRunner)
+        for connector in env_runner._env_to_module:
+            if isinstance(connector, MeanStdFilter):
+                connector._update_stats = False
+                break
+
+    if algo.eval_env_runner_group is not None:
+        algo.eval_env_runner_group.foreach_worker(disable_update_connectors)
+
     # Monitor memory allocations to detect leaks if any
     if debug:
         tracemalloc.start(10)
@@ -755,6 +847,12 @@ def train(algo_config: AlgorithmConfig,
         while True:
             # Perform one iteration of training the policy
             result = algo.train()
+
+            # Synchronize evaluation connectors with training connectors
+            if algo.eval_env_runner_group is not None:
+                state_connectors = algo.env_runner._env_to_module.get_state()
+                algo.eval_env_runner_group.foreach_worker(partial(
+                    sync_connectors, state_connectors))
 
             # Log results
             num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
@@ -875,7 +973,12 @@ def train(algo_config: AlgorithmConfig,
             # Backup the policy
             iter_num = result[TRAINING_ITERATION]
             if checkpoint_interval > 0 and iter_num % checkpoint_interval == 0:
-                algo.save(os.path.join(logdir, f"checkpoint_{iter_num:06d}"))
+                checkpoint_dir = os.path.join(
+                    logdir, f"checkpoint_{iter_num:06d}")
+                algo.save(checkpoint_dir)
+                if isinstance(algo.callbacks, Checkpointable):
+                    algo.callbacks.save_to_path(
+                        os.path.join(checkpoint_dir, "callbacks"))
 
             # Check terminal conditions
             num_timesteps = result[NUM_ENV_STEPS_SAMPLED_LIFETIME]
@@ -994,8 +1097,12 @@ def sample_from_runner(
     # Collect metrics
     metrics = env_runner.get_metrics()
 
-    # Remove log paths from metrics to prevent irrelevant tensorboard logging
-    del metrics['log_path']
+    # Remove log paths from metrics to prevent irrelevant tensorboard logging.
+    # Note that 'log_path' is not stored as metrics by default with official
+    # RLlib algo config. Nevertheless, `gym_jiminy.rllib.utilities.train`
+    # forces all infos to be stored as metrics for the evaluation runners via
+    # `MonitorEpisodeCallback`, which includes 'log_path'.
+    metrics.pop('log_path', None)
 
     # Enable once-again auto-reset, to avoid starting back training from where
     # evaluation stopped.
@@ -1248,22 +1355,22 @@ def evaluate_from_algo(algo: Algorithm,
             step_dt = None
         _pretty_print_episode_metrics(all_episodes, step_dt)
 
-    # Backup only the log file corresponding to the best and worst trial
+    # Backup only the log file corresponding to the best and worst trial, while
+    # deleting all the others.
     all_returns = [
         episode.get_return() for episode in all_episodes]
     idx_worst, idx_best = np.argsort(all_returns)[[0, -1]]
     log_labels, log_paths = [], []
-    for label, idx in (
-            ("best", idx_best), ("worst", idx_worst))[:num_episodes]:
-        ext = Path(all_log_paths[idx]).suffix
+    for idx, log_path_orig in tuple(enumerate(all_log_paths))[::-1]:
+        if idx not in (idx_worst, idx_best):
+            os.remove(log_path_orig)
+            continue
+        ext = Path(log_path_orig).suffix
+        label = "best" if idx == idx_best else "worst"
         log_path = f"{algo.logdir}/iter_{algo.iteration}-{label}{ext}"
-        try:
-            shutil.move(all_log_paths[idx], log_path)
-        except FileNotFoundError:
-            LOGGER.warning("Failed to save log file during evaluation.")
-        else:
-            log_paths.append(log_path)
-            log_labels.append(label)
+        shutil.move(log_path_orig, log_path)
+        log_paths.append(log_path)
+        log_labels.append(label)
 
     # Replay and/or record a video of the best and worst trials if requested.
     # Async to enable replaying and recording while training keeps going.
@@ -1328,13 +1435,15 @@ def evaluate_from_algo(algo: Algorithm,
     return results
 
 
-def evaluate_from_runner(env_runner: EnvRunner,
-                         num_episodes: int = 1,
-                         print_stats: Optional[bool] = None,
-                         enable_replay: Optional[bool] = None,
-                         block: bool = True,
-                         **kwargs: Any
-                         ) -> Tuple[Sequence[EpisodeType], Sequence[str]]:
+def evaluate_from_runner(
+        env_runner: EnvRunner,
+        num_episodes: int = 1,
+        print_stats: Optional[bool] = None,
+        enable_replay: Optional[bool] = None,
+        delete_log_files: bool = True,
+        block: bool = True,
+        **kwargs: Any
+        ) -> Tuple[Sequence[EpisodeType], Optional[Sequence[str]]]:
     """Evaluates the performance of a given local worker.
 
     This method is specifically tailored for Gym environments inheriting from
@@ -1350,20 +1459,31 @@ def evaluate_from_runner(env_runner: EnvRunner,
                           Optional: True by default if `record_video_path` is
                           not provided and the default/current backend supports
                           it, False otherwise.
+    :param delete_log_files: Whether to delete log files instead of returning
+                             them. Note that this option is not supported if
+                             `enable_replay=True` and `block=False`.
     :param block: Whether calling this method should be blocking.
                   Optional: True by default.
     :param kwargs: Extra keyword arguments to forward to the viewer if any.
 
-    :returns: Tuple gathering the sequences of episodes and log files.
+    :returns: Sequences of episodes, along with the sequence of corresponding
+              log files if `delete_log_files=False`, None otherwise.
     """
     # Assert(s) for type checker
     assert isinstance(env_runner, SingleAgentEnvRunner)
+
+    # Make sure that the input arguments are valid
+    if delete_log_files and enable_replay and not block:
+        raise ValueError(
+            "Specifying `delete_log_files=True` is not available in "
+            "conjunction with `enable_replay=True` and `block=True`.")
 
     # Handling of default argument(s)
     if print_stats is None:
         print_stats = num_episodes >= 10
 
     # Sample episodes
+    all_log_paths: Optional[Sequence[str]]
     _, all_episodes, all_log_paths = (
         sample_from_runner(env_runner, num_episodes))
 
@@ -1402,12 +1522,21 @@ def evaluate_from_runner(env_runner: EnvRunner,
             ctypes.pythonapi.PyThreadState_SetAsyncExc(
                 ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
 
+    # Delete log files if requested
+    if delete_log_files:
+        for log_path in all_log_paths:
+            os.remove(log_path)
+        all_log_paths = None
+
     # Return all collected data
     return all_episodes, all_log_paths
 
 
-def build_eval_runner_from_checkpoint(checkpoint_path: str) -> EnvRunner:
-    """Build a local evaluation runner from a checkpoint generated by calling
+def build_runner_from_checkpoint(
+        checkpoint_path: str,
+        env_config_kwargs: Optional[Dict[str, Any]] = None,
+        is_eval_runner: bool = True) -> EnvRunner:
+    """Build a local runner from a checkpoint generated by calling
     `algo.save()` during training of the policy.
 
     This local env runner can then be passed to `evaluate_from_runner` for
@@ -1421,27 +1550,43 @@ def build_eval_runner_from_checkpoint(checkpoint_path: str) -> EnvRunner:
         prior to calling this method, otherwise it will raise an exception.
 
     :param checkpoint_path: Checkpoint directory to be restored.
+    :param env_config_kwargs: Keyword-only arguments that will be passed at
+                              environment instantiation. This is useful to
+                              partially override the original configuration,
+                              i.e. to fix absolute path that may have change.
+                              Optional: `None` by default.
+    :param is_eval_runner: Whether to restore the evaluation runner in place
+                           of the training one.
+                           Optional: True by default.
     """
-    # Restore evaluation runner
-    eval_runner_checkpoint_path = Path(checkpoint_path) / "eval_env_runner"
+    # Instantiate the runner
+    env_runner_checkpoint_path = Path(checkpoint_path) / (
+        "eval_env_runner" if is_eval_runner else "env_runner")
     class_and_ctor_args_fullpath = (
-        eval_runner_checkpoint_path / "class_and_ctor_args.pkl")
+        env_runner_checkpoint_path / "class_and_ctor_args.pkl")
     with open(class_and_ctor_args_fullpath, "rb") as f:
         ctor_info = pickle.load(f)
     ctor = ctor_info["class"]
-    env_runner = ctor.from_checkpoint(eval_runner_checkpoint_path)
+    # env_runner = ctor.from_checkpoint(env_runner_checkpoint_path)
+    env_runner_class_ctor_checkpoint_path = (
+        env_runner_checkpoint_path / ctor.CLASS_AND_CTOR_ARGS_FILE_NAME)
+    with open(env_runner_class_ctor_checkpoint_path, "rb") as f:
+        ctor_info = pickle.load(f)
+    ctor_args, ctor_kwargs = ctor_info["ctor_args_and_kwargs"]
+    env_config = ctor_kwargs['config'].env_config
+    if env_config_kwargs:
+        env_config.update(env_config_kwargs)
+    env_runner = ctor(*ctor_args, **ctor_kwargs)
 
-    # Restore trained RLModule
-    rl_module = RLModule.from_checkpoint(
-        Path(checkpoint_path) / COMPONENT_LEARNER_GROUP / COMPONENT_LEARNER /
-        COMPONENT_RL_MODULE / DEFAULT_MODULE_ID)
+    # Restore the state of the runner
+    env_runner.restore_from_path(env_runner_checkpoint_path)
 
-    # Sync the weights from the learner to the evaluation runner.
+    # Sync the weights from the learner to the runner.
     # Note that it is necessary to load the learner module because weights are
     # not up-to-date at runner-level.
     rl_module = RLModule.from_checkpoint(
-        Path(checkpoint_path) / COMPONENT_LEARNER_GROUP / COMPONENT_LEARNER /
-        COMPONENT_RL_MODULE / DEFAULT_MODULE_ID)
+        Path(checkpoint_path) / COMPONENT_LEARNER_GROUP /
+        COMPONENT_LEARNER / COMPONENT_RL_MODULE / DEFAULT_MODULE_ID)
     env_runner.set_state({COMPONENT_RL_MODULE: rl_module.get_state()})
 
     return env_runner
@@ -1472,7 +1617,7 @@ def build_module_from_checkpoint(checkpoint_path: str) -> RLModule:
     """
     # Restore a complete runner instead of just the policy, in order to perform
     # checks regarding the pre- and post- processing of the policy.
-    env_runner = build_eval_runner_from_checkpoint(checkpoint_path)
+    env_runner = build_runner_from_checkpoint(checkpoint_path)
     config = env_runner.config
 
     # Assert(s) for type checker
@@ -1554,7 +1699,7 @@ def build_module_wrapper(rl_module: RLModule,
 
     def forward(obs: Obs,
                 action_prev: Optional[Act],
-                reward: Optional[float],
+                reward: Optional[SupportsFloat],
                 terminated: bool,
                 truncated: bool,
                 info: Dict[str, Any]) -> Act:
@@ -1627,7 +1772,7 @@ __all__ = [
     "sample_from_runner_group",
     "evaluate_from_algo",
     "evaluate_from_runner",
-    "build_eval_runner_from_checkpoint",
+    "build_runner_from_checkpoint",
     "build_module_from_checkpoint",
     "build_module_wrapper",
 ]

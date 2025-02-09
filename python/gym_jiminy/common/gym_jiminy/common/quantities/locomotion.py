@@ -1,7 +1,7 @@
 """Quantities mainly relevant for locomotion tasks on floating-base robots.
 """
 import math
-from operator import attrgetter
+from operator import sub, attrgetter
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Sequence, Literal, Union
 
@@ -16,11 +16,13 @@ import pinocchio as pin
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
     QuantityEvalMode, QuantityCreator)
+from ..bases.compositions import ArrayOrScalar
 from ..quantities import (
     OrientationType, UnaryOpQuantity, MultiAryOpQuantity, MaskedQuantity,
-    ConcatenatedQuantity, FramePosition, FrameOrientation, MultiFramePosition,
-    MultiFrameXYZQuat, MultiFrameMeanXYZQuat, FrameSpatialAverageVelocity,
-    AverageFrameRollPitch, MultiFrameCollisionDetection)
+    ConcatenatedQuantity, DeltaQuantity, FramePosition, FrameOrientation,
+    MultiFramePosition, MultiFrameXYZQuat, MultiFrameMeanXYZQuat,
+    FrameSpatialAverageVelocity, AverageFrameRollPitch,
+    MultiFrameCollisionDetection)
 from ..utils import (
     matrix_to_yaw, quat_to_yaw, quat_to_matrix, quat_multiply, quat_apply,
     rpy_to_quat)
@@ -83,30 +85,6 @@ def sanitize_foot_frame_names(
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
-def translate_position_odom(position: np.ndarray,
-                            odom_pose: np.ndarray,
-                            out: np.ndarray) -> None:
-    """Translate a single or batch of 2D position vector (X, Y) from world to
-    local frame.
-
-    :param position: Batch of positions vectors as a 2D array whose
-                     first dimension gathers the 2 spatial coordinates
-                     (X, Y) while the second corresponds to the
-                     independent points.
-    :param odom_pose: Reference odometry pose as a 1D array gathering the 2
-                      position and 1 orientation coordinates in world plane
-                      (X, Y), (Yaw,) respectively.
-    :param out: Pre-allocated array in which to store the result.
-    """
-    # out = R(yaw).T @ (position - position_ref)
-    position_ref, yaw_ref = odom_pose[:2], odom_pose[2]
-    pos_rel_x, pos_rel_y = position - position_ref
-    cos_yaw, sin_yaw = math.cos(yaw_ref), math.sin(yaw_ref)
-    out[0] = + cos_yaw * pos_rel_x + sin_yaw * pos_rel_y
-    out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
-
-
-@nb.jit(nopython=True, cache=True, fastmath=True)
 def compute_height(base_pos: np.ndarray, contacts_pos: np.ndarray) -> float:
     """Compute the height of the robot, which is defined as the maximum
     vertical difference between the base of the robot and the contact points.
@@ -165,9 +143,11 @@ class BaseRelativeHeight(InterfaceQuantity[float]):
             parent,
             requirements=dict(
                 base_pos=(FramePosition, dict(
-                    frame_name="root_joint")),
+                    frame_name="root_joint",
+                    mode=mode)),
                 contacts_pos=(MultiFramePosition, dict(
-                    frame_names=frame_names))),
+                    frame_names=frame_names,
+                    mode=mode))),
             auto_refresh=False)
 
     def refresh(self) -> float:
@@ -353,6 +333,9 @@ class BaseOdometryAverageVelocity(InterfaceQuantity[np.ndarray]):
                     keys=(0, 1, 5)))),
             auto_refresh=False)
 
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
     def refresh(self) -> np.ndarray:
         return self.data.get()
 
@@ -488,6 +471,9 @@ class MultiFootMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode))),
             auto_refresh=False)
 
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
     def refresh(self) -> np.ndarray:
         return self.data.get()
 
@@ -572,7 +558,7 @@ class MultiFootMeanOdometryPose(InterfaceQuantity[np.ndarray]):
 
 
 @dataclass(unsafe_hash=True)
-class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
+class ReferencePositionVector(InterfaceQuantity[np.ndarray]):
     """Reference position vector (aka. configuration) of the robot, for which
     the odometry pose (X, Y, Yaw) has been overwritten with the true one.
 
@@ -584,53 +570,67 @@ class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
     recommanded. See `MultiFootMeanXYZQuat` documentation for details.
     """
 
-    is_foot_based: bool
-    """ Whether to estimate the odometry pose from the mean foot pose instead
-    of the floating base pose.
+    odometry_mode: Optional[Literal['base', 'foot']]
+    """The modes 'foot' and 'base' estimate the odometry pose from the mean
+    foot pose or the floating base pose respectively. `None` to keep the
+    original odometry pose from the reference trajectory.
     """
 
     def __init__(self,
                  env: InterfaceJiminyEnv,
                  parent: Optional[InterfaceQuantity],
                  *,
-                 is_foot_based: bool = True) -> None:
+                 odometry_mode: Optional[Literal['base', 'foot']] = 'foot'
+                 ) -> None:
         """
         :param env: Base or wrapped jiminy environment.
         :param parent: Higher-level quantity from which this quantity is a
                        requirement if any, `None` otherwise.
-        :para is_foot_based: Whether to estimate the odometry pose from the
-                             mean foot pose instead of the floating base pose.
-                             Optional: `True` by default.
+        :para odometry_mode: The modes 'foot' and 'base' estimate the odometry
+                             pose from the mean foot pose or the floating base
+                             pose respectively. `None` to keep the original
+                             odometry pose from the reference trajectory.
+                             Optional: 'foot' by default.
         """
         # Backup some user argument(s)
-        self.is_foot_based = is_foot_based
+        self.odometry_mode = odometry_mode
 
-        # Define the quantity corresponding to the odometry pose.
-        # Note that even though it appears twice in the computation graph of
-        # this quantity, it will only be computed once thanks to the quantity
-        # caching mechanism. It works because the exact same quantity
-        # specification is used at both places, otherwise it would not work
-        # because equality check falls back to identity check for lambdas.
-        if is_foot_based:
-            odometry_pose: QuantityCreator = (MultiAryOpQuantity, dict(
-                quantities=(
-                    (BaseOdometryPose, dict(
-                        mode=QuantityEvalMode.REFERENCE)),
-                    (MultiFootMeanOdometryPose, dict(
-                        frame_names="auto",
-                        mode=QuantityEvalMode.TRUE)),
-                    (MultiFootMeanOdometryPose, dict(
-                        frame_names="auto",
-                        mode=QuantityEvalMode.REFERENCE))),
-                op=lambda args: args[0] + args[1] - args[2]))
-        else:
-            odometry_pose = (BaseOdometryPose, dict(
-                mode=QuantityEvalMode.TRUE))
+        # Define the quantity corresponding to the reference position vector
+        position_vector: QuantityCreator = (UnaryOpQuantity, dict(
+            quantity=(StateQuantity, dict(
+                update_kinematics=False,
+                mode=QuantityEvalMode.REFERENCE)),
+            op=attrgetter('q')))
 
-        # Call base implementation
-        super().__init__(
-            env, parent, requirements=dict(
-                data=(ConcatenatedQuantity, dict(
+        # Overwrite the odometry pose based on true robot state if requested
+        if odometry_mode is not None:
+            # Define the quantity corresponding to the odometry pose.
+            # Note that even though it appears twice in the computation graph
+            # of this quantity, it will only be computed once thanks to the
+            # quantity caching mechanism. It works because the exact same
+            # quantity creator is used at both places, because equality check
+            # falls back to identity check for lambdas.
+            if odometry_mode == 'foot':
+                odometry_pose: QuantityCreator = (MultiAryOpQuantity, dict(
+                    quantities=(
+                        (BaseOdometryPose, dict(
+                            mode=QuantityEvalMode.REFERENCE)),
+                        (MultiFootMeanOdometryPose, dict(
+                            frame_names="auto",
+                            mode=QuantityEvalMode.TRUE)),
+                        (MultiFootMeanOdometryPose, dict(
+                            frame_names="auto",
+                            mode=QuantityEvalMode.REFERENCE))),
+                    op=lambda args: args[0] + args[1] - args[2]))
+            elif odometry_mode == 'base':
+                odometry_pose = (BaseOdometryPose, dict(
+                    mode=QuantityEvalMode.TRUE))
+            else:
+                raise ValueError(
+                    "'odometry_mode' must be either 'foot' or 'base'.")
+
+            # Mixing the reference position vector with estimated odometry pose
+            position_vector = (ConcatenatedQuantity, dict(
                     quantities=(
                         (MaskedQuantity, dict(
                             quantity=odometry_pose,
@@ -659,18 +659,43 @@ class ReferencePositionWithTrueOdometryPose(InterfaceQuantity[np.ndarray]):
                                 axis=0)),
                             op=rpy_to_quat)),
                         (MaskedQuantity, dict(
-                            quantity=(UnaryOpQuantity, dict(
-                                quantity=(StateQuantity, dict(
-                                    update_kinematics=False,
-                                    mode=QuantityEvalMode.REFERENCE)),
-                                op=attrgetter('q'))),
+                            quantity=position_vector,
                             axis=0,
                             keys=(7, ...)))),
                     axis=0))
-            ), auto_refresh=False)
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=position_vector),
+            auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
 
     def refresh(self) -> np.ndarray:
         return self.data.get()
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def translate_positions(position: np.ndarray,
+                        position_ref: np.ndarray,
+                        rotation_ref: np.ndarray,
+                        out: np.ndarray) -> None:
+    """Translate a batch of 3D position vectors (X, Y, Z) from world to local
+    frame.
+
+    :param position: Batch of positions vectors as a 2D array whose first
+                     dimension gathers the 3 spatial coordinates (X, Y, Z)
+                     while the second corresponds to the independent points.
+    :param position_ref: Position of the reference frame in world.
+    :param rotation_ref: Orientation of the reference frame in world as a
+                         rotation matrix.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    out[:] = rotation_ref.T @ (position - position_ref[:, np.newaxis])
 
 
 @dataclass(unsafe_hash=True)
@@ -741,28 +766,6 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode))),
             auto_refresh=False)
 
-        # Jit-able method translating multiple positions to local frame
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def translate_positions(position: np.ndarray,
-                                position_ref: np.ndarray,
-                                rotation_ref: np.ndarray,
-                                out: np.ndarray) -> None:
-            """Translate a batch of 3D position vectors (X, Y, Z) from world to
-            local frame.
-
-            :param position: Batch of positions vectors as a 2D array whose
-                             first dimension gathers the 3 spatial coordinates
-                             (X, Y, Z) while the second corresponds to the
-                             independent points.
-            :param position_ref: Position of the reference frame in world.
-            :param rotation_ref: Orientation of the reference frame in world as
-                                 a rotation matrix.
-            :param out: Pre-allocated array in which to store the result.
-            """
-            out[:] = rotation_ref.T @ (position - position_ref[:, np.newaxis])
-
-        self._translate = translate_positions
-
         # Mean orientation as a rotation matrix
         self._rot_mean = np.zeros((3, 3))
 
@@ -793,10 +796,10 @@ class MultiFootRelativeXYZQuat(InterfaceQuantity[np.ndarray]):
         # (double geodesic), to be consistent with the method that was used to
         # compute the mean foot pose. This way, the norm of the relative
         # position is not affected by the orientation of the feet.
-        self._translate(positions,
-                        position_mean,
-                        self._rot_mean,
-                        self._foot_position_view)
+        translate_positions(positions,
+                            position_mean,
+                            self._rot_mean,
+                            self._foot_position_view)
 
         # Compute relative frame orientations
         quat_multiply(quat_mean[:, np.newaxis],
@@ -882,6 +885,29 @@ class CenterOfMass(AbstractQuantity[np.ndarray]):
 
         # Return proxy directly without copy
         return self._com_data
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def translate_position_odom(position: np.ndarray,
+                            odom_pose: np.ndarray,
+                            out: np.ndarray) -> None:
+    """Translate a single or batch of 2D position vector (X, Y) from world to
+    local frame.
+
+    :param position: Batch of positions vectors as a 2D array whose first
+                     dimension gathers the 2 spatial coordinates (X, Y) while
+                     the second corresponds to the independent points.
+    :param odom_pose: Reference odometry pose as a 1D array gathering the 2
+                      position and 1 orientation coordinates in world plane
+                      (X, Y), (Yaw,) respectively.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    # out = R(yaw).T @ (position - position_ref)
+    position_ref, yaw_ref = odom_pose[:2], odom_pose[2]
+    pos_rel_x, pos_rel_y = position - position_ref
+    cos_yaw, sin_yaw = math.cos(yaw_ref), math.sin(yaw_ref)
+    out[0] = + cos_yaw * pos_rel_x + sin_yaw * pos_rel_y
+    out[1] = - sin_yaw * pos_rel_x + cos_yaw * pos_rel_y
 
 
 @dataclass(unsafe_hash=True)
@@ -1098,6 +1124,36 @@ class CapturePoint(AbstractQuantity[np.ndarray]):
         return self._dcm
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def normalize_spatial_forces(lambda_c: np.ndarray,
+                             index_start: int,
+                             index_end: int,
+                             robot_weight: float,
+                             out: np.ndarray) -> None:
+    """Compute the spatial forces of all the constraints associated with
+    contact frames and collision bodies, normalized by the total weight of the
+    robot.
+
+    :param lambda_c: Stacked lambda multipliers all the constraints.
+    :param index_start: First index of the constraints associated with contact
+                        frames and collisions bodies.
+    :param index_end: One-past-last index of the constraints associated with
+                      contact frames and collisions bodies.
+    :param robot_weight: Total weight of the robot which will be used to
+                         rescale the spatial forces.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    # Extract constraint lambdas of contacts and collisions from state
+    lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
+
+    # Extract references to all the spatial forces
+    forces_linear, forces_angular_z = lambda_[:3], lambda_[3]
+
+    # Scale the spatial forces by the weight of the robot
+    out[:3] = forces_linear / robot_weight
+    out[5] = forces_angular_z / robot_weight
+
+
 @dataclass(unsafe_hash=True)
 class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
     """Standardized spatial forces applied on all contact points and collision
@@ -1140,38 +1196,6 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
             mode=mode,
             auto_refresh=False)
 
-        # Jit-able method computing the normalized spatial forces
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def normalize_spatial_forces(lambda_c: np.ndarray,
-                                     index_start: int,
-                                     index_end: int,
-                                     robot_weight: float,
-                                     out: np.ndarray) -> None:
-            """Compute the spatial forces of all the constraints associated
-            with contact frames and collision bodies, normalized by the total
-            weight of the robot.
-
-            :param lambda_c: Stacked lambda multipliers all the constraints.
-            :param index_start: First index of the constraints associated with
-                                contact frames and collisions bodies.
-            :param index_end: One-past-last index of the constraints associated
-                              with contact frames and collisions bodies.
-            :param robot_weight: Total weight of the robot which will be used
-                                 to rescale the spatial forces.
-            :param out: Pre-allocated array in which to store the result.
-            """
-            # Extract constraint lambdas of contacts and collisions from state
-            lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
-
-            # Extract references to all the spatial forces
-            forces_linear, forces_angular_z = lambda_[:3], lambda_[3]
-
-            # Scale the spatial forces by the weight of the robot
-            out[:3] = forces_linear / robot_weight
-            out[5] = forces_angular_z / robot_weight
-
-        self._normalize_spatial_forces = normalize_spatial_forces
-
         # Weight of the robot
         self._robot_weight: float = float("nan")
 
@@ -1205,7 +1229,7 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
             if index_first is None:
                 if is_contact:
                     index_first = i
-            elif index_last is None:  # type: ignore[unreachable]
+            elif index_last is None:
                 if not is_contact:
                     index_last = i
             elif is_contact:
@@ -1235,13 +1259,56 @@ class MultiContactNormalizedSpatialForce(AbstractQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         state = self.state.get()
-        self._normalize_spatial_forces(
+        normalize_spatial_forces(
             state.lambda_c,
             *self._contact_slice,
             self._robot_weight,
             self._force_spatial_rel_batch)
 
         return self._force_spatial_rel_batch
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def normalize_vertical_forces(
+        lambda_c: np.ndarray,
+        foot_slices: Tuple[Tuple[int, int], ...],
+        vertical_transform_batches: Tuple[np.ndarray, ...],
+        robot_weight: float,
+        out: np.ndarray) -> None:
+    """Compute the sum of the vertical forces in world frame of all the
+    constraints associated with contact frames and collision bodies, normalized
+    by the total weight of the robot.
+
+    :param lambda_c: Stacked lambda multipliers all the constraints.
+    :param foot_slices: Slices of lambda multiplier of the constraints
+                        associated with contact frames and collisions bodies
+                        acting each foot, as a sequence of pairs (index_start,
+                        index_end) corresponding to the first and one-past-last
+                        indices respectively.
+    :param vertical_transform_batches:
+        Last row of the rotation matrices from world to local contact frame
+        associated with all contact and collision constraints acting on each
+        foot, as a list of 2D arrays. The first dimension gathers the 3 spatial
+        coordinates while the second corresponds to the N individual
+        constraints on each foot.
+    :param robot_weight: Total weight  of the robot which will be used to
+                         rescale the vertical forces.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    for i, ((index_start, index_end), vertical_transforms) in (
+            enumerate(zip(foot_slices, vertical_transform_batches))):
+        # Extract constraint multipliers from state
+        lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
+
+        # Extract references to all the linear forces
+        # forces_angular = np.array([0.0, 0.0, lambda_[3]])
+        forces_linear = lambda_[:3]
+
+        # Compute vertical forces in world frame and aggregate them
+        f_z_world = np.sum(vertical_transforms * forces_linear)
+
+        # Scale the vertical forces by the weight of the robot
+        out[i] = f_z_world / robot_weight
 
 
 @dataclass(unsafe_hash=True)
@@ -1298,51 +1365,6 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
                     update_kinematics=False))),
             mode=mode,
             auto_refresh=False)
-
-        # Jit-able method computing the normalized vertical forces
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def normalize_vertical_forces(
-                lambda_c: np.ndarray,
-                foot_slices: Tuple[Tuple[int, int], ...],
-                vertical_transform_batches: Tuple[np.ndarray, ...],
-                robot_weight: float,
-                out: np.ndarray) -> None:
-            """Compute the sum of the vertical forces in world frame of all the
-            constraints associated with contact frames and collision bodies,
-            normalized by the total weight of the robot.
-
-            :param lambda_c: Stacked lambda multipliers all the constraints.
-            :param foot_slices: Slices of lambda multiplier of the constraints
-                                associated with contact frames and collisions
-                                bodies acting each foot, as a sequence of pairs
-                                (index_start, index_end) corresponding to the
-                                first and one-past-last indices respectively.
-            :param vertical_transform_batches:
-                Last row of the rotation matrices from world to local contact
-                frame associated with all contact and collision constraints
-                acting on each foot, as a list of 2D arrays. The first
-                dimension gathers the 3 spatial coordinates while the second
-                corresponds to the N individual constraints on each foot.
-            :param robot_weight: Total weight  of the robot which will be used
-                                 to rescale the vertical forces.
-            :param out: Pre-allocated array in which to store the result.
-            """
-            for i, ((index_start, index_end), vertical_transforms) in (
-                    enumerate(zip(foot_slices, vertical_transform_batches))):
-                # Extract constraint multipliers from state
-                lambda_ = lambda_c[index_start:index_end].reshape((-1, 4)).T
-
-                # Extract references to all the linear forces
-                # forces_angular = np.array([0.0, 0.0, lambda_[3]])
-                forces_linear = lambda_[:3]
-
-                # Compute vertical forces in world frame and aggregate them
-                f_z_world = np.sum(vertical_transforms * forces_linear)
-
-                # Scale the vertical forces by the weight of the robot
-                out[i] = f_z_world / robot_weight
-
-        self._normalize_vertical_forces = normalize_vertical_forces
 
         # Weight of the robot
         self._robot_weight: float = float("nan")
@@ -1450,11 +1472,11 @@ class MultiFootNormalizedForceVertical(AbstractQuantity[np.ndarray]):
 
         # Compute the normalized sum of the vertical forces in world frame
         state = self.state.get()
-        self._normalize_vertical_forces(state.lambda_c,
-                                        self._foot_slices,
-                                        self._vertical_transform_batches,
-                                        self._robot_weight,
-                                        self._vertical_force_batch)
+        normalize_vertical_forces(state.lambda_c,
+                                  self._foot_slices,
+                                  self._vertical_transform_batches,
+                                  self._robot_weight,
+                                  self._vertical_force_batch)
 
         return self._vertical_force_batch
 
@@ -1509,3 +1531,163 @@ class MultiFootCollisionDetection(InterfaceQuantity[bool]):
 
     def refresh(self) -> bool:
         return self.is_colliding.get()
+
+
+@dataclass(unsafe_hash=True)
+class DeltaBaseOdometryPosition(InterfaceQuantity[ArrayOrScalar]):
+    """Variation of the base odometry position (X, Y) over a given horizon.
+
+    See `BaseOdometryPose` and `DeltaQuantity` documentations for details.
+    """
+
+    max_stack: int
+    """Time horizon over which to compute the variation.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 horizon: float,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        assert horizon >= env.step_dt
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(DeltaQuantity, dict(
+                    quantity=(MaskedQuantity, dict(
+                        quantity=(BaseOdometryPose, dict(
+                            mode=mode)),
+                        axis=0,
+                        keys=(0, 1))),
+                    horizon=horizon,
+                    op=sub,
+                    bounds_only=True))),
+            auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
+    def refresh(self) -> ArrayOrScalar:
+        return self.data.get()
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True, inline='always')
+def angle_difference(angle_left: ArrayOrScalar,
+                     angle_right: ArrayOrScalar) -> ArrayOrScalar:
+    """Compute the signed element-wise difference (aka. oriented angle) between
+    two batches of angles.
+
+    The oriented angle is defined as the smallest angle in absolute value
+    between right and left angles (ignoring multi-turns), signed in accordance
+    with the angle going from right to left angles.
+
+    .. warning::
+        This method is fully compliant with angles restricted between
+        [-pi, pi], but it requires the "physical" distance between the two
+        angles to be smaller than pi.
+
+    .. seealso::
+        This proposed implementation is the most efficient one for batch size
+        of 1000. See this posts for reference about other implementations:
+        https://stackoverflow.com/a/7869457/4820605
+
+    :param angle_left: Left-hand side angles.
+    :param angle_right: Right-hand side angles.
+    """
+    delta = angle_left - angle_right
+    delta -= np.floor((delta + np.pi) / (2.0 * np.pi)) * (2 * np.pi)
+    return delta
+
+
+@dataclass(unsafe_hash=True)
+class DeltaBaseOdometryOrientation(InterfaceQuantity[ArrayOrScalar]):
+    """Variation of the base odometry orientation (Yaw,) over a given horizon.
+
+    See `BaseOdometryPose` and `DeltaQuantity` documentations for details.
+    """
+
+    max_stack: int
+    """Time horizon over which to compute the variation.
+    """
+
+    mode: QuantityEvalMode
+    """Specify on which state to evaluate this quantity. See `QuantityEvalMode`
+    documentation for details about each mode.
+
+    .. warning::
+        Mode `REFERENCE` requires a reference trajectory to be selected
+        manually prior to evaluating this quantity for the first time.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 horizon: float,
+                 *,
+                 mode: QuantityEvalMode = QuantityEvalMode.TRUE) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param horizon: Horizon over which values of the quantity will be
+                        stacked before computing the drift.
+        :param mode: Desired mode of evaluation for this quantity.
+                     Optional: 'QuantityEvalMode.TRUE' by default.
+        """
+        # Convert horizon in stack length, assuming constant env timestep
+        assert horizon >= env.step_dt
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
+
+        # Backup some of the user-arguments
+        self.max_stack = max_stack
+        self.mode = mode
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                data=(DeltaQuantity, dict(
+                    quantity=(MaskedQuantity, dict(
+                        quantity=(BaseOdometryPose, dict(
+                            mode=mode)),
+                        axis=0,
+                        keys=(2,))),
+                    horizon=horizon,
+                    op=angle_difference,
+                    bounds_only=False))),
+            auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
+
+    def refresh(self) -> ArrayOrScalar:
+        return self.data.get()

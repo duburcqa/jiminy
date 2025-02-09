@@ -5,4 +5,6 @@ Quantities
    :maxdepth: 1
 
    generic
+   manager
+   transform
    locomotion

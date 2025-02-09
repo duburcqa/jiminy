@@ -23,7 +23,7 @@ import hppfcl as fcl
 
 from ..bases import (
     InterfaceJiminyEnv, InterfaceQuantity, AbstractQuantity, StateQuantity,
-    QuantityEvalMode)
+    QuantityEvalMode, partial_hashable)
 from ..utils import (
     mean, matrix_to_rpy, matrix_to_quat, quat_apply, remove_yaw_from_quat,
     quat_interpolate_middle)
@@ -507,8 +507,12 @@ class FrameOrientation(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        value = self.data.get()
-        return value[self.frame_name]
+        # Return a slice of batched data.
+        # Note that mapping from frame names to frame index in batched data
+        # cannot be pre-computed as it may changed dynamically.
+        # Note that avoiding defining a temporary variable to store the current
+        # value of the quantity slightly improves performance.
+        return self.data.get()[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
@@ -588,11 +592,7 @@ class MultiFrameOrientation(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        # Return a slice of batched data.
-        # Note that mapping from frame names to frame index in batched data
-        # cannot be pre-computed as it may changed dynamically.
-        value = self.data.get()
-        return value[self.frame_names]
+        return self.data.get()[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -742,8 +742,7 @@ class FramePosition(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        value = self.data.get()
-        return value[self.frame_name]
+        return self.data.get()[self.frame_name]
 
 
 @dataclass(unsafe_hash=True)
@@ -806,8 +805,7 @@ class MultiFramePosition(InterfaceQuantity[np.ndarray]):
             self.data.reset(reset_tracking=True)
 
     def refresh(self) -> np.ndarray:
-        value = self.data.get()
-        return value[self.frame_names]
+        return self.data.get()[self.frame_names]
 
 
 @dataclass(unsafe_hash=True)
@@ -949,6 +947,39 @@ class MultiFrameXYZQuat(InterfaceQuantity[np.ndarray]):
         return self._xyzquats
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def position_average(value: np.ndarray, out: np.ndarray) -> None:
+    """Compute the mean of an array over its last axis only.
+
+    :param value: N-dimensional array from which the last axis will be
+                  reduced.
+    :param out: Pre-allocated array in which to store the result.
+    """
+    out[:] = np.sum(value, -1) / value.shape[-1]
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def quat_average_2d(quat: np.ndarray, out: np.ndarray) -> None:
+    """Compute the average of a batch of quaternions [qx, qy, qz, qw].
+
+    .. note::
+        Jit-able specialization of `quat_average` for 2D matrices, with further
+        optimization for the special case where there is only 2 quaternions.
+
+    :param quat: N-dimensional (N >= 2) array whose first dimension gathers the
+                 4 quaternion coordinates [qx, qy, qz, qw].
+    :param out: Pre-allocated array in which to store the result.
+    """
+    num_quats = quat.shape[1]
+    if num_quats == 1:
+        out[:] = quat
+    elif num_quats == 2:
+        quat_interpolate_middle(quat[:, 0], quat[:, 1], out)
+    else:
+        _, eigvec = np.linalg.eigh(quat @ quat.T)
+        out[:] = eigvec[..., -1]
+
+
 @dataclass(unsafe_hash=True)
 class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
@@ -1014,44 +1045,6 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
                     mode=mode))),
             auto_refresh=False)
 
-        # Jit-able method specialization of `np.mean` for `axis=-1`
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def position_average(value: np.ndarray, out: np.ndarray) -> None:
-            """Compute the mean of an array over its last axis only.
-
-            :param value: N-dimensional array from which the last axis will be
-                          reduced.
-            :param out: Pre-allocated array in which to store the result.
-            """
-            out[:] = np.sum(value, -1) / value.shape[-1]
-
-        self._position_average = position_average
-
-        # Jit-able specialization of `quat_average` for 2D matrices
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def quat_average_2d(quat: np.ndarray, out: np.ndarray) -> None:
-            """Compute the average of a batch of quaternions [qx, qy, qz, qw].
-
-            .. note::
-                Jit-able specialization of `quat_average` for 2D matrices, with
-                further optimization for the special case where there is only 2
-                quaternions.
-
-            :param quat: N-dimensional (N >= 2) array whose first dimension
-                         gathers the 4 quaternion coordinates [qx, qy, qz, qw].
-            :param out: Pre-allocated array in which to store the result.
-            """
-            num_quats = quat.shape[1]
-            if num_quats == 1:
-                out[:] = quat
-            elif num_quats == 2:
-                quat_interpolate_middle(quat[:, 0], quat[:, 1], out)
-            else:
-                _, eigvec = np.linalg.eigh(quat @ quat.T)
-                out[:] = eigvec[..., -1]
-
-        self._quat_average = quat_average_2d
-
         # Pre-allocate memory for the mean for mean pose vector XYZQuat
         self._xyzquat_mean = np.zeros((7,))
 
@@ -1061,10 +1054,10 @@ class MultiFrameMeanXYZQuat(InterfaceQuantity[np.ndarray]):
 
     def refresh(self) -> np.ndarray:
         # Compute the mean translation
-        self._position_average(self.positions.get(), self._position_mean_view)
+        position_average(self.positions.get(), self._position_mean_view)
 
         # Compute the mean quaternion
-        self._quat_average(self.quats.get(), self._quat_mean_view)
+        quat_average_2d(self.quats.get(), self._quat_mean_view)
 
         return self._xyzquat_mean
 
@@ -1296,9 +1289,9 @@ class _DifferenceFrameXYZQuat(InterfaceQuantity[np.ndarray]):
 @dataclass(unsafe_hash=True)
 class AverageFrameXYZQuat(InterfaceQuantity[np.ndarray]):
     """Spatial vector representation (X, Y, Z, QuatX, QuatY, QuatZ, QuatW) of
-    the average pose of a given frame over the whole agent step.
+    the midpoint pose of a given frame over the whole agent step.
 
-    The average frame pose is obtained by integration of the average velocity
+    The midpoint frame pose is obtained by integration of the average velocity
     over the whole agent step, backward in time from the state at the end of
     the step to the midpoint. See `_DifferenceFrameXYZQuat` documentation for
     details.
@@ -1726,6 +1719,33 @@ class EnergyGenerationMode(IntEnum):
     """
 
 
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def compute_power(generator_mode: int,  # EnergyGenerationMode
+                  motor_velocities: np.ndarray,
+                  motor_efforts: np.ndarray) -> float:
+    """Compute the total instantaneous mechanical power consumption of all
+    motors.
+
+    :param generator_mode: Specify what happens to the energy generated by
+                           motors when breaking.
+    :param motor_velocities: Velocity of all the motors before transmission as
+                             a 1D array. The order must be consistent with the
+                             motor indices.
+    :param motor_efforts: Effort of all the motors before transmission as a 1D
+                          array. The order must be consistent with the motor
+                          indices.
+    """
+    if generator_mode in (_CHARGE, _LOST_GLOBAL):
+        total_power = np.dot(motor_velocities, motor_efforts)
+        if generator_mode == _CHARGE:
+            return total_power
+        return max(total_power, 0.0)
+    motor_powers = motor_velocities * motor_efforts
+    if generator_mode == _LOST_EACH:
+        return np.sum(np.maximum(motor_powers, 0.0))
+    return np.sum(np.abs(motor_powers))
+
+
 @dataclass(unsafe_hash=True)
 class MechanicalPowerConsumption(InterfaceQuantity[float]):
     """Instantaneous power consumption induced by all the motors.
@@ -1766,33 +1786,6 @@ class MechanicalPowerConsumption(InterfaceQuantity[float]):
         self.generator_mode = generator_mode
         self.mode = mode
 
-        # Jit-able method computing the total instantaneous power consumption
-        @nb.jit(nopython=True, cache=True, fastmath=True)
-        def _compute_power(generator_mode: int,  # EnergyGenerationMode
-                           motor_velocities: np.ndarray,
-                           motor_efforts: np.ndarray) -> float:
-            """Compute the total instantaneous mechanical power consumption of
-            all motors.
-
-            :param generator_mode: Specify what happens to the energy generated
-                                   by motors when breaking.
-            :param motor_velocities: Velocity of all the motors before
-                                     transmission as a 1D array. The order must
-                                     be consistent with the motor indices.
-            :param motor_efforts: Effort of all the motors before transmission
-                                  as a 1D array. The order must be consistent
-                                  with the motor indices.
-            """
-            if generator_mode in (_CHARGE, _LOST_GLOBAL):
-                total_power = np.dot(motor_velocities, motor_efforts)
-                if generator_mode == _CHARGE:
-                    return total_power
-                return max(total_power, 0.0)
-            motor_powers = motor_velocities * motor_efforts
-            if generator_mode == _LOST_EACH:
-                return np.sum(np.maximum(motor_powers, 0.0))
-            return np.sum(np.abs(motor_powers))
-
         # Call base implementation
         super().__init__(
             env,
@@ -1808,8 +1801,12 @@ class MechanicalPowerConsumption(InterfaceQuantity[float]):
                         kinematic_level=pin.KinematicLevel.VELOCITY,
                         is_motor_side=True,
                         mode=self.mode)),
-                    op=partial(_compute_power, int(self.generator_mode))))),
+                    op=partial_hashable(
+                        compute_power, int(self.generator_mode))))),
             auto_refresh=False)
+
+        # Enable direct forwarding (inlining) for efficiency
+        self.__dict__["refresh"] = self.data.get
 
     def refresh(self) -> float:
         return self.data.get()
@@ -1865,7 +1862,7 @@ class AverageMechanicalPowerConsumption(InterfaceQuantity[float]):
         :param mode: Desired mode of evaluation for this quantity.
         """
         # Convert horizon in stack length, assuming constant env timestep
-        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1)
+        max_stack = max(int(np.ceil(horizon / env.step_dt)), 1) + 1
 
         # Backup some of the user-arguments
         self.max_stack = max_stack
