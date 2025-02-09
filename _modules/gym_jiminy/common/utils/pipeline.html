@@ -1,0 +1,878 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.utils.pipeline &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.utils.pipeline</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.utils.pipeline</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Helper methods to generate learning environment pipeline, consisting in an</span>
+<span class="sd">bare-bone environment inheriting from `BaseJiminyEnv`, wrapped together with</span>
+<span class="sd">any number of successive blocks as a unified environment, in Matlab Simulink</span>
+<span class="sd">fashion.</span>
+
+<span class="sd">It enables to break down a complex control architectures in many submodules,</span>
+<span class="sd">making it easier to maintain and avoiding code duplications between use cases.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">from</span> <span class="nn">pydoc</span> <span class="kn">import</span> <span class="n">locate</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">asdict</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Sequence</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Sequence</span> <span class="k">as</span> <span class="n">SequenceT</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Tuple</span><span class="p">,</span> <span class="n">TypedDict</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">overload</span><span class="p">,</span> <span class="n">cast</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">tomlkit</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">import</span> <span class="nn">jiminy_py.core</span> <span class="k">as</span> <span class="nn">jiminy</span>
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.dynamics</span> <span class="kn">import</span> <span class="n">State</span><span class="p">,</span> <span class="n">Trajectory</span><span class="p">,</span> <span class="n">TrajectoryTimeMode</span>
+
+<span class="kn">from</span> <span class="nn">..quantities</span> <span class="kn">import</span> <span class="n">EnergyGenerationMode</span><span class="p">,</span> <span class="n">OrientationType</span>
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">QuantityEvalMode</span><span class="p">,</span>
+                     <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">InterfaceBlock</span><span class="p">,</span>
+                     <span class="n">InterfaceQuantity</span><span class="p">,</span>
+                     <span class="n">BaseControllerBlock</span><span class="p">,</span>
+                     <span class="n">BaseObserverBlock</span><span class="p">,</span>
+                     <span class="n">BasePipelineWrapper</span><span class="p">,</span>
+                     <span class="n">ObservedJiminyEnv</span><span class="p">,</span>
+                     <span class="n">ControlledJiminyEnv</span><span class="p">,</span>
+                     <span class="n">ComposedJiminyEnv</span><span class="p">,</span>
+                     <span class="n">AbstractReward</span><span class="p">,</span>
+                     <span class="n">MixtureReward</span><span class="p">,</span>
+                     <span class="n">AbstractTerminationCondition</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..blocks</span> <span class="kn">import</span> <span class="n">QuantityObserver</span>
+<span class="kn">from</span> <span class="nn">..envs</span> <span class="kn">import</span> <span class="n">BaseJiminyEnv</span>
+
+
+<span class="n">ENUM_TYPES</span> <span class="o">=</span> <span class="p">(</span><span class="n">EnergyGenerationMode</span><span class="p">,</span>
+              <span class="n">QuantityEvalMode</span><span class="p">,</span>
+              <span class="n">OrientationType</span><span class="p">,</span>
+              <span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="p">)</span>
+<span class="n">ENUM_NAME_TO_MODULE_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="n">enum_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">:</span> <span class="n">enum_type</span><span class="o">.</span><span class="vm">__module__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="n">enum_type</span> <span class="ow">in</span> <span class="n">ENUM_TYPES</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="CompositionConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.CompositionConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">CompositionConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Store information required for instantiating a given composition, which</span>
+<span class="sd">    comprises reward components or a termination condition at the time being.</span>
+
+<span class="sd">    Specifically, it is a dictionary comprising the class of the composition</span>
+<span class="sd">    that must derive from `AbstractReward` or `AbstractTerminationCondition]`,</span>
+<span class="sd">    and optionally some keyword-arguments to pass to its constructor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">AbstractReward</span><span class="p">],</span> <span class="n">Type</span><span class="p">[</span><span class="n">AbstractTerminationCondition</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Composition class type.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both class type or fully qualified dotted path are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Composition constructor keyword-arguments.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="TrajectoryDatabaseConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.TrajectoryDatabaseConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">TrajectoryDatabaseConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Store information required for adding a database of reference</span>
+<span class="sd">    trajectories to the environment.</span>
+
+<span class="sd">    Specifically, it is a dictionary comprising a set of named trajectories as</span>
+<span class="sd">    a dictionary whose keys are the name of the trajectories and values are</span>
+<span class="sd">    either the trajectory itself or the path of a file storing its dump in HDF5</span>
+<span class="sd">    format, the name of the selected trajectory, and its interpolation mode.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">dataset</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Trajectory</span><span class="p">],</span> <span class="n">TrajectoryTimeMode</span><span class="p">]]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Set of named tuples (trajectory, mode) as a dictionary, where &#39;mode&#39;</span>
+<span class="sd">    corresponds the time wrapping mode. See `Trajectory.get` for details.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both `Trajectory` objects or path (absolute or relative) are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Name of the selected trajectory.</span>
+
+<span class="sd">    This attribute can be omitted. If so, the first trajectory being specified</span>
+<span class="sd">    will be selected by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">augment_observation</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whether to add the current state of the reference trajectory to the</span>
+<span class="sd">    observation of the environment.</span>
+
+<span class="sd">    This attribute can be omitted. If so, `False` is used by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="EnvConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.EnvConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">EnvConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Store information required for instantiating a given base environment</span>
+<span class="sd">    and compose it with some additional reward components and termination</span>
+<span class="sd">    conditions.</span>
+
+<span class="sd">    Specifically, it is a dictionary comprising the class of the base</span>
+<span class="sd">    environment, which must derive from `BaseJiminyEnv`, optionally some</span>
+<span class="sd">    keyword-arguments that must be passed to its corresponding constructor, and</span>
+<span class="sd">    eventually the configuration of some additional reward with which to</span>
+<span class="sd">    compose the base environment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BaseJiminyEnv</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Environment class type.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both class type or fully qualified dotted path are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Environment constructor default arguments.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">reward</span><span class="p">:</span> <span class="n">CompositionConfig</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward configuration.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">terminations</span><span class="p">:</span> <span class="n">SequenceT</span><span class="p">[</span><span class="n">CompositionConfig</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sequence of configuration for every individual termination conditions.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">trajectories</span><span class="p">:</span> <span class="n">TrajectoryDatabaseConfig</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference trajectory database configuration.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="BlockConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.BlockConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">BlockConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Store information required for instantiating a given observation or</span>
+<span class="sd">    control block.</span>
+
+<span class="sd">    Specifically, it is a dictionary comprising the class of the block, which</span>
+<span class="sd">    must derive from `BaseControllerBlock` or `BaseObserverBlock`, and</span>
+<span class="sd">    optionally some keyword-arguments that must be passed to its corresponding</span>
+<span class="sd">    constructor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BaseControllerBlock</span><span class="p">],</span> <span class="n">Type</span><span class="p">[</span><span class="n">BaseObserverBlock</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Block class type. If must derive from `BaseControllerBlock` for</span>
+<span class="sd">    controller blocks or from `BaseObserverBlock` for observer blocks.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both class type or fully qualified dotted path are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Block constructor default arguments.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="WrapperConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.WrapperConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">WrapperConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Store information required for instantiating a given environment</span>
+<span class="sd">    pipeline wrapper.</span>
+
+<span class="sd">    Specifically, it is a dictionary comprising the class of the wrapper, which</span>
+<span class="sd">    must derive from `BasePipelineWrapper`, and optionally some</span>
+<span class="sd">    keyword-arguments that must be passed to its corresponding constructor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">cls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BasePipelineWrapper</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper class type.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Both class type or fully qualified dotted path are supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper constructor default arguments.</span>
+
+<span class="sd">    This attribute can be omitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="LayerConfig">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.LayerConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">LayerConfig</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Store information required for instantiating a given environment</span>
+<span class="sd">    pipeline layer, ie either a wrapper, or the combination of an observer /</span>
+<span class="sd">    controller block with its corresponding wrapper.</span>
+
+<span class="sd">    Specifically, it is a dictionary comprising the configuration of the block</span>
+<span class="sd">    if any, and optionally the configuration of the reward and termination. It</span>
+<span class="sd">    is generally sufficient to specify either one or the other. See the</span>
+<span class="sd">    documentation of the both fields for details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">block</span><span class="p">:</span> <span class="n">BlockConfig</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Block configuration.</span>
+
+<span class="sd">    This attribute can be omitted. If so, then &#39;wrapper_cls&#39; must be</span>
+<span class="sd">    specified and must not require any block. Typically, it happens when the</span>
+<span class="sd">    wrapper is not doing any computation on its own but just transforming the</span>
+<span class="sd">    action or observation, e.g. stacking observation frames.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">wrapper</span><span class="p">:</span> <span class="n">WrapperConfig</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper configuration.</span>
+
+<span class="sd">    This attribute can be omitted. If so, then &#39;block&#39; must be specified and</span>
+<span class="sd">    must this block must be associated with a unique wrapper type to allow for</span>
+<span class="sd">    automatic type inference. It works with any observer and controller block.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="build_pipeline">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.build_pipeline">[docs]</a>
+<span class="k">def</span> <span class="nf">build_pipeline</span><span class="p">(</span>
+        <span class="n">env_config</span><span class="p">:</span> <span class="n">EnvConfig</span><span class="p">,</span>
+        <span class="n">layers_config</span><span class="p">:</span> <span class="n">SequenceT</span><span class="p">[</span><span class="n">LayerConfig</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">root_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">BaseJiminyEnv</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap together an environment inheriting from `BaseJiminyEnv` with any</span>
+<span class="sd">    number of layers, as a unified pipeline environment class inheriting from</span>
+<span class="sd">    `BasePipelineWrapper`. Each layer is wrapped individually and successively.</span>
+
+<span class="sd">    :param env_config:</span>
+<span class="sd">        Configuration of the environment, as a dict of type `EnvConfig`.</span>
+<span class="sd">    :param layers_config:</span>
+<span class="sd">        Configuration of the blocks, as a list. The list is ordered from the</span>
+<span class="sd">        lowest level layer to the highest, each element corresponding to the</span>
+<span class="sd">        configuration of a individual layer, as a dict of type `LayerConfig`.</span>
+<span class="sd">    :param root_path: Optional path used as root for loading reference</span>
+<span class="sd">                      trajectories from relative path if any. It will raise</span>
+<span class="sd">                      an exception if required but not provided.</span>
+<span class="sd">                      Optional: `None` by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Define helper to replace enums string by its corresponding object value</span>
+    <span class="k">def</span> <span class="nf">sanitize_special_string</span><span class="p">(</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Replace in-place some special strings with their object counterpart.</span>
+
+<span class="sd">        This method deals with enums, None (&quot;none&quot;), Ellipsis (&quot;...&quot;) and</span>
+<span class="sd">        special floats (&quot;nan&quot;, &quot;+/-inf&quot;).</span>
+
+<span class="sd">        :param kwargs: Nested dictionary of options.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">sanitize_special_string</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;...&quot;</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">Ellipsis</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;nan&quot;</span> <span class="ow">or</span> <span class="n">value</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">):</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="n">value_path</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+            <span class="n">enum_type</span> <span class="o">=</span> <span class="n">value_path</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value_path</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">enum_type</span> <span class="ow">in</span> <span class="n">ENUM_NAME_TO_MODULE_MAP</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">path_</span> <span class="ow">in</span> <span class="n">ENUM_NAME_TO_MODULE_MAP</span><span class="p">[</span><span class="n">enum_type</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">path_</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">value_path</span><span class="p">:</span>
+                        <span class="n">value_path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">path_</span><span class="p">)</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">value_path</span><span class="p">))</span>
+                <span class="k">continue</span>
+
+    <span class="c1"># Define helper to sanitize composition configuration</span>
+    <span class="k">def</span> <span class="nf">sanitize_composition_config</span><span class="p">(</span><span class="n">composition_config</span><span class="p">:</span> <span class="n">CompositionConfig</span><span class="p">,</span>
+                                    <span class="n">is_reward</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sanitize composition configuration in-place.</span>
+
+<span class="sd">        :param composition_config: Configuration of the composition, as a</span>
+<span class="sd">                                   dict of type `CompositionConfig`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get composition class type</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="n">composition_config</span><span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Class &#39;</span><span class="si">{</span><span class="bp">cls</span><span class="si">}</span><span class="s2">&#39; not found.&quot;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">is_reward</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">AbstractReward</span><span class="p">))</span> <span class="ow">or</span>
+                <span class="p">(</span><span class="ow">not</span> <span class="n">is_reward</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span>
+                    <span class="n">obj</span><span class="p">,</span> <span class="n">AbstractTerminationCondition</span><span class="p">)))</span>
+            <span class="n">composition_config</span><span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span> <span class="o">=</span> <span class="n">obj</span>
+
+        <span class="c1"># Get its constructor keyword-arguments</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">composition_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># Special treatment for &quot;none&quot;, &quot;nan&quot;, &quot;+/-inf&quot; and enum string</span>
+        <span class="n">sanitize_special_string</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Special handling for `MixtureReward`</span>
+        <span class="k">if</span> <span class="n">is_reward</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">MixtureReward</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">component_config</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;components&quot;</span><span class="p">]:</span>
+                <span class="n">sanitize_composition_config</span><span class="p">(</span><span class="n">component_config</span><span class="p">,</span> <span class="n">is_reward</span><span class="p">)</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">build_composition</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+            <span class="n">composition_config</span><span class="p">:</span> <span class="n">CompositionConfig</span><span class="p">,</span>
+            <span class="n">is_reward</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">]</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AbstractReward</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">build_composition</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+            <span class="n">composition_config</span><span class="p">:</span> <span class="n">CompositionConfig</span><span class="p">,</span>
+            <span class="n">is_reward</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">]</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AbstractTerminationCondition</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="c1"># Define helper to build the composition</span>
+    <span class="k">def</span> <span class="nf">build_composition</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+            <span class="n">composition_config</span><span class="p">:</span> <span class="n">CompositionConfig</span><span class="p">,</span>
+            <span class="n">is_reward</span><span class="p">:</span> <span class="nb">bool</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">AbstractReward</span><span class="p">,</span> <span class="n">AbstractTerminationCondition</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate a composition associated with a given environment from</span>
+<span class="sd">        some composition configuration.</span>
+
+<span class="sd">        :param env: Base environment or pipeline wrapper to wrap.</span>
+<span class="sd">        :param composition_config: Configuration of the composition, as a</span>
+<span class="sd">                                   dict of type `CompositionConfig`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get composition class type</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="n">composition_config</span><span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
+
+        <span class="c1"># Get its constructor keyword-arguments</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">composition_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Special treatment for &quot;none&quot;, &quot;nan&quot;, &quot;+/-inf&quot; and enum string</span>
+        <span class="n">sanitize_special_string</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Special handling for `MixtureReward`</span>
+        <span class="k">if</span> <span class="n">is_reward</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">MixtureReward</span><span class="p">):</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;components&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="n">build_composition</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">reward_config</span><span class="p">,</span> <span class="n">is_reward</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">reward_config</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;components&quot;</span><span class="p">])</span>
+
+        <span class="c1"># Special handling for &#39;quantity&#39; key</span>
+        <span class="k">if</span> <span class="s2">&quot;quantity&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">quantity_config</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;quantity&quot;</span><span class="p">]</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;quantity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">quantity_config</span><span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">],</span> <span class="n">quantity_config</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Define helper to build reward</span>
+    <span class="k">def</span> <span class="nf">build_composition_layer</span><span class="p">(</span>
+            <span class="n">env_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span>
+                <span class="n">BaseJiminyEnv</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">]],</span>
+            <span class="n">reward_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CompositionConfig</span><span class="p">],</span>
+            <span class="n">terminations_config</span><span class="p">:</span> <span class="n">SequenceT</span><span class="p">[</span><span class="n">CompositionConfig</span><span class="p">],</span>
+            <span class="n">trajectories_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TrajectoryDatabaseConfig</span><span class="p">],</span>
+            <span class="o">**</span><span class="n">env_kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">BaseJiminyEnv</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper adding reward components and/or termination conditions on top</span>
+<span class="sd">        of a base environment or a pipeline using `ComposedJiminyEnv` wrapper.</span>
+
+<span class="sd">        :param env_creator: Callable that takes optional keyword arguments as</span>
+<span class="sd">                            input and returns an pipeline or base environment.</span>
+<span class="sd">        :param reward_config: Configuration of the reward, as a dict of type</span>
+<span class="sd">                              `CompositionConfig`.</span>
+<span class="sd">        :param termination_config: Configuration of the termination conditions,</span>
+<span class="sd">                                   as a sequence of dict of type</span>
+<span class="sd">                                   `CompositionConfig`.</span>
+<span class="sd">        :param trajectories: Set of named trajectories as a dictionary. See</span>
+<span class="sd">                             `ComposedJiminyEnv` documentation for details.</span>
+<span class="sd">        :param env_kwargs: Keyword arguments to forward to the constructor of</span>
+<span class="sd">                           the wrapped environment. Note that it will only</span>
+<span class="sd">                           overwrite the default value, so it will still be</span>
+<span class="sd">                           possible to set different values by explicitly</span>
+<span class="sd">                           defining them when calling the constructor of the</span>
+<span class="sd">                           generated wrapper.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Instantiate the environment, which may be a lower-level wrapper</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">env_creator</span><span class="p">(</span><span class="o">**</span><span class="n">env_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate the reward</span>
+        <span class="n">reward</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">reward_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">reward</span> <span class="o">=</span> <span class="n">build_composition</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">reward_config</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate the termination conditions</span>
+        <span class="n">terminations</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="n">build_composition</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">termination_config</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">termination_config</span> <span class="ow">in</span> <span class="n">terminations_config</span><span class="p">)</span>
+
+        <span class="c1"># Get trajectory dataset</span>
+        <span class="n">augment_observation</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">trajectories</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Trajectory</span><span class="p">,</span> <span class="n">TrajectoryTimeMode</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">trajectories_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">trajectories</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+                <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Trajectory</span><span class="p">,</span> <span class="n">TrajectoryTimeMode</span><span class="p">]],</span>
+                <span class="n">trajectories_config</span><span class="p">[</span><span class="s2">&quot;dataset&quot;</span><span class="p">])</span>
+            <span class="n">augment_observation</span> <span class="o">=</span> <span class="n">trajectories_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;augment_observation&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate the composition wrapper if necessary</span>
+        <span class="k">if</span> <span class="n">reward</span> <span class="ow">or</span> <span class="n">terminations</span> <span class="ow">or</span> <span class="n">trajectories</span><span class="p">:</span>
+            <span class="n">env</span> <span class="o">=</span> <span class="n">ComposedJiminyEnv</span><span class="p">(</span><span class="n">env</span><span class="p">,</span>
+                                    <span class="n">reward</span><span class="o">=</span><span class="n">reward</span><span class="p">,</span>
+                                    <span class="n">terminations</span><span class="o">=</span><span class="n">terminations</span><span class="p">,</span>
+                                    <span class="n">trajectories</span><span class="o">=</span><span class="n">trajectories</span><span class="p">,</span>
+                                    <span class="n">augment_observation</span><span class="o">=</span><span class="n">augment_observation</span><span class="p">)</span>
+
+        <span class="c1"># Select the reference trajectory if specified</span>
+        <span class="k">if</span> <span class="n">trajectories_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">trajectories_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">trajectory_dataset</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">env</span>
+
+    <span class="c1"># Define helper to wrap a single layer</span>
+    <span class="k">def</span> <span class="nf">build_controller_observer_layer</span><span class="p">(</span>
+            <span class="n">env_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span>
+                <span class="n">BaseJiminyEnv</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">]],</span>
+            <span class="n">wrapper_cls</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">BasePipelineWrapper</span><span class="p">],</span>
+            <span class="n">wrapper_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+            <span class="n">block_cls</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">InterfaceBlock</span><span class="p">]],</span>
+            <span class="n">block_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+            <span class="o">**</span><span class="n">env_kwargs</span><span class="p">:</span> <span class="n">Any</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">BaseJiminyEnv</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper wrapping a base environment or a pipeline with an additional</span>
+<span class="sd">        observer-controller layer.</span>
+
+<span class="sd">        :param env_creator: Callable that takes optional keyword arguments as</span>
+<span class="sd">                            input and returns an pipeline or base environment.</span>
+<span class="sd">        :param wrapper_cls: Type of wrapper to use to gather the environment</span>
+<span class="sd">                              and the block.</span>
+<span class="sd">        :param wrapper_kwargs: Keyword arguments to forward to the constructor</span>
+<span class="sd">                               of the wrapper. See &#39;env_kwargs&#39;.</span>
+<span class="sd">        :param block_cls: Type of block to connect to the environment, if</span>
+<span class="sd">                            any. `None` to disable.</span>
+<span class="sd">                            Optional: Disabled by default</span>
+<span class="sd">        :param block_kwargs: Keyword arguments to forward to the constructor of</span>
+<span class="sd">                             the wrapped block. See &#39;env_kwargs&#39;.</span>
+<span class="sd">        :param env_kwargs: Keyword arguments to forward to the constructor of</span>
+<span class="sd">                           the wrapped environment. Note that it will only</span>
+<span class="sd">                           overwrite the default value, so it will still be</span>
+<span class="sd">                           possible to set different values by explicitly</span>
+<span class="sd">                           defining them when calling the constructor of the</span>
+<span class="sd">                           generated wrapper.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Initialize constructor arguments</span>
+        <span class="n">args</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Instantiate the environment, which may be a lower-level wrapper</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">env_creator</span><span class="p">(</span><span class="o">**</span><span class="n">env_kwargs</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate the block associated with the wrapper if any</span>
+        <span class="k">if</span> <span class="n">block_cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">block_name</span> <span class="o">=</span> <span class="n">block_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">block_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">block_index</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">env_wrapper</span><span class="p">:</span> <span class="n">gym</span><span class="o">.</span><span class="n">Env</span> <span class="o">=</span> <span class="n">env</span>
+                <span class="k">while</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="p">,</span> <span class="n">ControlledJiminyEnv</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="o">.</span><span class="n">controller</span><span class="p">,</span> <span class="n">block_cls</span><span class="p">):</span>
+                            <span class="n">block_index</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="p">,</span> <span class="n">ObservedJiminyEnv</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_wrapper</span><span class="o">.</span><span class="n">observer</span><span class="p">,</span> <span class="n">block_cls</span><span class="p">):</span>
+                            <span class="n">block_index</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">env_wrapper</span> <span class="o">=</span> <span class="n">env_wrapper</span><span class="o">.</span><span class="n">env</span>
+                <span class="n">block_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+                    <span class="sa">r</span><span class="s2">&quot;([a-z\d])([A-Z])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\1_\2&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+                        <span class="sa">r</span><span class="s2">&quot;([A-Z]+)([A-Z][a-z])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\1_\2&#39;</span><span class="p">,</span> <span class="n">block_cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">block_index</span><span class="p">:</span>
+                    <span class="n">block_name</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;_</span><span class="si">{</span><span class="n">block_index</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">block_kwargs</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">block_name</span>
+
+            <span class="n">block</span> <span class="o">=</span> <span class="n">block_cls</span><span class="p">(</span><span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="o">**</span><span class="n">block_kwargs</span><span class="p">)</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate the wrapper</span>
+        <span class="k">return</span> <span class="n">wrapper_cls</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">wrapper_kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Define callable for instantiating the base environment</span>
+    <span class="n">env_cls</span> <span class="o">=</span> <span class="n">env_config</span><span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">env_cls</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">BaseJiminyEnv</span><span class="p">)</span>
+        <span class="n">env_cls</span> <span class="o">=</span> <span class="n">obj</span>
+    <span class="n">pipeline_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">BaseJiminyEnv</span><span class="p">]</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+        <span class="n">env_cls</span><span class="p">,</span> <span class="o">**</span><span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{}))</span>
+
+    <span class="c1"># Parse reward configuration</span>
+    <span class="n">reward_config</span> <span class="o">=</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;reward&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">reward_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">sanitize_composition_config</span><span class="p">(</span><span class="n">reward_config</span><span class="p">,</span> <span class="n">is_reward</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Parse the configuration of every termination conditions</span>
+    <span class="n">terminations_config</span> <span class="o">=</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;terminations&quot;</span><span class="p">,</span> <span class="p">())</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">terminations_config</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">termination_config</span> <span class="ow">in</span> <span class="n">terminations_config</span><span class="p">:</span>
+        <span class="n">sanitize_composition_config</span><span class="p">(</span><span class="n">termination_config</span><span class="p">,</span> <span class="n">is_reward</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Parse trajectory configuration</span>
+    <span class="n">trajectories_config</span> <span class="o">=</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;trajectories&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">trajectories_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">trajectories</span> <span class="o">=</span> <span class="n">trajectories_config</span><span class="p">[</span><span class="s1">&#39;dataset&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">path_or_traj</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">path_or_traj</span><span class="p">,</span> <span class="n">Trajectory</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">path_or_traj</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">root_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                        <span class="s2">&quot;The argument &#39;root_path&#39; must be provided when &quot;</span>
+                        <span class="s2">&quot;specifying relative trajectory paths.&quot;</span><span class="p">)</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">root_path</span><span class="p">)</span> <span class="o">/</span> <span class="n">path</span>
+            <span class="n">trajectory</span> <span class="o">=</span> <span class="n">load_trajectory_from_hdf5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="n">trajectories</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+
+    <span class="c1"># Add extra user-specified reward, termination conditions and trajectories</span>
+    <span class="n">pipeline_creator</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">build_composition_layer</span><span class="p">,</span>
+                               <span class="n">pipeline_creator</span><span class="p">,</span>
+                               <span class="n">reward_config</span><span class="p">,</span>
+                               <span class="n">terminations_config</span><span class="p">,</span>
+                               <span class="n">trajectories_config</span><span class="p">)</span>
+
+    <span class="c1"># Generate pipeline recursively</span>
+    <span class="k">for</span> <span class="n">layer_config</span> <span class="ow">in</span> <span class="n">layers_config</span><span class="p">:</span>
+        <span class="c1"># Extract block and wrapper config</span>
+        <span class="n">block_config</span> <span class="o">=</span> <span class="n">layer_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;block&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">wrapper_config</span> <span class="o">=</span> <span class="n">layer_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wrapper&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+
+        <span class="c1"># Make sure block and wrappers are class types and parse them if string</span>
+        <span class="n">block_cls</span> <span class="o">=</span> <span class="n">block_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cls&quot;</span><span class="p">)</span>
+        <span class="n">block_cls_</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">InterfaceBlock</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">block_cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">block_cls</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">InterfaceBlock</span><span class="p">))</span>
+            <span class="n">block_cls_</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">elif</span> <span class="n">block_cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block_cls</span><span class="p">,</span> <span class="n">InterfaceBlock</span><span class="p">)</span>
+            <span class="n">block_cls_</span> <span class="o">=</span> <span class="n">block_cls</span>
+        <span class="n">wrapper_cls</span> <span class="o">=</span> <span class="n">wrapper_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cls&quot;</span><span class="p">)</span>
+        <span class="n">wrapper_cls_</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">BasePipelineWrapper</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">))</span>
+            <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">elif</span> <span class="n">wrapper_cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="nb">issubclass</span><span class="p">(</span><span class="n">wrapper_cls</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">))</span>
+            <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">wrapper_cls</span>
+
+        <span class="c1"># Handling of default keyword arguments</span>
+        <span class="n">block_kwargs</span> <span class="o">=</span> <span class="n">block_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">wrapper_kwargs</span> <span class="o">=</span> <span class="n">wrapper_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># Special treatment for &quot;none&quot;, &quot;nan&quot;, &quot;+/-inf&quot; and enum string</span>
+        <span class="k">for</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="p">(</span><span class="n">block_kwargs</span><span class="p">,</span> <span class="n">wrapper_kwargs</span><span class="p">):</span>
+            <span class="n">sanitize_special_string</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Special treatment for &quot;quantity&quot; arg of `QuantityObserver` blocks</span>
+        <span class="k">if</span> <span class="n">block_cls_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block_cls_</span><span class="p">,</span> <span class="n">QuantityObserver</span><span class="p">):</span>
+            <span class="n">quantity_cls</span> <span class="o">=</span> <span class="n">block_config</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;quantity&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">quantity_cls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="n">locate</span><span class="p">(</span><span class="n">quantity_cls</span><span class="p">)</span>
+                <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="nb">issubclass</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">))</span>
+                <span class="n">block_config</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">][</span><span class="s2">&quot;quantity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span>
+
+        <span class="c1"># Handling of default wrapper class type</span>
+        <span class="k">if</span> <span class="n">wrapper_cls_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">block_cls_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block_cls_</span><span class="p">,</span> <span class="n">BaseControllerBlock</span><span class="p">):</span>
+                    <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">ControlledJiminyEnv</span>
+                <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block_cls_</span><span class="p">,</span> <span class="n">BaseObserverBlock</span><span class="p">):</span>
+                    <span class="n">wrapper_cls_</span> <span class="o">=</span> <span class="n">ObservedJiminyEnv</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Block of type &#39;</span><span class="si">{</span><span class="n">block_cls_</span><span class="si">}</span><span class="s2">&#39; does not support &quot;</span>
+                        <span class="s2">&quot;automatic default wrapper type inference. Please &quot;</span>
+                        <span class="s2">&quot;specify it manually.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Either &#39;block.cls&#39; or &#39;wrapper.cls&#39; must be specified.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Add layer on top of the existing pipeline</span>
+        <span class="n">pipeline_creator</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">build_controller_observer_layer</span><span class="p">,</span>
+                                   <span class="n">pipeline_creator</span><span class="p">,</span>
+                                   <span class="n">wrapper_cls_</span><span class="p">,</span>
+                                   <span class="n">wrapper_kwargs</span><span class="p">,</span>
+                                   <span class="n">block_cls_</span><span class="p">,</span>
+                                   <span class="n">block_kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pipeline_creator</span></div>
+
+
+
+<div class="viewcode-block" id="load_pipeline">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.load_pipeline">[docs]</a>
+<span class="k">def</span> <span class="nf">load_pipeline</span><span class="p">(</span>
+        <span class="n">fullpath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">]</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">BaseJiminyEnv</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load pipeline from JSON or TOML configuration file.</span>
+
+<span class="sd">    :param: Fullpath of the configuration file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract root path from configuration file</span>
+    <span class="n">fullpath</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">fullpath</span><span class="p">)</span>
+    <span class="n">root_path</span><span class="p">,</span> <span class="n">file_ext</span> <span class="o">=</span> <span class="n">fullpath</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">fullpath</span><span class="o">.</span><span class="n">suffix</span>
+
+    <span class="c1"># Load configuration file</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fullpath</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">file_ext</span> <span class="o">==</span> <span class="s1">&#39;.json&#39;</span><span class="p">:</span>
+            <span class="c1"># Parse JSON configuration file</span>
+            <span class="n">all_config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">file_ext</span> <span class="o">==</span> <span class="s1">&#39;.toml&#39;</span><span class="p">:</span>
+            <span class="c1"># Parse TOML configuration file</span>
+            <span class="n">all_config</span> <span class="o">=</span> <span class="n">tomlkit</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">unwrap</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File extension &#39;</span><span class="si">{</span><span class="n">file_ext</span><span class="si">}</span><span class="s2">&#39; not supported.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Build pipeline</span>
+        <span class="k">return</span> <span class="n">build_pipeline</span><span class="p">(</span><span class="o">**</span><span class="n">all_config</span><span class="p">,</span> <span class="n">root_path</span><span class="o">=</span><span class="n">root_path</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only json and toml formats are supported.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="save_trajectory_to_hdf5">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.save_trajectory_to_hdf5">[docs]</a>
+<span class="k">def</span> <span class="nf">save_trajectory_to_hdf5</span><span class="p">(</span><span class="n">trajectory</span><span class="p">:</span> <span class="n">Trajectory</span><span class="p">,</span>
+                            <span class="n">fullpath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Export a trajectory object to HDF5 format.</span>
+
+<span class="sd">    :param trajectory: Trajectory object to save.</span>
+<span class="sd">    :param fullpath: Fullpath of the generated HDF5 file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Create HDF5 file</span>
+    <span class="n">hdf_obj</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fullpath</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Dump each state attribute that are specified for all states at once</span>
+    <span class="k">if</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">states</span><span class="p">:</span>
+        <span class="n">state_dict</span> <span class="o">=</span> <span class="n">asdict</span><span class="p">(</span><span class="n">trajectory</span><span class="o">.</span><span class="n">states</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">state_fields</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="n">key</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">state_fields</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span> <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">hdf_obj</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;states/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Dump serialized robot</span>
+    <span class="n">robot_data</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">save_robot_to_binary</span><span class="p">(</span><span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">hdf_obj</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;robot&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">robot_data</span><span class="p">))</span>
+
+    <span class="c1"># Dump whether to use the theoretical model of the robot</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;use_theoretical_model&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">use_theoretical_model</span>
+
+    <span class="c1"># Close the HDF5 file</span>
+    <span class="n">hdf_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="load_trajectory_from_hdf5">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/pipeline.html#gym_jiminy.common.utils.pipeline.load_trajectory_from_hdf5">[docs]</a>
+<span class="k">def</span> <span class="nf">load_trajectory_from_hdf5</span><span class="p">(</span>
+        <span class="n">fullpath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Trajectory</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Import a trajectory object from file in HDF5 format.</span>
+
+<span class="sd">    :param fullpath: Fullpath of the HDF5 file to import.</span>
+
+<span class="sd">    :returns: Loaded trajectory object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Open HDF5 file</span>
+    <span class="n">hdf_obj</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fullpath</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Get all state attributes that are specified</span>
+    <span class="n">states_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="s1">&#39;states&#39;</span> <span class="ow">in</span> <span class="n">hdf_obj</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">hdf_obj</span><span class="p">[</span><span class="s1">&#39;states&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">states_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="o">...</span><span class="p">]</span>
+
+    <span class="c1"># Re-construct state sequence</span>
+    <span class="n">states</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">states_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+        <span class="n">states</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">State</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">states_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">args</span><span class="p">))))</span>
+
+    <span class="c1"># Load whether to use the theoretical model of the robot</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">hdf_obj</span><span class="p">[</span><span class="s1">&#39;robot&#39;</span><span class="p">]</span>
+    <span class="n">use_theoretical_model</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;use_theoretical_model&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Build trajectory from data.</span>
+    <span class="c1"># Null char &#39;\0&#39; must be added at the end to match original string length.</span>
+    <span class="n">robot_data</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[()]</span>
+    <span class="n">robot_data</span> <span class="o">+=</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\0</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="p">(</span>
+        <span class="n">dataset</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">robot_data</span><span class="p">))</span>  <span class="c1"># pylint: disable=no-member</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">robot</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">load_robot_from_binary</span><span class="p">(</span><span class="n">robot_data</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">MemoryError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">MemoryError</span><span class="p">(</span>
+            <span class="s2">&quot;Impossible to build robot from serialized binary data. Make sure &quot;</span>
+            <span class="s2">&quot;that data has been generated on a machine with the same hardware &quot;</span>
+            <span class="s2">&quot;as this one.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="c1"># Close the HDF5 file</span>
+        <span class="n">hdf_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="c1"># Re-construct the whole trajectory</span>
+    <span class="k">return</span> <span class="n">Trajectory</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">robot</span><span class="p">,</span> <span class="n">use_theoretical_model</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

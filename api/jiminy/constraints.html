@@ -1,0 +1,776 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>analytical constraints &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="sensors" href="sensors.html" />
+    <link rel="prev" title="robot" href="robot.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Jiminy C++ API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">analytical constraints</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBaseE"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase22AbstractConstraintBaseEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::AbstractConstraintBase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBaseD0Ev"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::~AbstractConstraintBase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase6enableEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::enable()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase7disableEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::disable()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase12getIsEnabledEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getIsEnabled()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase24setBaumgartePositionGainEd"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::setBaumgartePositionGain()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase24getBaumgartePositionGainEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getBaumgartePositionGain()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase24setBaumgarteVelocityGainEd"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::setBaumgarteVelocityGain()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase24getBaumgarteVelocityGainEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getBaumgarteVelocityGain()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase16setBaumgarteFreqEd"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::setBaumgarteFreq()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase16getBaumgarteFreqEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getBaumgarteFreq()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::computeJacobianAndDrift()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase7getTypeEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getType()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase7getSizeEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getSize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase11getJacobianEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getJacobian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy22AbstractConstraintBase8getDriftEv"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::getDrift()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy22AbstractConstraintBase7lambda_E"><code class="docutils literal notranslate"><span class="pre">AbstractConstraintBase::lambda_</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraintE"><code class="docutils literal notranslate"><span class="pre">JointConstraint</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraint15JointConstraintERKNSt6stringE"><code class="docutils literal notranslate"><span class="pre">JointConstraint::JointConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraintD0Ev"><code class="docutils literal notranslate"><span class="pre">JointConstraint::~JointConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15JointConstraint12getJointNameEv"><code class="docutils literal notranslate"><span class="pre">JointConstraint::getJointName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15JointConstraint13getJointIndexEv"><code class="docutils literal notranslate"><span class="pre">JointConstraint::getJointIndex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraint25setReferenceConfigurationERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">JointConstraint::setReferenceConfiguration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15JointConstraint25getReferenceConfigurationEv"><code class="docutils literal notranslate"><span class="pre">JointConstraint::getReferenceConfiguration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraint14setRotationDirEb"><code class="docutils literal notranslate"><span class="pre">JointConstraint::setRotationDir()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15JointConstraint14getRotationDirEv"><code class="docutils literal notranslate"><span class="pre">JointConstraint::getRotationDir()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">JointConstraint::reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">JointConstraint::computeJacobianAndDrift()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraintE"><code class="docutils literal notranslate"><span class="pre">FrameConstraint</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraint15FrameConstraintERKNSt6stringERKNSt5arrayIbXL6EEEE"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::FrameConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraintD0Ev"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::~FrameConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15FrameConstraint12getFrameNameEv"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::getFrameName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15FrameConstraint13getFrameIndexEv"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::getFrameIndex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15FrameConstraint12getDofsFixedEv"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::getDofsFixed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraint21setReferenceTransformERKN9pinocchio3SE3E"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::setReferenceTransform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15FrameConstraint21getReferenceTransformEv"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::getReferenceTransform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraint9setNormalERKN5Eigen8Vector3dE"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::setNormal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15FrameConstraint13getLocalFrameEv"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::getLocalFrame()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">FrameConstraint::computeJacobianAndDrift()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy18DistanceConstraintE"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy18DistanceConstraint18DistanceConstraintERKNSt6stringERKNSt6stringE"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::DistanceConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy18DistanceConstraintD0Ev"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::~DistanceConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy18DistanceConstraint13getFrameNamesEv"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::getFrameNames()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy18DistanceConstraint15getFrameIndicesEv"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::getFrameIndices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy18DistanceConstraint20setReferenceDistanceEd"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::setReferenceDistance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy18DistanceConstraint20getReferenceDistanceEv"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::getReferenceDistance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy18DistanceConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy18DistanceConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">DistanceConstraint::computeJacobianAndDrift()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy16SphereConstraintE"><code class="docutils literal notranslate"><span class="pre">SphereConstraint</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16SphereConstraint16SphereConstraintERKNSt6stringEdRKN5Eigen8Vector3dE"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::SphereConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16SphereConstraintD0Ev"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::~SphereConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy16SphereConstraint12getFrameNameEv"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::getFrameName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy16SphereConstraint13getFrameIndexEv"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::getFrameIndex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy16SphereConstraint9getRadiusEv"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::getRadius()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy16SphereConstraint9getNormalEv"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::getNormal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16SphereConstraint21setReferenceTransformERKN9pinocchio3SE3E"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::setReferenceTransform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy16SphereConstraint21getReferenceTransformEv"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::getReferenceTransform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16SphereConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16SphereConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">SphereConstraint::computeJacobianAndDrift()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy15WheelConstraintE"><code class="docutils literal notranslate"><span class="pre">WheelConstraint</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15WheelConstraint15WheelConstraintERKNSt6stringEdRKN5Eigen8Vector3dERKN5Eigen8Vector3dE"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::WheelConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15WheelConstraintD0Ev"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::~WheelConstraint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15WheelConstraint9getRadiusEv"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::getRadius()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15WheelConstraint9getNormalEv"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::getNormal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15WheelConstraint12getWheelAxisEv"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::getWheelAxis()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15WheelConstraint12getFrameNameEv"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::getFrameName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15WheelConstraint13getFrameIndexEv"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::getFrameIndex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15WheelConstraint21setReferenceTransformERKN9pinocchio3SE3E"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::setReferenceTransform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy15WheelConstraint21getReferenceTransformEv"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::getReferenceTransform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15WheelConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy15WheelConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">WheelConstraint::computeJacobianAndDrift()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="motors.html">motors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controller.html">controller</a></li>
+<li class="toctree-l2"><a class="reference internal" href="engine.html">engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utilities.html">utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Jiminy C++ API</a></li>
+      <li class="breadcrumb-item active">analytical constraints</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/api/jiminy/constraints.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="analytical-constraints">
+<h1>analytical constraints<a class="headerlink" href="#analytical-constraints" title="Link to this heading">¶</a></h1>
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBaseE">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">AbstractConstraintBase</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBaseE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Generic interface for kinematic constraints. </p>
+<p>Subclassed by jiminy::AbstractConstraintTpl&lt; DistanceConstraint &gt;, jiminy::AbstractConstraintTpl&lt; FrameConstraint &gt;, jiminy::AbstractConstraintTpl&lt; JointConstraint &gt;, jiminy::AbstractConstraintTpl&lt; SphereConstraint &gt;, jiminy::AbstractConstraintTpl&lt; WheelConstraint &gt;, jiminy::AbstractConstraintTpl&lt; T &gt;</p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase22AbstractConstraintBaseEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a5ef2f7f295e988dbc5e43e6980c30f4f"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">AbstractConstraintBase</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase22AbstractConstraintBaseEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBaseD0Ev">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1ab170f5c7205cd9e9891e853834828cfb"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~AbstractConstraintBase</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBaseD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1ac87b026e8b958ddf5f5e9a165bca7003"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="m"><span class="pre">0</span></span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Refresh the internal buffers and proxies. </p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the constraint is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">reset</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase6enableEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1ae2e3bff5742ceabb54cdd7992d1b4ebe"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">enable</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase6enableEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase7disableEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1ac68d458bd537a048b4beba46d43b5565"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">disable</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase7disableEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase12getIsEnabledEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1add0aacc1c589386f14c6b22d34bda587"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getIsEnabled</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase12getIsEnabledEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase24setBaumgartePositionGainEd">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1abfdd050c1dbe6d35eb0958c407e41580"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setBaumgartePositionGain</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">kp</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase24setBaumgartePositionGainEd" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase24getBaumgartePositionGainEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1ae884871f3af8e321f973766383664401"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getBaumgartePositionGain</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase24getBaumgartePositionGainEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase24setBaumgarteVelocityGainEd">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1aa942777250378abd0c5bb3df816df70d"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setBaumgarteVelocityGain</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">kd</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase24setBaumgarteVelocityGainEd" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase24getBaumgarteVelocityGainEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a6c268209cf8f724a8079a92e1760c8ed"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getBaumgarteVelocityGain</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase24getBaumgarteVelocityGainEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase16setBaumgarteFreqEd">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a7c6588b2687e1ed81fee41c86d292ba9"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setBaumgarteFreq</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">freq</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase16setBaumgarteFreqEd" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase16getBaumgarteFreqEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a9bd4ed7ada1d7d8f2a112674bda2b3fd"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getBaumgarteFreq</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase16getBaumgarteFreqEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Natural frequency of critically damping position/velocity error correction. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1afe2fac967acfba832f5b9facfe9d528d"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeJacobianAndDrift</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="m"><span class="pre">0</span></span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Compute the jacobian and drift of the constraint. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To avoid redundant computations, it assumes that <code class="docutils literal notranslate"><span class="pre">computeJointJacobians</span></code> and <code class="docutils literal notranslate"><span class="pre">framesForwardKinematics</span></code> has already been called on <code class="docutils literal notranslate"><span class="pre">model-&gt;pinocchioModel_</span></code>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q</strong> – <strong>[in]</strong> Current joint position. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current joint velocity. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase7getTypeEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a44cb593c87d3cd7c461e972e171a7b10"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getType</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="m"><span class="pre">0</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase7getTypeEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase7getSizeEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a4eb0361e28e862274aef39c9d7680ff6"></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getSize</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase7getSizeEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Dimension of the constraint. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase11getJacobianEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1adb30cc73ef2a5bfdbb7965d1a4e0fc2d"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">MatrixXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getJacobian</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase11getJacobianEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Jacobian of the constraint. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy22AbstractConstraintBase8getDriftEv">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a143a31ce360760b0fb35e5cb4e1964ed"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getDrift</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy22AbstractConstraintBase8getDriftEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Drift of the constraint. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy22AbstractConstraintBase7lambda_E">
+<span class="target" id="classjiminy_1_1_abstract_constraint_base_1a11ec2fe5478266aa09edd082b77a438c"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">lambda_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy22AbstractConstraintBase7lambda_E" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Lambda multipliers. </p>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15JointConstraintE">
+<span class="target" id="classjiminy_1_1_joint_constraint"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">JointConstraint</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="k"><span class="pre">public</span></span><span class="w"> </span><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">AbstractConstraintTpl</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4N6jiminy15JointConstraintE" title="jiminy::JointConstraint"><span class="n"><span class="pre">JointConstraint</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N6jiminy15JointConstraintE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15JointConstraint15JointConstraintERKNSt6stringE">
+<span class="target" id="classjiminy_1_1_joint_constraint_1a2e4fa5251fd15996792f4934591cf77e"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">JointConstraint</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">jointName</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15JointConstraint15JointConstraintERKNSt6stringE" title="Link to this definition">¶</a><br /></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>jointName</strong> – <strong>[in]</strong> Name of the joint. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15JointConstraintD0Ev">
+<span class="target" id="classjiminy_1_1_joint_constraint_1ae678e9d133e1a4aba4639452dd27ed16"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~JointConstraint</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy15JointConstraintD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15JointConstraint12getJointNameEv">
+<span class="target" id="classjiminy_1_1_joint_constraint_1a8143d50c4435e953960dc3944a7c91ca"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getJointName</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15JointConstraint12getJointNameEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15JointConstraint13getJointIndexEv">
+<span class="target" id="classjiminy_1_1_joint_constraint_1ae2a20d16a7b066bec56cebd0bcd64987"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">JointIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getJointIndex</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15JointConstraint13getJointIndexEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15JointConstraint25setReferenceConfigurationERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_joint_constraint_1a32b7d49d55b9cf07cef32915175bc900"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setReferenceConfiguration</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">configurationRef</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15JointConstraint25setReferenceConfigurationERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15JointConstraint25getReferenceConfigurationEv">
+<span class="target" id="classjiminy_1_1_joint_constraint_1a8db2a0d4d3aa1ecfca67793f44a0a620"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getReferenceConfiguration</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15JointConstraint25getReferenceConfigurationEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15JointConstraint14setRotationDirEb">
+<span class="target" id="classjiminy_1_1_joint_constraint_1ac3c9557ef42c6cb9d66219ce2d2a2c33"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setRotationDir</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">isReversed</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15JointConstraint14setRotationDirEb" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15JointConstraint14getRotationDirEv">
+<span class="target" id="classjiminy_1_1_joint_constraint_1a8c80604f6462c454208e3324d877fb61"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getRotationDir</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15JointConstraint14getRotationDirEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15JointConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_joint_constraint_1a5e11608fb6ce58192c44864541319097"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy15JointConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Refresh the internal buffers and proxies. </p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the constraint is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">reset</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15JointConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_joint_constraint_1a0e7987efac5ccec3285f8a0aa9ad93f6"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeJacobianAndDrift</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy15JointConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Compute the jacobian and drift of the constraint. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To avoid redundant computations, it assumes that <code class="docutils literal notranslate"><span class="pre">computeJointJacobians</span></code> and <code class="docutils literal notranslate"><span class="pre">framesForwardKinematics</span></code> has already been called on <code class="docutils literal notranslate"><span class="pre">model-&gt;pinocchioModel_</span></code>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q</strong> – <strong>[in]</strong> Current joint position. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current joint velocity. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15FrameConstraintE">
+<span class="target" id="classjiminy_1_1_frame_constraint"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">FrameConstraint</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="k"><span class="pre">public</span></span><span class="w"> </span><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">AbstractConstraintTpl</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4N6jiminy15FrameConstraintE" title="jiminy::FrameConstraint"><span class="n"><span class="pre">FrameConstraint</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N6jiminy15FrameConstraintE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>This class implements the constraint for fixing a given frame wrt world. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15FrameConstraint15FrameConstraintERKNSt6stringERKNSt5arrayIbXL6EEEE">
+<span class="target" id="classjiminy_1_1_frame_constraint_1ad9d31723d07448d1c8f08e1f2fbb727a"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">FrameConstraint</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">frameName</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">array</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">bool</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="m"><span class="pre">6</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">maskDoFs</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="k"><span class="pre">true</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">true</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">true</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">true</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">true</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">true</span></span><span class="p"><span class="pre">}</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15FrameConstraint15FrameConstraintERKNSt6stringERKNSt5arrayIbXL6EEEE" title="Link to this definition">¶</a><br /></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>frameName</strong> – <strong>[in]</strong> Name of the frame on which the constraint is to be applied. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15FrameConstraintD0Ev">
+<span class="target" id="classjiminy_1_1_frame_constraint_1a1d657bd76188f5395e16384b91bbd05b"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~FrameConstraint</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy15FrameConstraintD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15FrameConstraint12getFrameNameEv">
+<span class="target" id="classjiminy_1_1_frame_constraint_1a57509e18fcaed5afced907251b91a4df"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getFrameName</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15FrameConstraint12getFrameNameEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15FrameConstraint13getFrameIndexEv">
+<span class="target" id="classjiminy_1_1_frame_constraint_1aec2ebcddf875378c0447c8263308e6f5"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getFrameIndex</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15FrameConstraint13getFrameIndexEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15FrameConstraint12getDofsFixedEv">
+<span class="target" id="classjiminy_1_1_frame_constraint_1a7b21e2957e51659eab5c49a6a641b726"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getDofsFixed</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15FrameConstraint12getDofsFixedEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15FrameConstraint21setReferenceTransformERKN9pinocchio3SE3E">
+<span class="target" id="classjiminy_1_1_frame_constraint_1a2cd13823c0d7600d1c5af8f82bf9aad9"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setReferenceTransform</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">SE3</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">transformRef</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15FrameConstraint21setReferenceTransformERKN9pinocchio3SE3E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15FrameConstraint21getReferenceTransformEv">
+<span class="target" id="classjiminy_1_1_frame_constraint_1adc2ef767a8c9a991e063618fa7a1e681"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">SE3</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getReferenceTransform</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15FrameConstraint21getReferenceTransformEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15FrameConstraint9setNormalERKN5Eigen8Vector3dE">
+<span class="target" id="classjiminy_1_1_frame_constraint_1a1942b2061e5aa1c6c5c57ffcaea01544"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setNormal</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">normal</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15FrameConstraint9setNormalERKN5Eigen8Vector3dE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15FrameConstraint13getLocalFrameEv">
+<span class="target" id="classjiminy_1_1_frame_constraint_1a1ca9a54990e14bf0f2fb574629b6591f"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Matrix3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getLocalFrame</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15FrameConstraint13getLocalFrameEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15FrameConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_frame_constraint_1a44bb78929d676841d0771b6332a284b0"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy15FrameConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Refresh the internal buffers and proxies. </p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the constraint is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">reset</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15FrameConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_frame_constraint_1ad21a2181905ef80d766f9d767a277f3c"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeJacobianAndDrift</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy15FrameConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Compute the jacobian and drift of the constraint. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To avoid redundant computations, it assumes that <code class="docutils literal notranslate"><span class="pre">computeJointJacobians</span></code> and <code class="docutils literal notranslate"><span class="pre">framesForwardKinematics</span></code> has already been called on <code class="docutils literal notranslate"><span class="pre">model-&gt;pinocchioModel_</span></code>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q</strong> – <strong>[in]</strong> Current joint position. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current joint velocity. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy18DistanceConstraintE">
+<span class="target" id="classjiminy_1_1_distance_constraint"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">DistanceConstraint</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="k"><span class="pre">public</span></span><span class="w"> </span><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">AbstractConstraintTpl</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4N6jiminy18DistanceConstraintE" title="jiminy::DistanceConstraint"><span class="n"><span class="pre">DistanceConstraint</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N6jiminy18DistanceConstraintE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy18DistanceConstraint18DistanceConstraintERKNSt6stringERKNSt6stringE">
+<span class="target" id="classjiminy_1_1_distance_constraint_1afeb865b2d5f3e975fff4bda54f4a662d"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">DistanceConstraint</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">firstFrameName</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">secondFrameName</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy18DistanceConstraint18DistanceConstraintERKNSt6stringERKNSt6stringE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy18DistanceConstraintD0Ev">
+<span class="target" id="classjiminy_1_1_distance_constraint_1a73bd9b97a904b4b09f3434da81e0a912"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~DistanceConstraint</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy18DistanceConstraintD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy18DistanceConstraint13getFrameNamesEv">
+<span class="target" id="classjiminy_1_1_distance_constraint_1ac087ae4bdef16907e9523fcca2db864b"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">array</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="m"><span class="pre">2</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getFrameNames</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy18DistanceConstraint13getFrameNamesEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy18DistanceConstraint15getFrameIndicesEv">
+<span class="target" id="classjiminy_1_1_distance_constraint_1a5d34beabe1bd29775c64d73f5461eaed"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">array</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="m"><span class="pre">2</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getFrameIndices</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy18DistanceConstraint15getFrameIndicesEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy18DistanceConstraint20setReferenceDistanceEd">
+<span class="target" id="classjiminy_1_1_distance_constraint_1aa5bcfe02af6459e17cc9bfbe5e02b374"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setReferenceDistance</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">distanceRef</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy18DistanceConstraint20setReferenceDistanceEd" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy18DistanceConstraint20getReferenceDistanceEv">
+<span class="target" id="classjiminy_1_1_distance_constraint_1ad096b52e47beb2d5b374e141317f4aaa"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getReferenceDistance</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy18DistanceConstraint20getReferenceDistanceEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy18DistanceConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_distance_constraint_1ab47495bf4c9f9382d94df4a2a9ab992c"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy18DistanceConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Refresh the internal buffers and proxies. </p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the constraint is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">reset</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy18DistanceConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_distance_constraint_1a7df5b3579bdc4166109d33fd82bbb3ef"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeJacobianAndDrift</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy18DistanceConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Compute the jacobian and drift of the constraint. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To avoid redundant computations, it assumes that <code class="docutils literal notranslate"><span class="pre">computeJointJacobians</span></code> and <code class="docutils literal notranslate"><span class="pre">framesForwardKinematics</span></code> has already been called on <code class="docutils literal notranslate"><span class="pre">model-&gt;pinocchioModel_</span></code>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q</strong> – <strong>[in]</strong> Current joint position. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current joint velocity. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16SphereConstraintE">
+<span class="target" id="classjiminy_1_1_sphere_constraint"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SphereConstraint</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="k"><span class="pre">public</span></span><span class="w"> </span><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">AbstractConstraintTpl</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4N6jiminy16SphereConstraintE" title="jiminy::SphereConstraint"><span class="n"><span class="pre">SphereConstraint</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N6jiminy16SphereConstraintE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Class constraining a sphere to roll without slipping on a flat plane. </p>
+<p>Given a frame to represent the sphere center, this class constrains it to move like it were rolling without slipping on a flat (not necessarily level) surface. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16SphereConstraint16SphereConstraintERKNSt6stringEdRKN5Eigen8Vector3dE">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a631d32e33e87f8010ae82a6f7fa84147"></span><span class="sig-name descname"><span class="n"><span class="pre">SphereConstraint</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">frameName</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">sphereRadius</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">groundNormal</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">UnitZ</span></span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">)</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy16SphereConstraint16SphereConstraintERKNSt6stringEdRKN5Eigen8Vector3dE" title="Link to this definition">¶</a><br /></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>frameName</strong> – <strong>[in]</strong> Name of the frame representing the center of the sphere. </p></li>
+<li><p><strong>sphereRadius</strong> – <strong>[in]</strong> Radius of the sphere (in m). </p></li>
+<li><p><strong>groundNormal</strong> – <strong>[in]</strong> Normal to the ground in the world as a unit vector. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16SphereConstraintD0Ev">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a9e07904fdf7148c0db5fe0b232f295f3"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~SphereConstraint</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy16SphereConstraintD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy16SphereConstraint12getFrameNameEv">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1aa45bfea70881cb9fd35c07ce4231721b"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getFrameName</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy16SphereConstraint12getFrameNameEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy16SphereConstraint13getFrameIndexEv">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a0a9626eea2d220837c800c467d9986db"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getFrameIndex</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy16SphereConstraint13getFrameIndexEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy16SphereConstraint9getRadiusEv">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a264add2a570c56fa5f3407291a8a958a"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getRadius</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy16SphereConstraint9getRadiusEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy16SphereConstraint9getNormalEv">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a53db073d39c3ea204d90212834a61a02"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getNormal</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy16SphereConstraint9getNormalEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16SphereConstraint21setReferenceTransformERKN9pinocchio3SE3E">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a1cdbc40e074d1711b807e4a3c4fafaf7"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setReferenceTransform</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">SE3</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">transformRef</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy16SphereConstraint21setReferenceTransformERKN9pinocchio3SE3E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy16SphereConstraint21getReferenceTransformEv">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a66f348d02cf0109389fdd295a4d38ee3"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">SE3</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getReferenceTransform</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy16SphereConstraint21getReferenceTransformEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16SphereConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a0db23bb29aaf5b33c6283d2609683846"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&amp;</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&amp;</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy16SphereConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Refresh the internal buffers and proxies. </p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the constraint is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">reset</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16SphereConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_sphere_constraint_1a8057779c81d947c1584ae1e9a885483f"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeJacobianAndDrift</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy16SphereConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Compute the jacobian and drift of the constraint. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To avoid redundant computations, it assumes that <code class="docutils literal notranslate"><span class="pre">computeJointJacobians</span></code> and <code class="docutils literal notranslate"><span class="pre">framesForwardKinematics</span></code> has already been called on <code class="docutils literal notranslate"><span class="pre">model-&gt;pinocchioModel_</span></code>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q</strong> – <strong>[in]</strong> Current joint position. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current joint velocity. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15WheelConstraintE">
+<span class="target" id="classjiminy_1_1_wheel_constraint"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">WheelConstraint</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="k"><span class="pre">public</span></span><span class="w"> </span><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">AbstractConstraintTpl</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4N6jiminy15WheelConstraintE" title="jiminy::WheelConstraint"><span class="n"><span class="pre">WheelConstraint</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N6jiminy15WheelConstraintE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Class constraining a wheel to roll without slipping on a flat plane. </p>
+<p>Given a frame to represent the wheel center, this class constrains it to move like it were rolling without slipping on a flat (not necessarily level) surface. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15WheelConstraint15WheelConstraintERKNSt6stringEdRKN5Eigen8Vector3dERKN5Eigen8Vector3dE">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1ace322c31f81a515693369b5dba33081d"></span><span class="sig-name descname"><span class="n"><span class="pre">WheelConstraint</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">frameName</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">wheelRadius</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">groundNormal</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">wheelAxis</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15WheelConstraint15WheelConstraintERKNSt6stringEdRKN5Eigen8Vector3dERKN5Eigen8Vector3dE" title="Link to this definition">¶</a><br /></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>frameName</strong> – <strong>[in]</strong> Name of the frame representing the center of the wheel. </p></li>
+<li><p><strong>wheelRadius</strong> – <strong>[in]</strong> Radius of the wheel (in m). </p></li>
+<li><p><strong>groundNormal</strong> – <strong>[in]</strong> Normal to the ground in world frame as a unit vector. </p></li>
+<li><p><strong>wheelAxis</strong> – <strong>[in]</strong> Axis of the wheel, in the local frame. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15WheelConstraintD0Ev">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1a6797c31700ec937c57121e2f2f1e77ba"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~WheelConstraint</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy15WheelConstraintD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15WheelConstraint9getRadiusEv">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1ab2bcd4242a724005aea1ec95f3cb2e55"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getRadius</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15WheelConstraint9getRadiusEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15WheelConstraint9getNormalEv">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1a7f4bea4ec8c9805c6543864ed7053409"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getNormal</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15WheelConstraint9getNormalEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15WheelConstraint12getWheelAxisEv">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1a84a6ad5c784aaf323e9ce8604c98ecde"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Vector3d</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getWheelAxis</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15WheelConstraint12getWheelAxisEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15WheelConstraint12getFrameNameEv">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1a77335a3c79ba65934cca19022aeacbfc"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getFrameName</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15WheelConstraint12getFrameNameEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15WheelConstraint13getFrameIndexEv">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1ab48f776bf4266e538a3e5c0f317dd94d"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getFrameIndex</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15WheelConstraint13getFrameIndexEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15WheelConstraint21setReferenceTransformERKN9pinocchio3SE3E">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1a82e45827fa69114ed18c0b80dc8f054e"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setReferenceTransform</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">SE3</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">transformRef</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy15WheelConstraint21setReferenceTransformERKN9pinocchio3SE3E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy15WheelConstraint21getReferenceTransformEv">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1aa6c1bdc1ca49e81aa1e360d1e2f00ada"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">SE3</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getReferenceTransform</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy15WheelConstraint21getReferenceTransformEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15WheelConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1afe87df980d985a12721fa14ee345d948"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&amp;</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&amp;</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy15WheelConstraint5resetERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Refresh the internal buffers and proxies. </p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the constraint is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">reset</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy15WheelConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_wheel_constraint_1a13c64be8e61cdc5d79976454d55c99ae"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeJacobianAndDrift</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">final</span></span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy15WheelConstraint23computeJacobianAndDriftERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Compute the jacobian and drift of the constraint. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To avoid redundant computations, it assumes that <code class="docutils literal notranslate"><span class="pre">computeJointJacobians</span></code> and <code class="docutils literal notranslate"><span class="pre">framesForwardKinematics</span></code> has already been called on <code class="docutils literal notranslate"><span class="pre">model-&gt;pinocchioModel_</span></code>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q</strong> – <strong>[in]</strong> Current joint position. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current joint velocity. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="robot.html" class="btn btn-neutral float-left" title="robot" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sensors.html" class="btn btn-neutral float-right" title="sensors" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,376 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Observation Layout Adaptation &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Observation Frame Stacking" href="observation_stack.html" />
+    <link rel="prev" title="Scaling and normalization" href="scale.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Wrappers</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="flatten.html">Flattening</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scale.html">Scaling and normalization</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Observation Layout Adaptation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.wrappers.observation_layout.AdaptLayoutObservation"><code class="docutils literal notranslate"><span class="pre">AdaptLayoutObservation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.wrappers.observation_layout.FilterObservation"><code class="docutils literal notranslate"><span class="pre">FilterObservation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="observation_stack.html">Observation Frame Stacking</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Wrappers</a></li>
+      <li class="breadcrumb-item active">Observation Layout Adaptation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/wrappers/observation_layout.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.wrappers.observation_layout">
+<span id="observation-layout-adaptation"></span><h1>Observation Layout Adaptation<a class="headerlink" href="#module-gym_jiminy.common.wrappers.observation_layout" title="Link to this heading">¶</a></h1>
+<p>This module implements a block transformation for adapt the layout of the
+observation space of an environment that may be arbitrarily nested.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.wrappers.observation_layout.AdaptLayoutObservation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.wrappers.observation_layout.</span></span><span class="sig-name descname"><span class="pre">AdaptLayoutObservation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layout</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/wrappers/observation_layout.html#AdaptLayoutObservation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.wrappers.observation_layout.AdaptLayoutObservation" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/pipeline.html#gym_jiminy.common.bases.pipeline.BaseTransformObservation" title="gym_jiminy.common.bases.pipeline.BaseTransformObservation"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTransformObservation</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">OtherMaybeNestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">MaybeNestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">OtherMaybeNestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">MaybeNestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>]</p>
+<p>Adapt the data structure of the original nested observation space,
+by filtering out some leaves and/or re-ordering others.</p>
+<p>This wrapper does nothing but exposing a subset of all the leaves of the
+original observation space with a completely independent data structure.
+For flattening the observation space after filtering, you should wrap the
+environment with <cite>FlattenObservation</cite> as yet another layer.</p>
+<p>It is possible to operate on subtrees directly without going all the way
+down each leaf. Similarly, one can extract slices (possibly not contiguous)
+of <cite>gym.spaces.Box</cite> spaces. Extra leaves can be added to subtrees of
+original data that has already been re-mapped, knowing that the items of
+the layout are always processed in order. Moreover, the same output key can
+appear multiple times. In such case, all the associated values will be
+stacked as a tuple while preserving their order.</p>
+<p>Let us consider the following nested observation space:</p>
+<blockquote>
+<div><dl>
+<dt>gym.spaces.Dict(</dt><dd><dl class="simple">
+<dt>x1=gym.spaces.Tuple([</dt><dd><p>gym.spaces.Box(float(‘-inf’), float(‘inf’), (7, 6, 5, 4)),</p>
+</dd>
+</dl>
+<p>]),
+x2=gym.spaces.Dict(</p>
+<blockquote>
+<div><dl class="simple">
+<dt>y1=gym.spaces.Dict(</dt><dd><p>z1=gym.spaces.Discrete(5)</p>
+</dd>
+</dl>
+<p>),
+y2=gym.spaces.Tuple([</p>
+<blockquote>
+<div><p>gym.spaces.Discrete(2),
+gym.spaces.Box(float(‘-inf’), float(‘inf’), (2, 3)),
+gym.spaces.Discrete(3),</p>
+</div></blockquote>
+<p>])))</p>
+</div></blockquote>
+</dd>
+</dl>
+</div></blockquote>
+<p>Here is an example that aggregates one leaf to a leaf of a subtree that has
+already been remapped:</p>
+<blockquote>
+<div><p>[((), (“x2”, “y2”)), ((0,), (“x1”,))]</p>
+<dl>
+<dt>gym.spaces.Tuple([</dt><dd><dl>
+<dt>gym.spaces.Tuple([</dt><dd><p>gym.spaces.Discrete(2),
+gym.spaces.Tuple([</p>
+<blockquote>
+<div><p>gym.spaces.Box(float(‘-inf’), float(‘inf’), (7, 6, 5, 4)),</p>
+</div></blockquote>
+<p>])</p>
+</dd>
+</dl>
+<p>]),
+gym.spaces.Box(float(‘-inf’), float(‘inf’), (2, 3)),
+gym.spaces.Discrete(3),</p>
+</dd>
+</dl>
+<p>]))</p>
+</div></blockquote>
+<p>Here is an example that aggregate one leaf and one multi-dimensional slice
+of a Box space (array[:, 1:3]) under two separate keys of a nested dict:</p>
+<blockquote>
+<div><dl>
+<dt>[((“A”, “B1”), (“x2”, “y2”, 1)),</dt><dd><p>((“A”, “B2”), (“x1”, 0, [(), (1, 4), (1, 3)]))]</p>
+</dd>
+<dt>gym.spaces.Dict(</dt><dd><dl class="simple">
+<dt>A=gym.spaces.Dict(</dt><dd><p>B1=gym.spaces.Box(float(‘-inf’), float(‘inf’), (2, 3)),
+B2=gym.spaces.Box(float(‘-inf’), float(‘inf’), (7, 3, 2, 4))</p>
+</dd>
+</dl>
+<p>))</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Here is an example that aggregate two subtree in the same nested structure:</p>
+<blockquote>
+<div><p>[((), (“x2”,)), ((“y1”, “z2”), (“x1”,))]</p>
+<dl>
+<dt>gym.spaces.Dict(</dt><dd><dl>
+<dt>y1=gym.spaces.Dict(</dt><dd><p>z1=gym.spaces.Discrete(5)
+z2=gym.spaces.Tuple([</p>
+<blockquote>
+<div><p>gym.spaces.Box(float(‘-inf’), float(‘inf’), (7, 6, 5, 4)),</p>
+</div></blockquote>
+<p>])</p>
+</dd>
+</dl>
+<p>),
+y2=gym.spaces.Tuple([</p>
+<blockquote>
+<div><p>gym.spaces.Discrete(2),
+gym.spaces.Box(float(‘-inf’), float(‘inf’), (2, 3)),
+gym.spaces.Discrete(3),</p>
+</div></blockquote>
+<p>]))</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>MaybeNestedObs</em><em>, </em><em>Act</em><em>]</em>) – Base or already wrapped jiminy environment.</p></li>
+<li><p><strong>layout</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Unpack" title="(in Python v3.13)"><em>Unpack</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em><em>]</em><em>]</em><em>]</em><em>]</em><em>]</em>) – Sequence of tuples <cite>(nested_key_out, nested_key_in)</cite>
+mapping the desired path in the output data structure to
+the original path in input data structure. These tuples
+are guaranteed to be processed in order. The same path
+may appear multiple time in the output data structure.
+If so, the corresponding subtrees while be aggregated in
+sequence. If the parent node of the first subtree being
+considered is already a sequence, then all subsequent
+extracted subtrees will be appended to it directly. If
+not, then a dedicated top-level sequence container while
+be created first.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.wrappers.observation_layout.AdaptLayoutObservation.transform_observation">
+<span class="sig-name descname"><span class="pre">transform_observation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/wrappers/observation_layout.html#AdaptLayoutObservation.transform_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.wrappers.observation_layout.AdaptLayoutObservation.transform_observation" title="Link to this definition">¶</a></dt>
+<dd><p>No-op transform since the transform observation is sharing memory
+with the wrapped one since it is just a partial view.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.wrappers.observation_layout.FilterObservation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.wrappers.observation_layout.</span></span><span class="sig-name descname"><span class="pre">FilterObservation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nested_filter_keys</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/wrappers/observation_layout.html#FilterObservation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.wrappers.observation_layout.FilterObservation" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/pipeline.html#gym_jiminy.common.bases.pipeline.BaseTransformObservation" title="gym_jiminy.common.bases.pipeline.BaseTransformObservation"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTransformObservation</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">NestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">NestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">NestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>]</p>
+<p>Filter nested observation space.</p>
+<p>This wrapper does nothing but providing an observation only exposing a
+subset of all the leaves of the original observation space. This wrapper is
+a specialization of <cite>AdaptLayoutObservation</cite>, which is more generic. For
+flattening the observation space after filtering, you should wrap the
+environment with <cite>FlattenObservation</cite> as yet another layer.</p>
+<p>Note that it is possible to operate on subtrees directly without going all
+the way down each leaf.</p>
+<p>Beware that the original ordered of leaves within their parent container is
+maintain, whatever the order in which they appear in the specified list of
+filtered nested keys.</p>
+<p>Let us consider the following nested observation space:</p>
+<blockquote>
+<div><dl>
+<dt>gym.spaces.Dict(</dt><dd><dl class="simple">
+<dt>x1=gym.spaces.Tuple([</dt><dd><p>gym.spaces.Box(float(‘-inf’), float(‘inf’), (7, 6, 5, 4)),</p>
+</dd>
+</dl>
+<p>]),
+x2=gym.spaces.Dict(</p>
+<blockquote>
+<div><dl class="simple">
+<dt>y1=gym.spaces.Dict(</dt><dd><p>z1=gym.spaces.Discrete(5)</p>
+</dd>
+</dl>
+<p>),
+y2=gym.spaces.Tuple([</p>
+<blockquote>
+<div><p>gym.spaces.Discrete(2),
+gym.spaces.Box(float(‘-inf’), float(‘inf’), (2, 3)),
+gym.spaces.Discrete(3),</p>
+</div></blockquote>
+<p>])))</p>
+</div></blockquote>
+</dd>
+</dl>
+</div></blockquote>
+<p>Here is an example that filter out part of a sequence container and a
+mapping container:</p>
+<blockquote>
+<div><p>[(“x2”, “y2”, 2), (“x2”, “y2”, 0), (“x1”,)]</p>
+<dl>
+<dt>gym.spaces.Dict(</dt><dd><dl class="simple">
+<dt>x1=gym.spaces.Tuple([</dt><dd><p>gym.spaces.Box(float(‘-inf’), float(‘inf’), (7, 6, 5, 4)),</p>
+</dd>
+</dl>
+<p>]),
+x2=gym.spaces.Dict(</p>
+<blockquote>
+<div><dl class="simple">
+<dt>y2=gym.spaces.Tuple([</dt><dd><p>gym.spaces.Discrete(2),
+gym.spaces.Discrete(3),</p>
+</dd>
+</dl>
+<p>])))</p>
+</div></blockquote>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>NestedObs</em><em>, </em><em>Act</em><em>]</em>) – Base or already wrapped jiminy environment.</p></li>
+<li><p><strong>kwargs</strong> – Extra keyword arguments for multiple inheritance.</p></li>
+<li><p><strong>nested_filter_keys</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.wrappers.observation_layout.FilterObservation.transform_observation">
+<span class="sig-name descname"><span class="pre">transform_observation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/wrappers/observation_layout.html#FilterObservation.transform_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.wrappers.observation_layout.FilterObservation.transform_observation" title="Link to this definition">¶</a></dt>
+<dd><p>No-op transform since the transform observation is sharing memory
+with the wrapped one since it is just a partial view.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="scale.html" class="btn btn-neutral float-left" title="Scaling and normalization" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="observation_stack.html" class="btn btn-neutral float-right" title="Observation Frame Stacking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

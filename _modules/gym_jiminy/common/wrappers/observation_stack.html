@@ -1,0 +1,398 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.wrappers.observation_stack &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.wrappers.observation_stack</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.wrappers.observation_stack</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module implements a wrapper for stacking observations over time.</span>
+
+<span class="sd">This wrapper</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">TypeAlias</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">array_copyto</span><span class="p">,</span> <span class="n">multi_array_copyto</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.tree</span> <span class="kn">import</span> <span class="n">flatten_with_path</span><span class="p">,</span> <span class="n">unflatten_as</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">DT_EPS</span><span class="p">,</span>
+                     <span class="n">NestedObs</span><span class="p">,</span>
+                     <span class="n">Act</span><span class="p">,</span>
+                     <span class="n">EngineObsType</span><span class="p">,</span>
+                     <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">BasePipelineWrapper</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">zeros</span><span class="p">,</span> <span class="n">copy</span><span class="p">,</span> <span class="n">is_breakpoint</span>
+
+
+<span class="n">StackedObs</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">NestedObs</span>
+
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="StackObservation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/observation_stack.html#gym_jiminy.common.wrappers.observation_stack.StackObservation">[docs]</a>
+<span class="k">class</span> <span class="nc">StackObservation</span><span class="p">(</span>
+        <span class="n">BasePipelineWrapper</span><span class="p">[</span><span class="n">StackedObs</span><span class="p">,</span> <span class="n">Act</span><span class="p">,</span> <span class="n">NestedObs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+        <span class="n">Generic</span><span class="p">[</span><span class="n">NestedObs</span><span class="p">,</span> <span class="n">Act</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Partially stack observations in a rolling manner.</span>
+
+<span class="sd">    This wrapper combines and extends OpenAI Gym wrappers `FrameStack` and</span>
+<span class="sd">    `FilteredJiminyEnv` to support nested filter keys. It derives from</span>
+<span class="sd">    `BasePipelineWrapper` rather than `gym.Wrapper`. This means that</span>
+<span class="sd">    observations can be stacked at observation update period rather than step</span>
+<span class="sd">    update period. It is also possible to access the stacked observation from</span>
+<span class="sd">    any block of the environment pipeline, and it will be taken into account</span>
+<span class="sd">    when calling `evaluate` or `play_interactive`.</span>
+
+<span class="sd">    It adds one extra dimension to all the leaves of the original observation</span>
+<span class="sd">    spaces that must be stacked. In such a case, the first dimension</span>
+<span class="sd">    corresponds to the individual timesteps (from oldest `0` to latest `-1`).</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The standard container spaces `gym.spaces.Dict` and `gym.spaces.Tuple`</span>
+<span class="sd">        are both supported. All the stacked leaf spaces must have type</span>
+<span class="sd">        `gym.spaces.Box`.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The latest frame of the stacked leaf observations corresponds to their</span>
+<span class="sd">        latest respective values no matter what. It will frozen when shifted to</span>
+<span class="sd">        the left.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">NestedObs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">num_stack</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                 <span class="n">nested_filter_keys</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span>
+                    <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">skip_frames_ratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Environment to wrap.</span>
+<span class="sd">        :param num_stack: Number of observation frames to keep stacked.</span>
+<span class="sd">        :param nested_filter_keys: List of nested observation paths to stack.</span>
+<span class="sd">                                   If a nested path is not associated with a</span>
+<span class="sd">                                   leaf, then every leaves starting from this</span>
+<span class="sd">                                   root path will be stacked.</span>
+<span class="sd">                                   Optional: All leaves will be stacked by</span>
+<span class="sd">                                   default.</span>
+<span class="sd">        :param skip_frames_ratio: Number of observation refresh to skip between</span>
+<span class="sd">                                  each update of the stacked leaf values. -1 to</span>
+<span class="sd">                                  update only once per environment step.</span>
+<span class="sd">                                  Optional: -1 by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Handling of default argument(s)</span>
+        <span class="n">env_observation_space</span><span class="p">:</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">observation_space</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_observation_space</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Dict</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nested_filter_keys</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nested_filter_keys</span> <span class="o">=</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">env_observation_space</span><span class="o">.</span><span class="n">keys</span><span class="p">()),)</span>
+
+        <span class="c1"># Make sure all nested keys are stored in sequence</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nested_filter_keys</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nested_filter_keys</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key_nested</span> <span class="ow">in</span> <span class="n">nested_filter_keys</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key_nested</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+                <span class="n">key_nested</span> <span class="o">=</span> <span class="p">(</span><span class="n">key_nested</span><span class="p">,)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nested_filter_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">key_nested</span><span class="p">))</span>
+
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_stack</span> <span class="o">=</span> <span class="n">num_stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_frames_ratio</span> <span class="o">=</span> <span class="n">skip_frames_ratio</span>
+
+        <span class="c1"># Get all paths associated with leaf values that must be stacked</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">path</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">e</span><span class="p">)]</span> <span class="o">==</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nested_filter_keys</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that some keys are preserved</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;At least one observation leaf must be stacked.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Bind observation of the environment for all non-stacked keys</span>
+        <span class="n">observation</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">)</span>
+        <span class="n">observation_leaves</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">flatten_with_path</span><span class="p">(</span><span class="n">observation</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">space</span> <span class="ow">in</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">observation_leaves</span><span class="p">[</span><span class="n">path</span><span class="p">]</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="n">space</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation</span> <span class="o">=</span> <span class="n">unflatten_as</span><span class="p">(</span>
+            <span class="n">observation</span><span class="p">,</span> <span class="n">observation_leaves</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="c1"># Allocate fixed-length deque buffer for each leaf value to stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_frames_leaves</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">deque</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stack</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">]</span>
+
+        <span class="c1"># Define frame update triplet for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_frames_update_triplets</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span>
+            <span class="n">Tuple</span><span class="p">[</span><span class="n">deque</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">frames_iterator</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_frames_leaves</span><span class="p">)</span>
+        <span class="n">env_observation_leaves</span> <span class="o">=</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">env_observation_leaf</span> <span class="ow">in</span> <span class="n">env_observation_leaves</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_observation_leaf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+            <span class="n">frames</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">frames_iterator</span><span class="p">)</span>
+            <span class="n">observation_leaf</span> <span class="o">=</span> <span class="n">observation_leaves</span><span class="p">[</span><span class="n">path</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">observation_leaf</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">observation_leaf</span> <span class="o">=</span> <span class="n">observation_leaf</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_frames_update_triplets</span><span class="o">.</span><span class="n">append</span><span class="p">((</span>
+                <span class="n">frames</span><span class="p">,</span> <span class="n">env_observation_leaf</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">observation_leaf</span><span class="p">)))</span>
+
+        <span class="c1"># Initialize some proxies for fast lookup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_step_dt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">step_dt</span>
+
+        <span class="c1"># Number of stack update that has been skipped since the last one</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_last_stack</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="c1"># Whether the stack has been shifted to the left since last update</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_was_stack_shifted</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Bind action of the base environment</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the action space.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Define leaf observation spaces</span>
+        <span class="n">observation_space_leaves</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">flatten_with_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">space</span> <span class="ow">in</span> <span class="n">observation_space_leaves</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Skip leaf spaces that must not be stacked</span>
+            <span class="k">if</span> <span class="n">path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Make sure that stacked leaf spaces derive from `gym.spaces.Box`</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">space</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="n">space</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                    <span class="nb">issubclass</span><span class="p">(</span><span class="n">space</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s2">&quot;Stacked leaf spaces must have type `gym.spaces.Box` &quot;</span>
+                    <span class="s2">&quot;whose dtype is either `np.floating` or `np.integer`.&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Prepend the original bounds with an additional stacking dimension</span>
+            <span class="n">low</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">space</span><span class="o">.</span><span class="n">low</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stack</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">space</span><span class="o">.</span><span class="n">high</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stack</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">observation_space_leaves</span><span class="p">[</span><span class="n">path</span><span class="p">]</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+                <span class="n">low</span><span class="o">=</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">high</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">space</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+
+        <span class="c1"># Define observation space by un-flattening leaf spaces</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">unflatten_as</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">,</span> <span class="n">observation_space_leaves</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="c1"># Make sure observe update is discrete-time</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observe_dt</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;This wrapper does not support time-continuous update.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check if skip frame ratio is divisor of step update ratio</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_frames_ratio</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">step_ratio</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_step_dt</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observe_dt</span><span class="p">)</span>
+            <span class="n">frame_ratio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_frames_ratio</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">step_ratio</span> <span class="o">//</span> <span class="n">frame_ratio</span><span class="p">)</span> <span class="o">*</span> <span class="n">frame_ratio</span> <span class="o">!=</span> <span class="n">step_ratio</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Beware `step_dt // observe_dt` is not a multiple of &quot;</span>
+                    <span class="s2">&quot;`skip_frames_ratio + 1`.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Copy observe and control update periods from wrapped environment</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observe_dt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observe_dt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">control_dt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">control_dt</span>
+
+        <span class="c1"># Reset frames to zero</span>
+        <span class="n">frames_iterator</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_frames_leaves</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">space</span> <span class="ow">in</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_filtered_leaves</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">frames</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">frames_iterator</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stack</span><span class="p">):</span>
+                <span class="n">frames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">zeros</span><span class="p">(</span><span class="n">space</span><span class="p">))</span>
+
+        <span class="c1"># Re-initialize stack state.</span>
+        <span class="c1"># Note that the initial observation is always stored.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_last_stack</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_frames_ratio</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_was_stack_shifted</span> <span class="o">=</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="StackObservation.refresh_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/observation_stack.html#gym_jiminy.common.wrappers.observation_stack.StackObservation.refresh_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="n">EngineObsType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Skip update if nothing to do</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_breakpoint</span><span class="p">(</span><span class="n">measurement</span><span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">observe_dt</span><span class="p">,</span> <span class="n">DT_EPS</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Refresh environment observation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">refresh_observation</span><span class="p">(</span><span class="n">measurement</span><span class="p">)</span>
+
+        <span class="c1"># Update stacked observation leaf values if necessary</span>
+        <span class="n">update_stack</span><span class="p">,</span> <span class="n">shift_stack</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_simulation_running</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_n_last_stack</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_frames_ratio</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">is_breakpoint</span><span class="p">(</span><span class="n">measurement</span><span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step_dt</span><span class="p">,</span> <span class="n">DT_EPS</span><span class="p">):</span>
+                    <span class="n">update_stack</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_last_stack</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_frames_ratio</span><span class="p">:</span>
+                <span class="n">update_stack</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">shift_stack</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_last_stack</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="c1"># Backup the nested observation fields to stack.</span>
+        <span class="c1"># Leaf values are copied to ensure they do not get altered later on.</span>
+        <span class="k">for</span> <span class="n">frames</span><span class="p">,</span> <span class="n">env_obs_leaf</span><span class="p">,</span> <span class="n">obs_leaf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frames_update_triplets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">update_stack</span><span class="p">:</span>
+                <span class="n">frames</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">env_obs_leaf</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">shift_stack</span><span class="p">:</span>
+                <span class="n">frames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env_obs_leaf</span><span class="p">)</span>
+                <span class="n">multi_array_copyto</span><span class="p">(</span><span class="n">obs_leaf</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">frames</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">array_copyto</span><span class="p">(</span><span class="n">obs_leaf</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">env_obs_leaf</span><span class="p">)</span>
+
+        <span class="c1"># Re-initialize number of skipped stack update</span>
+        <span class="k">if</span> <span class="n">update_stack</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_n_last_stack</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_was_stack_shifted</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="StackObservation.compute_command">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/observation_stack.html#gym_jiminy.common.wrappers.observation_stack.StackObservation.compute_command">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">Act</span><span class="p">,</span> <span class="n">command</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the motors efforts to apply on the robot.</span>
+
+<span class="sd">        It simply forwards the command computed by the wrapped environment</span>
+<span class="sd">        without any processing.</span>
+
+<span class="sd">        :param action: High-level target to achieve by means of the command.</span>
+<span class="sd">        :param command: Lower-level command to updated in-place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">compute_command</span><span class="p">(</span><span class="n">action</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

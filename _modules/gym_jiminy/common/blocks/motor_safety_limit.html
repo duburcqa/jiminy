@@ -1,0 +1,389 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.blocks.motor_safety_limit &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.blocks.motor_safety_limit</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.blocks.motor_safety_limit</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implementation of basic Proportional-Derivative controller block compatible</span>
+<span class="sd">with gym_jiminy reinforcement learning pipeline environment design.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="n">EncoderSensor</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+
+<span class="kn">from</span> <span class="nn">.proportional_derivative_controller</span> <span class="kn">import</span> <span class="n">get_encoder_to_motor_map</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">BaseObs</span><span class="p">,</span>
+                     <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">BaseControllerBlock</span><span class="p">,</span>
+                     <span class="n">BasePipelineWrapper</span><span class="p">,</span>
+                     <span class="n">ControlledJiminyEnv</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="apply_safety_limits">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/motor_safety_limit.html#gym_jiminy.common.blocks.motor_safety_limit.apply_safety_limits">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">apply_safety_limits</span><span class="p">(</span><span class="n">command</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">q_measured</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">v_measured</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">kp</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">kd</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">motors_soft_position_lower</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">motors_soft_position_upper</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">motors_velocity_limit</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">motors_effort_limit</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">out</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Clip the command torque to ensure safe operation.</span>
+
+<span class="sd">    It acts on each actuator independently and only activate close to the</span>
+<span class="sd">    position or velocity limits. Basically, the idea to the avoid moving faster</span>
+<span class="sd">    when some prescribed velocity limit or exceeding soft position bounds by</span>
+<span class="sd">    forcing the command torque to act against it. Still, it may not be enough</span>
+<span class="sd">    to prevent such issue in practice as the command torque is bounded.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All the input arguments must be in motor order, including the measured</span>
+<span class="sd">        position and velocity of the actuators. In practice, those measurements</span>
+<span class="sd">        comes from the encoder sensors. If so, then the measurements must be</span>
+<span class="sd">        re-ordered if necessary to match motor order instead of sensor order.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `MotorSafetyLimit` documentation for details.</span>
+
+<span class="sd">    :param command: Desired command to will be updated in-place if necessary.</span>
+<span class="sd">    :param q_measured: Current position of the actuators.</span>
+<span class="sd">    :param v_measured: Current velocity of the actuators.</span>
+<span class="sd">    :param kp: Scale of the velocity bound triggered by position limits.</span>
+<span class="sd">    :param kd: Scale of the effort bound triggered by velocity limits.</span>
+<span class="sd">    :param motors_soft_position_lower:</span>
+<span class="sd">        Soft lower position limit of the actuators.</span>
+<span class="sd">    :param motors_soft_position_upper:</span>
+<span class="sd">        Soft upper position limit of the actuators.</span>
+<span class="sd">    :param motors_velocity_limit: Maximum velocity of the actuators.</span>
+<span class="sd">    :param motors_effort_limit: Maximum effort that the actuators can output.</span>
+<span class="sd">                                The command torque cannot exceed this limits,</span>
+<span class="sd">                                not even if needed to enforce safe operation.</span>
+<span class="sd">    :param out: Pre-allocated memory to store the command motor torques.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Computes velocity bounds based on margin from soft joint limit if any</span>
+    <span class="n">safe_velocity_lower</span> <span class="o">=</span> <span class="n">motors_velocity_limit</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+        <span class="o">-</span><span class="n">kp</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_measured</span> <span class="o">-</span> <span class="n">motors_soft_position_lower</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">safe_velocity_upper</span> <span class="o">=</span> <span class="n">motors_velocity_limit</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+        <span class="o">-</span><span class="n">kp</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_measured</span> <span class="o">-</span> <span class="n">motors_soft_position_upper</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="c1"># Computes effort bounds based on velocity and effort bounds</span>
+    <span class="n">safe_effort_lower</span> <span class="o">=</span> <span class="n">motors_effort_limit</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+        <span class="o">-</span><span class="n">kd</span> <span class="o">*</span> <span class="p">(</span><span class="n">v_measured</span> <span class="o">-</span> <span class="n">safe_velocity_lower</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">safe_effort_upper</span> <span class="o">=</span> <span class="n">motors_effort_limit</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+        <span class="o">-</span><span class="n">kd</span> <span class="o">*</span> <span class="p">(</span><span class="n">v_measured</span> <span class="o">-</span> <span class="n">safe_velocity_upper</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="c1"># Clip command according to safe effort bounds</span>
+    <span class="n">out</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+        <span class="n">command</span><span class="p">,</span> <span class="n">safe_effort_lower</span><span class="p">),</span> <span class="n">safe_effort_upper</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="MotorSafetyLimit">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/motor_safety_limit.html#gym_jiminy.common.blocks.motor_safety_limit.MotorSafetyLimit">[docs]</a>
+<span class="k">class</span> <span class="nc">MotorSafetyLimit</span><span class="p">(</span>
+        <span class="n">BaseControllerBlock</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Safety mechanism primarily designed to prevent hardware damage and</span>
+<span class="sd">    premature wear, but also to temper violent, sporadic and dangerous motions.</span>
+
+<span class="sd">    A velocity limit v+ is enforced by bounding the commanded effort such that</span>
+<span class="sd">    no effort can be applied to push the joint beyond the velocity limit, and</span>
+<span class="sd">    a damping effort is applied if the joint is moving at a velocity beyond</span>
+<span class="sd">    the limit, ie -kd * (v - v+).</span>
+
+<span class="sd">    When the joint is near the soft limits x+/-, the velocities are bounded to</span>
+<span class="sd">    keep the position from crossing the soft limits. The k_position term</span>
+<span class="sd">    determines the scale of the bound on velocity, ie v+/- = -kp * (x - x+/-).</span>
+<span class="sd">    These bounds on velocity are the ones determining the bounds on effort.</span>
+
+<span class="sd">    The output command would never exceed the maximum effort, not even if</span>
+<span class="sd">    needed to enforce safe operation.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The prescribed position and velocity limits may be more respective that</span>
+<span class="sd">        the actual hardware specification of the robot.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        It must be connected directly to the environment without any other</span>
+<span class="sd">        intermediary controller.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See official ROS documentation and implementation for details:</span>
+<span class="sd">        https://wiki.ros.org/pr2_controller_manager/safety_limits</span>
+<span class="sd">        https://github.com/PR2/pr2_mechanism/blob/melodic-devel/pr2_mechanism_model/src/joint.cpp</span>
+<span class="sd">    &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501  # pylint: disable=line-too-long</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">BaseObs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">kp</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">kd</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">soft_position_margin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">soft_velocity_max</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">soft_effort_rel_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param name: Name of the block.</span>
+<span class="sd">        :param env: Environment to connect with.</span>
+
+<span class="sd">        :param kp: Scale of the velocity bound triggered by position limits.</span>
+<span class="sd">        :param kd: Scale of the effort bound triggered by velocity limits.</span>
+<span class="sd">        :param soft_position_margin: Minimum distance of the current joint</span>
+<span class="sd">                                     positions from their respective bounds</span>
+<span class="sd">                                     before starting to break.</span>
+<span class="sd">        :param soft_velocity_max: Maximum velocity of the joint before</span>
+<span class="sd">                                  starting to break.</span>
+<span class="sd">        :param soft_effort_rel_max: Maximum effort of the motor before</span>
+<span class="sd">                                    applying artificial saturation on it. This</span>
+<span class="sd">                                    limitation is ignored in evaluation mode.</span>
+<span class="sd">                                    Optional: 1.0 by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the parameters are valid</span>
+        <span class="k">if</span> <span class="n">soft_position_margin</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Soft position margin must be positive.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">soft_velocity_max</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Soft maximum velocity must be positive.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">soft_effort_rel_max</span> <span class="o">&lt;</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="n">soft_effort_rel_max</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Soft relative maximum torque must be between 0.0 and 1.0.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that no other controller has been added prior to this block</span>
+        <span class="n">env_unwrapped</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span> <span class="o">=</span> <span class="n">env</span>
+        <span class="k">while</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_unwrapped</span><span class="p">,</span> <span class="n">BasePipelineWrapper</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env_unwrapped</span><span class="p">,</span> <span class="n">ControlledJiminyEnv</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s2">&quot;No other control block must be added prior to this one.&quot;</span><span class="p">)</span>
+            <span class="n">env_unwrapped</span> <span class="o">=</span> <span class="n">env_unwrapped</span><span class="o">.</span><span class="n">env</span>
+
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kp</span> <span class="o">=</span> <span class="n">kp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kd</span> <span class="o">=</span> <span class="n">kd</span>
+
+        <span class="c1"># Extract mechanical reduction ratio</span>
+        <span class="c1"># FIXME: Is it considered invariant ? If not, it should be refreshed in</span>
+        <span class="c1"># `_setup`, as done for `DeformationEstimator`.</span>
+        <span class="n">encoder_to_joint_ratio</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">:</span>
+            <span class="n">motor_options</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+            <span class="n">encoder_to_joint_ratio</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">motor_options</span><span class="p">[</span><span class="s2">&quot;mechanicalReduction&quot;</span><span class="p">])</span>
+
+        <span class="c1"># Define buffers storing information about the motors for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motors_position_lower</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">position_limit_lower</span> <span class="o">+</span> <span class="n">ratio</span> <span class="o">*</span> <span class="n">soft_position_margin</span>
+            <span class="k">for</span> <span class="n">motor</span><span class="p">,</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">,</span> <span class="n">encoder_to_joint_ratio</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motors_position_upper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">position_limit_upper</span> <span class="o">-</span> <span class="n">ratio</span> <span class="o">*</span> <span class="n">soft_position_margin</span>
+            <span class="k">for</span> <span class="n">motor</span><span class="p">,</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">,</span> <span class="n">encoder_to_joint_ratio</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motors_velocity_limit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="nb">min</span><span class="p">(</span><span class="n">motor</span><span class="o">.</span><span class="n">velocity_limit</span><span class="p">,</span> <span class="n">ratio</span> <span class="o">*</span> <span class="n">soft_velocity_max</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">motor</span><span class="p">,</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">,</span> <span class="n">encoder_to_joint_ratio</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">effort_limit</span> <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit_true</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">motors_position_lower</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">motors_position_upper</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit_soft</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit_true</span> <span class="o">*</span> <span class="n">soft_effort_rel_max</span><span class="p">)</span>
+
+        <span class="c1"># Mapping from motors to encoders</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_motor_map</span> <span class="o">=</span> <span class="n">get_encoder_to_motor_map</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="p">)</span>
+
+        <span class="c1"># Whether stored reference to encoder measurements are already in the</span>
+        <span class="c1"># same order as the motors, allowing skipping re-ordering entirely.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_same_order</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_motor_map</span><span class="p">,</span> <span class="nb">slice</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_same_order</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Consider using the same ordering for encoders and motors for &quot;</span>
+                <span class="s2">&quot;optimal performance.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Extract measured motor positions and velocities for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">q_measured</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">v_measured</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">measurement</span><span class="p">[</span><span class="s2">&quot;measurements&quot;</span><span class="p">][</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">])</span>
+
+        <span class="c1"># Initialize the controller</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">update_ratio</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Whether to enforce soft effort limits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_enable_limit_soft</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the action space of the controller.</span>
+
+<span class="sd">        The action spaces corresponds to the command motors efforts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fieldnames</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;currentMotorTorque</span><span class="si">{</span><span class="n">motor</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="c1"># Unbounded effort limits in evaluation mode.</span>
+        <span class="c1"># Note that training/evaluation cannot be changed at this point.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_enable_limit_soft</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">training</span>
+
+<div class="viewcode-block" id="MotorSafetyLimit.compute_command">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/motor_safety_limit.html#gym_jiminy.common.blocks.motor_safety_limit.MotorSafetyLimit.compute_command">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                        <span class="n">action</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                        <span class="n">command</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply safety limits to the desired motor torques right before</span>
+<span class="sd">        sending it to the robot so as to avoid exceeded prescribed position</span>
+<span class="sd">        and velocity limits.</span>
+
+<span class="sd">        :param action: Desired motor torques to apply on the robot.</span>
+<span class="sd">        :param command: Current motor torques that will be updated in-place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract motor positions and velocity from encoder data</span>
+        <span class="n">q_measured</span><span class="p">,</span> <span class="n">v_measured</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_measured</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">v_measured</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_same_order</span><span class="p">:</span>
+            <span class="n">q_measured</span> <span class="o">=</span> <span class="n">q_measured</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_motor_map</span><span class="p">]</span>
+            <span class="n">v_measured</span> <span class="o">=</span> <span class="n">v_measured</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_motor_map</span><span class="p">]</span>
+
+        <span class="c1"># Pick the right effort limits depending on training / evaluation mode</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_limit_soft</span><span class="p">:</span>
+            <span class="n">motors_effort_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit_soft</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">motors_effort_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit_true</span>
+
+        <span class="c1"># Clip command according to safe effort bounds</span>
+        <span class="n">apply_safety_limits</span><span class="p">(</span><span class="n">action</span><span class="p">,</span>
+                            <span class="n">q_measured</span><span class="p">,</span>
+                            <span class="n">v_measured</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">kp</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">kd</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">motors_position_lower</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">motors_position_upper</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">motors_velocity_limit</span><span class="p">,</span>
+                            <span class="n">motors_effort_limit</span><span class="p">,</span>
+                            <span class="n">command</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

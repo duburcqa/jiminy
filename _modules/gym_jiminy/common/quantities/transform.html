@@ -1,0 +1,1003 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.quantities.transform &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.quantities.transform</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.quantities.transform</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Generic quantities that may be relevant for any kind of robot, regardless</span>
+<span class="sd">its topology (multiple or single branch, fixed or floating base...) and the</span>
+<span class="sd">application (locomotion, grasping...).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">sub</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">EllipsisType</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">overload</span><span class="p">,</span> <span class="n">cast</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">jiminy_py</span> <span class="kn">import</span> <span class="n">tree</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">array_copyto</span><span class="p">,</span> <span class="n">multi_array_copyto</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">,</span> <span class="n">QuantityCreator</span>
+<span class="kn">from</span> <span class="nn">..bases.compositions</span> <span class="kn">import</span> <span class="n">ArrayOrScalar</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">DataNested</span><span class="p">,</span> <span class="n">build_reduce</span>
+
+
+<span class="n">ValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;ValueT&#39;</span><span class="p">)</span>
+<span class="n">OtherValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;OtherValueT&#39;</span><span class="p">)</span>
+<span class="n">YetAnotherValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;YetAnotherValueT&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="StackedQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.StackedQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">StackedQuantity</span><span class="p">(</span>
+        <span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">OtherValueT</span><span class="p">],</span> <span class="n">Generic</span><span class="p">[</span><span class="n">ValueT</span><span class="p">,</span> <span class="n">OtherValueT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Keep track of a given quantity over time by automatically stacking its</span>
+<span class="sd">    value once per environment step since last reset.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        A new entry is added to the stack right before evaluating the reward</span>
+<span class="sd">        and termination conditions. Internal simulation steps, observer and</span>
+<span class="sd">        controller updates are ignored.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantity</span><span class="p">:</span> <span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base quantity whose value must be stacked over time since last reset.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_stack</span><span class="p">:</span> <span class="nb">int</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Maximum number of values that keep in memory before starting to discard</span>
+<span class="sd">    the oldest one (FIFO). `sys.maxsize` if unlimited.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">as_array</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whether to return data as a tuple or a contiguous N-dimensional array</span>
+<span class="sd">    whose last dimension gathers the value of individual timesteps.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">is_wrapping</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whether to wrap the stack around (i.e. starting filling data back from</span>
+<span class="sd">    the start when full) when full instead of shifting data to the left.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">allow_update_graph</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Disable dynamic computation graph update.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;StackedQuantity[ValueT, List[ValueT]]&quot;</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantity</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ValueT</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">max_stack</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                 <span class="n">is_wrapping</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                 <span class="n">as_array</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="s2">&quot;StackedQuantity[Union[np.ndarray, float], np.ndarray]&quot;</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantity</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">max_stack</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                 <span class="n">is_wrapping</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                 <span class="n">as_array</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantity</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">max_stack</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">,</span>
+                 <span class="n">is_wrapping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">as_array</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param quantity: Tuple gathering the class of the quantity whose values</span>
+<span class="sd">                         must be stacked, plus all its constructor keyword-</span>
+<span class="sd">                         arguments except environment &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param max_stack: Maximum number of values that keep in memory before</span>
+<span class="sd">                          starting to discard the oldest one (FIFO).</span>
+<span class="sd">                          Optional: The maxium sequence length by default, ie</span>
+<span class="sd">                          `sys.maxsize` (2^63 - 1).</span>
+<span class="sd">        :param is_wrapping: Whether to wrap the stack around (i.e. starting</span>
+<span class="sd">                            filling data back from the start when full) when</span>
+<span class="sd">                            full instead of shifting data to the left. Note</span>
+<span class="sd">                            that wrapping around is much faster for large stack</span>
+<span class="sd">                            but does not preserve temporal ordering.</span>
+<span class="sd">                            Optional: False by default.</span>
+<span class="sd">        :param as_array: Whether to return data as a list or a contiguous</span>
+<span class="sd">                         N-dimensional array whose last dimension gathers the</span>
+<span class="sd">                         value of individual timesteps.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the input arguments are valid</span>
+        <span class="k">if</span> <span class="n">max_stack</span> <span class="o">&gt;</span> <span class="mi">10000</span> <span class="ow">and</span> <span class="p">(</span><span class="n">as_array</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_wrapping</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Very large stack length is strongly discourages for &quot;</span>
+                <span class="s2">&quot;`as_array=True` and `is_wrapping=False`.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Backup user arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_stack</span> <span class="o">=</span> <span class="n">max_stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_wrapping</span> <span class="o">=</span> <span class="n">is_wrapping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">as_array</span> <span class="o">=</span> <span class="n">as_array</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span>
+                         <span class="n">parent</span><span class="p">,</span>
+                         <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">quantity</span><span class="o">=</span><span class="n">quantity</span><span class="p">),</span>
+                         <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Define specialized flattening operators for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_use_deepcopy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dst_flat</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_src_flat</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_dst</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">DataNested</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">data</span><span class="p">:</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_src</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">DataNested</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">data</span><span class="p">:</span> <span class="kc">None</span>
+
+        <span class="c1"># Allocate stack buffer.</span>
+        <span class="c1"># Note that using a plain old list is more efficient than dequeue in</span>
+        <span class="c1"># practice. Although front deletion is very fast compared to list,</span>
+        <span class="c1"># casting deque to tuple or list is very slow, which ultimately</span>
+        <span class="c1"># prevail. The matter gets worst as the maximum length gets longer.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Continuous memory to store the whole stack if requested.</span>
+        <span class="c1"># Note that it will be allocated lazily since the dimension of the</span>
+        <span class="c1"># quantity is not known in advance.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+        <span class="c1"># Define proxy to number of steps of current episode for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Keep track of the last time the quantity has been stacked</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps_prev</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+<div class="viewcode-block" id="StackedQuantity.initialize">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.StackedQuantity.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+        <span class="c1"># Refresh proxy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">num_steps</span>
+
+        <span class="c1"># Clear stack buffer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value_list</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="c1"># Get current value of base quantity</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+        <span class="c1"># Try to define specialized operators based on value.</span>
+        <span class="c1"># This would succeeded if and only if all leaves are `np.ndarray`.</span>
+        <span class="c1"># Do not try again if deepcopy mode was previously enabled.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_array</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_deepcopy</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_dst</span> <span class="o">=</span> <span class="n">build_reduce</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_dst_flat</span><span class="o">.</span><span class="n">append</span><span class="p">,</span>
+                                                 <span class="n">op</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                                 <span class="n">dataset</span><span class="o">=</span><span class="p">(),</span>
+                                                 <span class="n">space</span><span class="o">=</span><span class="n">value</span><span class="p">,</span>
+                                                 <span class="n">arity</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                                 <span class="n">forward_bounds</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_src</span> <span class="o">=</span> <span class="n">build_reduce</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_src_flat</span><span class="o">.</span><span class="n">append</span><span class="p">,</span>
+                                                 <span class="n">op</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                                 <span class="n">dataset</span><span class="o">=</span><span class="p">(),</span>
+                                                 <span class="n">space</span><span class="o">=</span><span class="n">value</span><span class="p">,</span>
+                                                 <span class="n">arity</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                                 <span class="n">forward_bounds</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
+                <span class="c1"># Falling back to generic deepcopy</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_use_deepcopy</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Initialize buffers if necessary</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_array</span><span class="p">:</span>
+            <span class="c1"># Make sure that the value of the quantity is supported</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;&#39;as_array=True&#39; is only supported by quantities &quot;</span>
+                    <span class="s2">&quot;returning N-dimensional arrays as value.&quot;</span><span class="p">)</span>
+            <span class="n">_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+            <span class="c1"># Allocate contiguous memory if necessary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="p">(</span><span class="o">*</span><span class="n">_value</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_stack</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;F&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">_value</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="c1"># Reset step counter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps_prev</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="StackedQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.StackedQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OtherValueT</span><span class="p">:</span>
+        <span class="c1"># Check if there is anything to do</span>
+        <span class="n">must_refresh</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">num_steps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">is_simulation_running</span><span class="p">:</span>
+            <span class="c1"># Early return if the stack if already up to date</span>
+            <span class="k">if</span> <span class="n">num_steps</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps_prev</span><span class="p">:</span>
+                <span class="n">must_refresh</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="c1"># Make sure that no steps are missing in the stack</span>
+            <span class="k">elif</span> <span class="n">num_steps</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps_prev</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s2">&quot;Previous step missing in the stack. Please reset the &quot;</span>
+                    <span class="s2">&quot;environment after adding this quantity.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">must_refresh</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Extract contiguous slice of (future) available data if necessary</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_array</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
+            <span class="n">num_stack</span> <span class="o">=</span> <span class="n">num_steps</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">num_stack</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_stack</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_stack</span><span class="p">]</span>
+
+        <span class="c1"># Append current value of the quantity to the history buffer or update</span>
+        <span class="c1"># aggregated continuous array directly if necessary.</span>
+        <span class="k">if</span> <span class="n">must_refresh</span><span class="p">:</span>
+            <span class="c1"># Get the current value of the quantity</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+            <span class="c1"># Get current index if wrapping around</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_wrapping</span><span class="p">:</span>
+                <span class="n">index</span> <span class="o">=</span> <span class="n">num_steps</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_stack</span>
+
+            <span class="c1"># Append value to the history or aggregate data directly</span>
+            <span class="n">is_stack_full</span> <span class="o">=</span> <span class="n">num_steps</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_stack</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_array</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_wrapping</span><span class="p">:</span>
+                    <span class="n">array_copyto</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">index</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Shift all available data one timestep to the left.</span>
+                    <span class="c1"># Operate on (future) available data only for efficiency.</span>
+                    <span class="k">if</span> <span class="n">is_stack_full</span><span class="p">:</span>
+                        <span class="n">array_copyto</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:])</span>
+
+                    <span class="c1"># Update most recent value in stack with the current one</span>
+                    <span class="n">array_copyto</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Remove oldest value in the stack if full</span>
+                <span class="n">update_buffer</span> <span class="o">=</span> <span class="n">is_stack_full</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_deepcopy</span>
+                <span class="n">update_in_place</span> <span class="o">=</span> <span class="n">update_buffer</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_wrapping</span>
+                <span class="k">if</span> <span class="n">update_in_place</span><span class="p">:</span>
+                    <span class="n">buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                <span class="k">elif</span> <span class="n">update_buffer</span><span class="p">:</span>
+                    <span class="n">buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_list</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+                <span class="c1"># Copy of the current value, while avoiding memory allocation</span>
+                <span class="c1"># if possible for efficiency. Note that data must be</span>
+                <span class="c1"># &quot;deep-copied&quot; to make sure it does not get altered afterward.</span>
+                <span class="k">if</span> <span class="n">update_buffer</span><span class="p">:</span>
+                    <span class="c1"># pylint: disable=used-before-assignment</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_dst_flat</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_dst</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_src_flat</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_src</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
+                        <span class="n">multi_array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dst_flat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_src_flat</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
+                        <span class="c1"># The value of the quantity has changed its memory</span>
+                        <span class="c1"># layout wrt initialization. Enabling generic deepcopy</span>
+                        <span class="c1"># fallback from now on.</span>
+                        <span class="n">buffer</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_use_deepcopy</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">buffer</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+                <span class="c1"># Add copied value to the stack if necessary</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">update_in_place</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">is_stack_full</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_wrapping</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_value_list</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">buffer</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_value_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span>
+
+            <span class="c1"># Increment step counter</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_num_steps_prev</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Return aggregate data if requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_array</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">OtherValueT</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># Return the whole stack as a list to preserve the integrity of the</span>
+        <span class="c1"># underlying container and make the API robust to internal changes.</span>
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">OtherValueT</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_value_list</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MaskedQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.MaskedQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">MaskedQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract a pre-defined set of elements from a given quantity whose value</span>
+<span class="sd">    is a N-dimensional array along an axis.</span>
+
+<span class="sd">    Elements will be extract by copy unless the indices of the elements to</span>
+<span class="sd">    extract to be written equivalently by a slice (ie they are evenly spaced),</span>
+<span class="sd">    and the array can be flattened while preserving memory contiguity if &#39;axis&#39;</span>
+<span class="sd">    is `None`, which means that the result will be different between C- and F-</span>
+<span class="sd">    contiguous arrays.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantity</span><span class="p">:</span> <span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base quantity whose elements must be extracted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">indices</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">EllipsisType</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Indices of the elements to extract.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">axis</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Axis over which to extract elements. `None` to consider flattened array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantity</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                 <span class="n">keys</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">EllipsisType</span><span class="p">]],</span>
+                             <span class="n">Sequence</span><span class="p">[</span><span class="nb">bool</span><span class="p">]],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">axis</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param quantity: Tuple gathering the class of the quantity whose values</span>
+<span class="sd">                         must be extracted, plus any keyword-arguments of its</span>
+<span class="sd">                         constructor except &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param keys: Sequence of indices or boolean mask that will be used to</span>
+<span class="sd">                     extract elements from the quantity along one axis.</span>
+<span class="sd">                     Ellipsis can be specified to automatically extract any</span>
+<span class="sd">                     indices in between surrounding indices or at both ends.</span>
+<span class="sd">                     Ellipsis on the right end is only supported for indices</span>
+<span class="sd">                     with constant stride.</span>
+<span class="sd">        :param axis: Axis over which to extract elements. `None` to consider</span>
+<span class="sd">                     flattened array.</span>
+<span class="sd">                     Optional: First axis by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Convert boolean mask to indices</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">))</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">))</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Interleave boolean mask with ellipsis is not supported.&quot;</span><span class="p">)</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">keys</span><span class="p">))</span>  <span class="c1"># type: ignore[arg-type]</span>
+
+        <span class="c1"># Convert keys to tuple while removing consecutive ellipsis if any</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="n">e</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="bp">Ellipsis</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">_next</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="nb">object</span><span class="p">()))</span>
+            <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">Ellipsis</span> <span class="ow">or</span> <span class="n">_next</span> <span class="o">!=</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># Replace intermediary ellipsis by indices if possible.</span>
+        <span class="c1"># Note that it is important to do this substitution BEFORE storing</span>
+        <span class="c1"># indices as attribute, otherwise masked quantities whose keys are</span>
+        <span class="c1"># different be actually corresponds to identicial indices would be</span>
+        <span class="c1"># identified as different as recomputed, e.g. (1, 2, 3) vs (..., 3).</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">e</span> <span class="ow">is</span> <span class="bp">Ellipsis</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">))[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">keys</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">Ellipsis</span><span class="p">:</span>
+                    <span class="n">indices</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span>
+                        <span class="n">keys</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">keys</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>  <span class="c1"># type: ignore[arg-type]</span>
+                    <span class="n">keys</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">keys</span><span class="p">[:(</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)],</span> <span class="o">*</span><span class="n">indices</span><span class="p">,</span> <span class="o">*</span><span class="n">keys</span><span class="p">[(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">Ellipsis</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">int</span><span class="p">)</span>
+                <span class="n">keys</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="o">*</span><span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+
+        <span class="c1"># Make sure that at least one index must be extracted</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No indices to extract from quantity. Data would be empty.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that at least one index must be extracted</span>
+        <span class="k">if</span> <span class="n">keys</span> <span class="o">==</span> <span class="p">(</span><span class="bp">Ellipsis</span><span class="p">,):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Specifying `keys=(...,)` is not allowed as it has no effect.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check if indices or ellipsis has been provided</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">((</span><span class="n">e</span> <span class="ow">is</span> <span class="bp">Ellipsis</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Argument &#39;keys&#39; invalid. It must either be a boolean mask, &quot;</span>
+                <span class="s2">&quot;or a sequence of indices and ellipsis.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Backup user arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="n">keys</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span>
+
+        <span class="c1"># Check if the indices are evenly spaced</span>
+        <span class="n">stride</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">keys_heads</span><span class="p">,</span> <span class="n">key_tail</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">keys</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="n">keys</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">stride</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span><span class="n">e</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">keys</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">Ellipsis</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">key_tail</span> <span class="ow">is</span> <span class="bp">Ellipsis</span><span class="p">:</span>
+                <span class="n">spaces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">keys_heads</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">spaces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">((</span><span class="o">*</span><span class="n">keys_heads</span><span class="p">,</span> <span class="n">key_tail</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="p">(</span><span class="n">stride</span><span class="p">,)</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">spaces</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key_tail</span> <span class="ow">is</span> <span class="bp">Ellipsis</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Ellipsis on the right end is only supported for &quot;</span>
+                        <span class="s2">&quot;sequence of indices with constant stride.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="c1"># Convert indices to slices if possible</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="n">EllipsisType</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="k">if</span> <span class="n">stride</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">slice_</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                           <span class="kc">None</span> <span class="k">if</span> <span class="n">key_tail</span> <span class="ow">is</span> <span class="bp">Ellipsis</span> <span class="k">else</span> <span class="n">key_tail</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                           <span class="n">stride</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span> <span class="o">=</span> <span class="p">(</span><span class="n">slice_</span><span class="p">,)</span>
+            <span class="k">elif</span> <span class="n">axis</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),)</span> <span class="o">*</span> <span class="n">axis</span><span class="p">),</span> <span class="n">slice_</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">Ellipsis</span><span class="p">,</span> <span class="n">slice_</span><span class="p">,</span> <span class="o">*</span><span class="p">((</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),)</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span> <span class="n">axis</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)))</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span>
+                         <span class="n">parent</span><span class="p">,</span>
+                         <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">quantity</span><span class="o">=</span><span class="n">quantity</span><span class="p">),</span>
+                         <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MaskedQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.MaskedQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="c1"># Get current value of base quantity</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+        <span class="c1"># Extract elements from quantity</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span><span class="p">:</span>
+            <span class="c1"># Note that `take` is faster than classical advanced indexing via</span>
+            <span class="c1"># `operator[]` (`__getitem__`) because the latter is more generic.</span>
+            <span class="c1"># Notably, `operator[]` supports boolean mask but `take` does not.</span>
+            <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">take</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># `ravel` must be used instead of `flat` to get a view that can</span>
+            <span class="c1"># be sliced without copy.</span>
+            <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s2">&quot;K&quot;</span><span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">_slices</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">value</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_slices</span><span class="p">]</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ConcatenatedQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.ConcatenatedQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">ConcatenatedQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concatenate a set of quantities whose value are N-dimensional arrays</span>
+<span class="sd">    along a given axis.</span>
+
+<span class="sd">    All the quantities must have the same shape, except for the dimension</span>
+<span class="sd">    corresponding to concatenation axis.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        For efficiency and convenience, built-in scalars and 0-D arrays are</span>
+<span class="sd">        treated as 1D arrays. For instance, multiple floats can be concatenated</span>
+<span class="sd">        as a vector.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantities</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base quantities whose values must be concatenated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">axis</span><span class="p">:</span> <span class="nb">int</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Axis over which to concatenate values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantities</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">QuantityCreator</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">axis</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param quantities: Sequence of tuples, each of which gathering the</span>
+<span class="sd">                           class of the quantity whose values must be</span>
+<span class="sd">                           extracted, plus any keyword-arguments of its</span>
+<span class="sd">                           constructor except &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param axis: Axis over which to concatenate values.</span>
+<span class="sd">                     Optional: First axis by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span>
+                         <span class="n">parent</span><span class="p">,</span>
+                         <span class="n">requirements</span><span class="o">=</span><span class="p">{</span>
+                            <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">):</span> <span class="n">quantity</span>
+                            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">quantities</span><span class="p">)</span>
+                         <span class="p">},</span>
+                         <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Define proxies for fast access</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">quantities</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Specifying less than 2 quantities is not allowed.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quantities</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">requirements</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="c1"># Continuous memory to store the result</span>
+        <span class="c1"># Note that it will be allocated lazily since the dimension of the</span>
+        <span class="c1"># quantity is not known in advance.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+        <span class="c1"># Store slices of data associated with each individual quantity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_slices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="ConcatenatedQuantity.initialize">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.ConcatenatedQuantity.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+        <span class="c1"># Get current value of all the quantities</span>
+        <span class="c1"># Dealing with special case where value is a float, as it would impede</span>
+        <span class="c1"># performance to force allocating a 1D array before concatenation.</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">quantity</span><span class="o">.</span><span class="n">get</span><span class="p">())</span> <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantities</span><span class="p">)</span>
+
+        <span class="c1"># Allocate contiguous memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">)</span>
+
+        <span class="c1"># Compute slices of data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_slices</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">idx_start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+            <span class="n">idx_end</span> <span class="o">=</span> <span class="n">idx_start</span> <span class="o">+</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_data_slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span>
+                <span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">),</span> <span class="nb">slice</span><span class="p">(</span><span class="n">idx_start</span><span class="p">,</span> <span class="n">idx_end</span><span class="p">))])</span>
+            <span class="n">idx_start</span> <span class="o">=</span> <span class="n">idx_end</span></div>
+
+
+<div class="viewcode-block" id="ConcatenatedQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.ConcatenatedQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="c1"># Refresh the contiguous buffer</span>
+        <span class="n">multi_array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_slices</span><span class="p">,</span>
+                           <span class="p">[</span><span class="n">quantity</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantities</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="UnaryOpQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.UnaryOpQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">UnaryOpQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">ValueT</span><span class="p">],</span>
+                      <span class="n">Generic</span><span class="p">[</span><span class="n">ValueT</span><span class="p">,</span> <span class="n">OtherValueT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a given unary operator to a quantity.</span>
+
+<span class="sd">    This quantity is useful to translate quantities from world frame to local</span>
+<span class="sd">    odometry frame. It may also be used to convert multi-variate quantities as</span>
+<span class="sd">    scalar, typically by computing the L^p-norm.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantity</span><span class="p">:</span> <span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">OtherValueT</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Quantity that will be forwarded to the unary operator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">OtherValueT</span><span class="p">],</span> <span class="n">ValueT</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Callable taking any value of the quantity as input argument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantity</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">OtherValueT</span><span class="p">],</span>
+                 <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">OtherValueT</span><span class="p">],</span> <span class="n">ValueT</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param quantity: Tuple gathering the class of the quantity whose value</span>
+<span class="sd">                         must be passed as argument of the unary operator, plus</span>
+<span class="sd">                         any keyword-arguments of its constructor except &#39;env&#39;</span>
+<span class="sd">                         and &#39;parent&#39;.</span>
+<span class="sd">        :param op: Any callable taking any value of the quantity as input</span>
+<span class="sd">                   argument. For example `partial(np.linalg.norm, ord=2)` to</span>
+<span class="sd">                   compute the difference.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">op</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">,</span>
+            <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">quantity</span><span class="o">=</span><span class="n">quantity</span><span class="p">),</span>
+            <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UnaryOpQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.UnaryOpQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValueT</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">op</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">get</span><span class="p">())</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BinaryOpQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.BinaryOpQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">BinaryOpQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">ValueT</span><span class="p">],</span>
+                       <span class="n">Generic</span><span class="p">[</span><span class="n">ValueT</span><span class="p">,</span> <span class="n">OtherValueT</span><span class="p">,</span> <span class="n">YetAnotherValueT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a given binary operator between two quantities.</span>
+
+<span class="sd">    This quantity is mainly useful for computing the error between the value of</span>
+<span class="sd">    a given quantity evaluated at the current simulation state and the state of</span>
+<span class="sd">    at the current simulation time for the reference trajectory being selected.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantity_left</span><span class="p">:</span> <span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">OtherValueT</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Left-hand side quantity that will be forwarded to the binary operator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantity_right</span><span class="p">:</span> <span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">YetAnotherValueT</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Right-hand side quantity that will be forwarded to the binary operator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">OtherValueT</span><span class="p">,</span> <span class="n">YetAnotherValueT</span><span class="p">],</span> <span class="n">ValueT</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Callable taking left- and right-hand side quantities as input argument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantity_left</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">OtherValueT</span><span class="p">],</span>
+                 <span class="n">quantity_right</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">YetAnotherValueT</span><span class="p">],</span>
+                 <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">OtherValueT</span><span class="p">,</span> <span class="n">YetAnotherValueT</span><span class="p">],</span> <span class="n">ValueT</span><span class="p">]</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param quantity_left: Tuple gathering the class of the quantity that</span>
+<span class="sd">                              must be passed to left-hand side of the binary</span>
+<span class="sd">                              operator, plus all its constructor keyword-</span>
+<span class="sd">                              arguments except environment &#39;env&#39; and parent</span>
+<span class="sd">                              &#39;parent.</span>
+<span class="sd">        :param quantity_right: Quantity that must be passed to right-hand side</span>
+<span class="sd">                               of the binary operator as a tuple</span>
+<span class="sd">                               (class, keyword-arguments). See `quantity_left`</span>
+<span class="sd">                               argument for details.</span>
+<span class="sd">        :param op: Any callable taking the right- and left-hand side quantities</span>
+<span class="sd">                   as input argument. For example `operator.sub` to compute the</span>
+<span class="sd">                   difference.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">op</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">,</span>
+            <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity_left</span><span class="o">=</span><span class="n">quantity_left</span><span class="p">,</span>
+                <span class="n">quantity_right</span><span class="o">=</span><span class="n">quantity_right</span><span class="p">),</span>
+            <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BinaryOpQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.BinaryOpQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValueT</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">op</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">quantity_left</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantity_right</span><span class="o">.</span><span class="n">get</span><span class="p">())</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MultiAryOpQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.MultiAryOpQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">MultiAryOpQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a given n-ary operator to the values of a given set of quantities.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantities</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sequence of quantities that will be forwarded to the n-ary operator in</span>
+<span class="sd">    this exact order.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">ValueT</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Callable taking the packed sequence of values for all the specified</span>
+<span class="sd">    quantities as input argument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">quantities</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">QuantityCreator</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span>
+                 <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">ValueT</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param quantities: Ordered sequence of n pairs, each gathering the</span>
+<span class="sd">                           class of a quantity whose value must be passed as</span>
+<span class="sd">                           argument of the n-ary operator, plus any</span>
+<span class="sd">                           keyword-arguments of its constructor except &#39;env&#39;</span>
+<span class="sd">                           and &#39;parent&#39;.</span>
+<span class="sd">        :param op: Any callable taking the packed sequence of values for all</span>
+<span class="sd">                   the quantities as input argument, in the exact order they</span>
+<span class="sd">                   were originally specified.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">op</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">,</span>
+            <span class="n">requirements</span><span class="o">=</span><span class="p">{</span>
+                <span class="sa">f</span><span class="s2">&quot;quantity_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">quantity</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">quantities</span><span class="p">)},</span>
+            <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Keep track of the instantiated quantities for identity check</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quantities</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">requirements</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+<div class="viewcode-block" id="MultiAryOpQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.MultiAryOpQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValueT</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">op</span><span class="p">([</span><span class="n">quantity</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantities</span><span class="p">])</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DeltaQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.DeltaQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">DeltaQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">ArrayOrScalar</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Variation of a given quantity over the whole span of a horizon.</span>
+
+<span class="sd">    If `bounds_only=False`, then the differences of the value of the quantity</span>
+<span class="sd">    between successive timesteps is accumulated over a variable-length history</span>
+<span class="sd">    bounded by &#39;max_stack&#39;, which  is basically a sliding window. The total</span>
+<span class="sd">    variation over this horizon is defined as the sum of all the successive</span>
+<span class="sd">    differences stored in the history.</span>
+
+<span class="sd">    If `bounds_only=True`, then the value of the quantity is accumulated over</span>
+<span class="sd">    a variable-length history bounded by &#39;max_stack&#39;. The total variation is</span>
+<span class="sd">    simply computed as the difference between most recent and oldest values</span>
+<span class="sd">    stored in the history.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">quantity</span><span class="p">:</span> <span class="n">InterfaceQuantity</span><span class="p">[</span>
+        <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ArrayOrScalar</span><span class="p">]]]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Quantity from which to compute the total variation over the history.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">ArrayOrScalar</span><span class="p">],</span> <span class="n">ArrayOrScalar</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Any callable taking as input argument the current and some previous</span>
+<span class="sd">    value of the quantity in that exact order, and returning the signed</span>
+<span class="sd">    difference between them.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_stack</span><span class="p">:</span> <span class="nb">int</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Time horizon over which to compute the variation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">bounds_only</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whether to compute the total variation as the difference between the</span>
+<span class="sd">    most recent and oldest value stored in the history, or the sum of</span>
+<span class="sd">    differences between successive timesteps.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+            <span class="n">quantity</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ArrayOrScalar</span><span class="p">],</span>
+            <span class="n">horizon</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+            <span class="o">*</span><span class="p">,</span>
+            <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">ArrayOrScalar</span><span class="p">],</span> <span class="n">ArrayOrScalar</span><span class="p">]</span> <span class="o">=</span> <span class="n">sub</span><span class="p">,</span>
+            <span class="n">bounds_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param quantity: Tuple gathering the class of the quantity from which</span>
+<span class="sd">                         to compute the variation, plus any keyword-arguments</span>
+<span class="sd">                         of its constructor except &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the drift. `None` to consider</span>
+<span class="sd">                        only two successive timesteps.</span>
+<span class="sd">        :param op: Any callable taking as input argument the current and some</span>
+<span class="sd">                   previous value of the quantity in that exact order, and</span>
+<span class="sd">                   returning the signed difference between them. Typically,</span>
+<span class="sd">                   the substraction operation is appropriate for position in</span>
+<span class="sd">                   Euclidean space, but not for orientation as it is important</span>
+<span class="sd">                   to count turns.</span>
+<span class="sd">                   Optional: `sub` by default.</span>
+<span class="sd">        :param bounds_only: Whether to compute the total variation as the</span>
+<span class="sd">                            difference between the most recent and oldest value</span>
+<span class="sd">                            stored in the history, or the sum of differences</span>
+<span class="sd">                            between successive timesteps.</span>
+<span class="sd">                            Optional: True by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Convert horizon in stack length, assuming constant env timestep</span>
+        <span class="k">if</span> <span class="n">horizon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">max_stack</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_stack</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">horizon</span> <span class="o">/</span> <span class="n">env</span><span class="o">.</span><span class="n">step_dt</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Backup some of the user-arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">op</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_stack</span> <span class="o">=</span> <span class="n">max_stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds_only</span> <span class="o">=</span> <span class="n">bounds_only</span>
+
+        <span class="c1"># Define the appropriate quantity</span>
+        <span class="n">quantity_stack</span><span class="p">:</span> <span class="n">QuantityCreator</span>
+        <span class="k">if</span> <span class="n">bounds_only</span><span class="p">:</span>
+            <span class="n">quantity_stack</span> <span class="o">=</span> <span class="p">(</span><span class="n">StackedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="n">quantity</span><span class="p">,</span>
+                <span class="n">max_stack</span><span class="o">=</span><span class="n">max_stack</span><span class="p">,</span>
+                <span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">as_array</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">quantity_stack</span> <span class="o">=</span> <span class="p">(</span><span class="n">StackedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">DeltaQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">quantity</span><span class="o">=</span><span class="n">quantity</span><span class="p">,</span>
+                    <span class="n">horizon</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">bounds_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">op</span><span class="o">=</span><span class="n">op</span><span class="p">)),</span>
+                <span class="n">max_stack</span><span class="o">=</span><span class="p">(</span><span class="n">max_stack</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                <span class="n">is_wrapping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">,</span>
+            <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity_stack</span><span class="o">=</span><span class="n">quantity_stack</span><span class="p">),</span>
+            <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Keep try of the underlying quantity for equality check</span>
+        <span class="k">if</span> <span class="n">bounds_only</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">quantity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantity_stack</span><span class="o">.</span><span class="n">quantity</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">quantity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantity_stack</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span>
+
+<div class="viewcode-block" id="DeltaQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/transform.html#gym_jiminy.common.quantities.transform.DeltaQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ArrayOrScalar</span><span class="p">:</span>
+        <span class="n">quantity_stack</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quantity_stack</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds_only</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">op</span><span class="p">(</span><span class="n">quantity_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">quantity_stack</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">quantity_stack</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,333 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locomotion &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Quantities" href="../quantities/index.html" />
+    <link rel="prev" title="Generic" href="generic.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Envs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="generic.html">Generic</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Locomotion</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv"><code class="docutils literal notranslate"><span class="pre">WalkerJiminyEnv</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Envs</a></li>
+      <li class="breadcrumb-item active">Locomotion</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/envs/locomotion.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.envs.locomotion">
+<span id="locomotion"></span><h1>Locomotion<a class="headerlink" href="#module-gym_jiminy.common.envs.locomotion" title="Link to this heading">¶</a></h1>
+<p>Generic environment to learn locomotion skills for legged robots using
+Jiminy simulator as physics engine.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.locomotion.WalkerJiminyEnv">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.envs.locomotion.</span></span><span class="sig-name descname"><span class="pre">WalkerJiminyEnv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">urdf_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hardware_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_dir_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simulation_duration_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_dt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.04</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reward_mixture</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">std_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">avoid_instable_collisions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">viewer_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/locomotion.html#WalkerJiminyEnv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.envs.generic.BaseJiminyEnv" title="gym_jiminy.common.envs.generic.BaseJiminyEnv"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseJiminyEnv</span></code></a></p>
+<p>Gym environment for learning locomotion skills for legged robots.</p>
+<p>Jiminy is used for both physics computations and rendering.</p>
+<p>The observation and action spaces are unchanged wrt <cite>BaseJiminyEnv</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>urdf_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Path of the urdf model to be used for the simulation.
+It is assumed that the robot has a floating base.</p></li>
+<li><p><strong>hardware_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Path of Jiminy hardware description toml file.
+Optional: Looking for ‘*_hardware.toml’ file in
+the same folder and with the same name.</p></li>
+<li><p><strong>mesh_dir_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Path to the folder containing the model meshes.
+Optional: Env variable ‘JIMINY_DATA_PATH’ will be
+used if available.</p></li>
+<li><p><strong>simulation_duration_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum duration of a simulation before
+returning done.</p></li>
+<li><p><strong>step_dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Environment timestep for learning. Note that it is
+independent from the controller and observation update
+periods. The latter are configured via
+<cite>engine.set_options</cite>.</p></li>
+<li><p><strong>reward_mixture</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><em>dict</em></a><em> | </em><em>None</em>) – Weighting factors of selected contributions to
+total reward.</p></li>
+<li><p><strong>std_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><em>dict</em></a><em> | </em><em>None</em>) – Relative standard deviation of selected contributions
+to environment stochasticity.</p></li>
+<li><p><strong>config_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Configuration toml file to import. It will be
+imported AFTER loading the hardware description
+file. It can be automatically generated from an
+instance by calling <cite>export_config_file</cite> method.
+Optional: Looking for ‘*_options.toml’ file in the
+same folder and with the same name. If not found,
+using default configuration.</p></li>
+<li><p><strong>avoid_instable_collisions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Prevent numerical instabilities by
+replacing collision mesh by vertices
+of associated minimal volume bounding
+box, and replacing primitive box by
+its vertices.</p></li>
+<li><p><strong>debug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the debug mode must be activated. Doing it
+enables telemetry recording.</p></li>
+<li><p><strong>robot</strong> (<a class="reference internal" href="../../../jiminy_py/core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a><em> | </em><em>None</em>) – Robot being simulated, already instantiated and
+initialized. Build default robot using ‘urdf_path’,
+‘hardware_path’ and ‘mesh_dir_path’ if omitted.
+Optional: None by default.</p></li>
+<li><p><strong>viewer_kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><em>None</em>) – Keyword arguments used to override the original
+default values whenever a viewer is instantiated.
+This is the only way to pass custom arguments to
+the viewer when calling <cite>render</cite> method, unlike
+<cite>replay</cite> which forwards extra keyword arguments.
+Optional: None by default.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Keyword arguments to forward to <cite>Simulator</cite> and
+<cite>BaseJiminyEnv</cite> constructors.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.reward_range">
+<span class="sig-name descname"><span class="pre">reward_range</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(0.0,</span> <span class="pre">1.0)</span></em><a class="headerlink" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.reward_range" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._setup">
+<span class="sig-name descname"><span class="pre">_setup</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/locomotion.html#WalkerJiminyEnv._setup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._setup" title="Link to this definition">¶</a></dt>
+<dd><p>Configure the environment.</p>
+<p>It is doing the following steps, successively:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>updates some proxies that will be used for computing the
+reward and termination condition,</p></li>
+<li><p>enforce some options of the low-level robot and engine,</p></li>
+<li><p>randomize the environment according to ‘std_ratio’.</p></li>
+</ul>
+</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called internally by <cite>reset</cite> method at the very
+beginning. One must override it to implement new contributions to
+the environment stochasticity, or to create custom low-level robot
+if the model must be different for each learning episode.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._force_external_profile">
+<span class="sig-name descname"><span class="pre">_force_external_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wrench</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/locomotion.html#WalkerJiminyEnv._force_external_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._force_external_profile" title="Link to this definition">¶</a></dt>
+<dd><p>User-specified processing of external force profiles.</p>
+<p>Typical usecases are time rescaling (1.0 second by default), or
+changing the orientation of the force (x/y in world frame by default).
+It could also be used for clamping the force.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Beware it updates ‘wrench’ by reference for the sake of efficiency.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Current time.</p></li>
+<li><p><strong>q</strong> (<em>ndarray</em>) – Current configuration vector of the robot.</p></li>
+<li><p><strong>v</strong> (<em>ndarray</em>) – Current velocity vector of the robot.</p></li>
+<li><p><strong>wrench</strong> (<em>ndarray</em>) – Force to apply on the robot as a vector (linear and
+angular) [Fx, Fy, Fz, Mx, My, Mz].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.has_terminated">
+<span class="sig-name descname"><span class="pre">has_terminated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/locomotion.html#WalkerJiminyEnv.has_terminated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.has_terminated" title="Link to this definition">¶</a></dt>
+<dd><p>Determine whether the episode is over.</p>
+<p>It terminates (<cite>terminated=True</cite>) under the following conditions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>fall detection: the freeflyer goes lower than 75% of its height
+in neutral configuration.</p></li>
+</ul>
+</div></blockquote>
+<p>It is truncated under the following conditions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>observation out-of-bounds</p></li>
+<li><p>maximum simulation duration exceeded</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>terminated and truncated flags.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.compute_reward">
+<span class="sig-name descname"><span class="pre">compute_reward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/locomotion.html#WalkerJiminyEnv.compute_reward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.compute_reward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute reward at current episode state.</p>
+<p>It computes the reward associated with each individual contribution
+according to ‘reward_mixture’.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method can be overwritten to implement new contributions to
+the reward, or to monitor more information.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Aggregated reward.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="generic.html" class="btn btn-neutral float-left" title="Generic" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../quantities/index.html" class="btn btn-neutral float-right" title="Quantities" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,702 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generic &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Locomotion" href="locomotion.html" />
+    <link rel="prev" title="Compositions" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Compositions</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Generic</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.SurviveReward"><code class="docutils literal notranslate"><span class="pre">SurviveReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.TrackingActuatedJointPositionsReward"><code class="docutils literal notranslate"><span class="pre">TrackingActuatedJointPositionsReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.MinimizeMechanicalPowerConsumption"><code class="docutils literal notranslate"><span class="pre">MinimizeMechanicalPowerConsumption</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.compute_drift_error"><code class="docutils literal notranslate"><span class="pre">compute_drift_error()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination"><code class="docutils literal notranslate"><span class="pre">DriftTrackingQuantityTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.min_norm"><code class="docutils literal notranslate"><span class="pre">min_norm()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.compute_min_distance"><code class="docutils literal notranslate"><span class="pre">compute_min_distance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination"><code class="docutils literal notranslate"><span class="pre">ShiftTrackingQuantityTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance"><code class="docutils literal notranslate"><span class="pre">_MultiActuatedJointBoundDistance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.MechanicalSafetyTermination"><code class="docutils literal notranslate"><span class="pre">MechanicalSafetyTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.MechanicalPowerConsumptionTermination"><code class="docutils literal notranslate"><span class="pre">MechanicalPowerConsumptionTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.generic.ShiftTrackingMotorPositionsTermination"><code class="docutils literal notranslate"><span class="pre">ShiftTrackingMotorPositionsTermination</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="locomotion.html">Locomotion</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Compositions</a></li>
+      <li class="breadcrumb-item active">Generic</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/compositions/generic.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.compositions.generic">
+<span id="generic"></span><h1>Generic<a class="headerlink" href="#module-gym_jiminy.common.compositions.generic" title="Link to this heading">¶</a></h1>
+<p>Generic reward components that may be relevant for any kind of robot,
+regardless its topology (multiple or single branch, fixed or floating base…)
+and the application (locomotion, grasping…).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.SurviveReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">SurviveReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#SurviveReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.SurviveReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.AbstractReward" title="gym_jiminy.common.bases.compositions.AbstractReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractReward</span></code></a></p>
+<p>Reward the agent for surviving, ie make episodes last as long as
+possible by avoiding triggering termination conditions.</p>
+<p>Constant positive reward equal to 1.0 systematically, unless the current
+state of the environment is the terminal state. In which case, the value
+0.0 is returned instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.SurviveReward.is_terminal">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_terminal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#gym_jiminy.common.compositions.generic.SurviveReward.is_terminal" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is terminal, non-terminal, or indefinite.</p>
+<p>A reward is said to be “terminal” if only evaluated for the terminal
+state of the MDP, “non-terminal” if evaluated for all states except the
+terminal one, or indefinite if systematically evaluated no matter what.</p>
+<p>All rewards are supposed to be indefinite unless stated otherwise by
+overloading this method. The responsibility of evaluating the reward
+only when necessary is delegated to <cite>compute</cite>. This allows for complex
+evaluation logics beyond terminal or non-terminal without restriction.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Truncation is not consider the same as termination. The reward to
+not be evaluated in such a case, which means that it will never be
+for such episodes.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.SurviveReward.is_normalized">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_normalized</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.compositions.generic.SurviveReward.is_normalized" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is guaranteed to be normalized, ie it is in range
+[0.0, 1.0].</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.SurviveReward.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#SurviveReward.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.SurviveReward.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Return a constant positive reward equal to 1.0 systematically,
+useless the episode is terminated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.TrackingQuantityReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">TrackingQuantityReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantity_creator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">op=&lt;built-in</span> <span class="pre">function</span> <span class="pre">sub&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order=2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#TrackingQuantityReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityReward" title="gym_jiminy.common.bases.compositions.QuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityReward</span></code></a></p>
+<p>Base class from which to derive reward defined as a difference between
+the current and reference value of a given quantity.</p>
+<p>A reference trajectory must be selected before evaluating this reward
+otherwise an exception will be risen. See <cite>DatasetTrajectoryQuantity</cite> and
+<cite>AbstractQuantity</cite> documentations for details.</p>
+<p>The error is transformed in a normalized reward to maximize by applying RBF
+kernel on the error. The reward will be 0.0 if the error cancels out
+completely and less than ‘CUTOFF_ESP’ above the user-specified cutoff
+threshold.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the reward. This name will be used as key
+for storing current value of the reward in ‘info’, and to
+add the underlying quantity to the set of already managed
+quantities by the environment. As a result, it must be
+unique otherwise an exception will be raised.</p></li>
+<li><p><strong>quantity_creator</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Type" title="(in Python v3.13)"><em>Type</em></a><em>[</em><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>[</em><em>ValueT</em><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>]</em><em>]</em>) – Any callable taking a quantity evaluation mode
+as input argument and return a tuple gathering
+the class of the underlying quantity to use as
+reward after some post-processing, plus any
+keyword-arguments of its constructor except
+‘env’ and ‘parent’.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>op</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>ValueT</em><em>, </em><em>ValueT</em><em>]</em><em>, </em><em>ValueT</em><em>]</em>) – Any callable taking the true and reference values of the
+quantity as input argument and returning the difference
+between them, considering the algebra defined by their Lie
+Group. The basic subtraction operator <cite>operator.sub</cite> is
+appropriate for the Euclidean space.
+Optional: <cite>operator.sub</cite> by default.</p></li>
+<li><p><strong>order</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Order of L^p-norm that will be used as distance metric.
+Optional: 2 by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.TrackingActuatedJointPositionsReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">TrackingActuatedJointPositionsReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#TrackingActuatedJointPositionsReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.TrackingActuatedJointPositionsReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the position of all the actuated joints of
+the robot wrt some reference trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.MinimizeMechanicalPowerConsumption">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">MinimizeMechanicalPowerConsumption</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">EnergyGenerationMode.CHARGE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#MinimizeMechanicalPowerConsumption"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.MinimizeMechanicalPowerConsumption" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityReward" title="gym_jiminy.common.bases.compositions.QuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityReward</span></code></a></p>
+<p>Encourages the agent to minimize its average mechanical power
+consumption.</p>
+<p>This reward is useful to favor carefully tailored short burst of motion
+that may be power-angry for a very short duration, but more energy
+efficient on average. The resulting motion tends to be more human-like.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the average.</p></li>
+<li><p><strong>generator_mode</strong> (<a class="reference internal" href="../quantities/generic.html#gym_jiminy.common.quantities.generic.EnergyGenerationMode" title="gym_jiminy.common.quantities.generic.EnergyGenerationMode"><em>EnergyGenerationMode</em></a>) – Specify what happens to the energy generated by
+motors when breaking.
+Optional: <cite>EnergyGenerationMode.CHARGE</cite> by
+default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.compute_drift_error">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">compute_drift_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">delta_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_ref</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#compute_drift_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.compute_drift_error" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the difference between the true and reference variation of a
+quantity over a given horizon, then apply some post-processing on it if
+requested.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>delta_true</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – True value of the variation as a N-dimensional array.</p></li>
+<li><p><strong>delta_ref</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Reference value of the variation as a N-dimensional
+array.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">DriftTrackingQuantityTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantity_creator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period=0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">op=&lt;built-in</span> <span class="pre">function</span> <span class="pre">sub&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds_only=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_truncation=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only=False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#DriftTrackingQuantityTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Base class to derive termination condition from the drift between the
+current and reference values of a given quantity over a horizon.</p>
+<p>The drift is defined as the difference between the current and reference
+variation of the quantity over a sliding window of length ‘horizon’. See
+<cite>DeltaQuantity</cite> quantity for details.</p>
+<p>In practice, no bound check is applied on the drift directly, which may be
+multi-variate at this point. Instead, the L2-norm is used as metric in the
+variation space for computing the error between the current and reference
+variation of the quantity.</p>
+<p>If the error does not exceed the maximum threshold, then the episode
+continues. Otherwise, it is either truncated or terminated according to
+‘is_truncation’ constructor argument. This check only applies after the end
+of a grace period. Before that, the episode continues no matter what.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the termination condition. This name will
+be used as key for storing the current episode state from
+the perspective of this specific condition in ‘info’, and
+to add the underlying quantity to the set of already
+managed quantities by the environment. As a result, it
+must be unique otherwise an exception will be raised.</p></li>
+<li><p><strong>quantity_creator</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Type" title="(in Python v3.13)"><em>Type</em></a><em>[</em><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>[</em><em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>]</em><em>]</em>) – Any callable taking a quantity evaluation mode
+as input argument and return a tuple gathering
+the class of the underlying quantity to use as
+reward after some post-processing, plus any
+keyword-arguments of its constructor except
+‘env’ and ‘parent’.</p></li>
+<li><p><strong>thr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Termination is triggered if the drift exceeds this
+threshold.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the drift.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>op</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><em>number</em><em>]</em><em>, </em><em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><em>number</em><em>]</em><em>]</em><em>, </em><em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em>]</em>) – Any callable taking as input argument the current and some
+previous value of the quantity in that exact order, and
+returning the signed difference between them. Typically,
+the substraction operation is appropriate for position in
+Euclidean space, but not for orientation as it is important
+to count turns.
+Optional: <cite>sub</cite> by default.</p></li>
+<li><p><strong>bounds_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to compute the total variation as the
+difference between the most recent and oldest value
+stored in the history, or the sum of differences
+between successive timesteps.</p></li>
+<li><p><strong>is_truncation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode should be considered
+terminated or truncated whenever the termination
+condition is triggered.
+Optional: False by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.min_norm">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">min_norm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#min_norm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.min_norm" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the minimum Euclidean norm over all timestamps of a multivariate
+time series.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>values</strong> (<em>ndarray</em>) – Time series as a N-dimensional array whose last dimension
+corresponds to individual timestamps over a finite horizon.
+The value at each timestamp will be regarded as a 1D vector
+for computing their Euclidean norm.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.compute_min_distance">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">compute_min_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">op</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">left</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">right</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#compute_min_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.compute_min_distance" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the minimum time-aligned Euclidean distance between two
+multivariate time series kept in sync.</p>
+<p>Internally, the time-aligned difference between the two time series will
+first be computed according to the user-specified binary operator ‘op’. The
+classical Euclidean norm of the difference is then computed over all
+timestamps individually and the minimum value is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>left</strong> (<em>ndarray</em>) – Time series as a N-dimensional array whose first dimension
+corresponds to individual timestamps over a finite horizon.
+The value at each timestamp will be regarded as a 1D vector
+for computing their Euclidean norm. It will be passed as
+left-hand side of the binary operator ‘op’.</p></li>
+<li><p><strong>right</strong> (<em>ndarray</em>) – Time series as a N-dimensional array with the exact same
+shape as ‘left’. See ‘left’ for details. It will be passed as
+right-hand side of the binary operator ‘op’.</p></li>
+<li><p><strong>op</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>ndarray</em><em>, </em><em>ndarray</em><em>]</em><em>, </em><em>ndarray</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">ShiftTrackingQuantityTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantity_creator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period=0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">op=&lt;built-in</span> <span class="pre">function</span> <span class="pre">sub&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_truncation=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only=False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#ShiftTrackingQuantityTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Base class to derive termination condition from the shift between the
+current and reference values of a given quantity.</p>
+<p>The shift is defined as the minimum time-aligned distance (L^2-norm of the
+difference) between two multivariate time series. In this case, a
+variable-length horizon bounded by ‘max_stack’ is considered.</p>
+<p>All elements must be within bounds for at least one time step in the fixed
+horizon. If so, then the episode continues, otherwise it is either
+truncated or terminated according to ‘is_truncation’ constructor argument.
+This only applies after the end of a grace period. Before that, the episode
+continues no matter what.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the termination condition. This name will
+be used as key for storing the current episode state from
+the perspective of this specific condition in ‘info’, and
+to add the underlying quantity to the set of already
+managed quantities by the environment. As a result, it
+must be unique otherwise an exception will be raised.</p></li>
+<li><p><strong>quantity_creator</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Type" title="(in Python v3.13)"><em>Type</em></a><em>[</em><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>[</em><em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>]</em><em>]</em>) – Any callable taking a quantity evaluation mode
+as input argument and return a tuple gathering
+the class of the underlying quantity to use as
+reward after some post-processing, plus any
+keyword-arguments of its constructor except
+‘env’ and ‘parent’.</p></li>
+<li><p><strong>thr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Termination is triggered if the shift exceeds this
+threshold.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the shift.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>op</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>ndarray</em><em>, </em><em>ndarray</em><em>]</em><em>, </em><em>ndarray</em><em>]</em>) – Any callable taking the true and reference stacked values of
+the quantity as input argument and returning the difference
+between them, considering the algebra defined by their Lie
+Group. True and reference values are stacked in contiguous
+N-dimension arrays along the first axis, namely the first
+dimension gathers individual timesteps. For instance, the
+common subtraction operator <cite>operator.sub</cite> is appropriate
+for Euclidean space.
+Optional: <cite>operator.sub</cite> by default.</p></li>
+<li><p><strong>is_truncation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode should be considered
+terminated or truncated whenever the termination
+condition is triggered.
+Optional: False by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">_MultiActuatedJointBoundDistance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#_MultiActuatedJointBoundDistance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]]</p>
+<p>Distance of the actuated joints from their respective lower and upper
+mechanical stops.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> – Desired mode of evaluation for this quantity.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#_MultiActuatedJointBoundDistance.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#_MultiActuatedJointBoundDistance.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<em>ndarray</em>, <em>ndarray</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.MechanicalSafetyTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">MechanicalSafetyTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_margin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">velocity_max</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#MechanicalSafetyTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.MechanicalSafetyTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.AbstractTerminationCondition" title="gym_jiminy.common.bases.compositions.AbstractTerminationCondition"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractTerminationCondition</span></code></a></p>
+<p>Discouraging the agent from hitting the mechanical stops by immediately
+terminating the episode if the articulated joints approach them at
+excessive speed.</p>
+<p>Hitting the lower and upper mechanical stops is inconvenient but forbidding
+it completely is not desirable as it induces safety margins that constrain
+the problem too strictly. This is particularly true when the maximum motor
+torque becomes increasingly limited and PD controllers are being used for
+low-level motor control, which turns out to be the case in most instances.
+Overall, such an hard constraint would impede performance while completing
+the task successfully remains the highest priority. Still, the impact
+velocity must be restricted to prevent destructive damage. It is
+recommended to estimate an acceptable thresholdfrom real experimental data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>position_margin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Distance of actuated joints from their
+respective mechanical bounds below which
+their speed is being watched.</p></li>
+<li><p><strong>velocity_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum velocity above which further approaching
+the mechanical stops triggers termination when
+watched for being close from them.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.MechanicalSafetyTermination.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#MechanicalSafetyTermination.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.MechanicalSafetyTermination.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate the termination condition.</p>
+<p>The underlying quantity is first evaluated. The episode continues if
+its value is within bounds, otherwise the episode is either truncated
+or terminated according to ‘is_truncation’.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not meant to be overloaded.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.MechanicalPowerConsumptionTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">MechanicalPowerConsumptionTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_power</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">EnergyGenerationMode.CHARGE</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#MechanicalPowerConsumptionTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.MechanicalPowerConsumptionTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Terminate the episode immediately if the average mechanical power
+consumption is too high.</p>
+<p>High power consumption is undesirable as it means that the motion is
+suboptimal and probably unnatural and fragile. Moreover, it helps to
+accommodate hardware capability to avoid motor overheating while increasing
+battery autonomy and lifespan. Finally, it may be necessary to deal with
+some hardware limitations on max power drain.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>max_power</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum average mechanical power consumption applied
+on any of the contact points or collision bodies
+above which termination is triggered.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><em>None</em>) – Horizon over which values of the quantity will be
+stacked before computing the average. <cite>None</cite> to
+consider the instantaneous power consumption.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+<li><p><strong>generator_mode</strong> (<a class="reference internal" href="../quantities/generic.html#gym_jiminy.common.quantities.generic.EnergyGenerationMode" title="gym_jiminy.common.quantities.generic.EnergyGenerationMode"><em>EnergyGenerationMode</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.generic.ShiftTrackingMotorPositionsTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.generic.</span></span><span class="sig-name descname"><span class="pre">ShiftTrackingMotorPositionsTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/generic.html#ShiftTrackingMotorPositionsTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.generic.ShiftTrackingMotorPositionsTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination" title="gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">ShiftTrackingQuantityTermination</span></code></a></p>
+<p>Terminate the episode if the selected reference trajectory is not
+tracked with expected accuracy regarding the actuated joint positions,
+whatever the timestep being considered over some fixed-size sliding window.</p>
+<p>The robot must track the reference if there is no hazard, only applying
+minor corrections to keep balance. Rewarding the agent for doing so is
+not effective as favoring robustness remains more profitable. Indeed, it
+would anticipate disturbances, lowering its current reward to maximize the
+future return, primarily averting termination. Limiting the shift over a
+given horizon allows for large deviations to handle strong pushes.
+Moreover, assuming that the agent is not able to keep track of the time
+flow, which means that only the observation at the current step is provided
+to the agent and o stateful network architecture such as LSTM is being
+used, restricting the shift also urges to do what it takes to get back to
+normal as soon as possible for fear of triggering termination, as it may
+happen any time the deviation is above the maximum acceptable shift,
+irrespective of its scale.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>thr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum shift above which termination is triggered.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the shift.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Compositions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="locomotion.html" class="btn btn-neutral float-right" title="Locomotion" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

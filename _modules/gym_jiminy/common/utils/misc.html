@@ -1,0 +1,357 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.utils.misc &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.utils.misc</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.utils.misc</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Miscellaneous utilities that have no place anywhere else but are very useful</span>
+<span class="sd">nonetheless.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">ValuesView</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Protocol</span>
+
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+
+<span class="kn">import</span> <span class="nn">jiminy_py.core</span> <span class="k">as</span> <span class="nn">jiminy</span>
+<span class="kn">from</span> <span class="nn">jiminy_py</span> <span class="kn">import</span> <span class="n">tree</span>
+
+<span class="kn">from</span> <span class="nn">.spaces</span> <span class="kn">import</span> <span class="n">FieldNested</span><span class="p">,</span> <span class="n">DataNested</span><span class="p">,</span> <span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">zeros</span>
+
+
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">GLOBAL_RNG</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">()</span>
+
+
+<span class="n">FieldNestedSequence</span> <span class="o">=</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="s1">&#39;FieldNestedSequence&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+<span class="n">FieldNestedList</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">FieldNestedSequence</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+
+
+<div class="viewcode-block" id="RandomDistribution">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/misc.html#gym_jiminy.common.utils.misc.RandomDistribution">[docs]</a>
+<span class="k">class</span> <span class="nc">RandomDistribution</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Protocol that must be satisfied for passing a generic callable as</span>
+<span class="sd">    custom statistical distribution to `sample` method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rg</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ArrayOrScalar</span><span class="p">:</span>
+        <span class="o">...</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">is_breakpoint</span><span class="p">(</span><span class="n">t</span><span class="p">:</span> <span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if &#39;t&#39; is multiple of &#39;dt&#39; at a given precision &#39;eps&#39;.</span>
+
+<span class="sd">    :param t: Current time.</span>
+<span class="sd">    :param dt: Timestep.</span>
+<span class="sd">    :param eps: Precision.</span>
+
+<span class="sd">    :meta private:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">dt</span> <span class="o">&lt;</span> <span class="n">eps</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="n">dt_prev</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">%</span> <span class="n">dt</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">dt_prev</span> <span class="o">&lt;</span> <span class="n">eps</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">dt</span> <span class="o">-</span> <span class="n">dt_prev</span> <span class="o">&lt;=</span> <span class="n">eps</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="is_nan">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/misc.html#gym_jiminy.common.utils.misc.is_nan">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">is_nan</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if any value of a numpy array is nan.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This method does not implement any short-circuit mechanism as it is</span>
+<span class="sd">        optimized for arrays that are unlikely to contain nan values.</span>
+
+<span class="sd">    :param value: N-dimensional array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">ndim</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">item</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="get_fieldnames">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/misc.html#gym_jiminy.common.utils.misc.get_fieldnames">[docs]</a>
+<span class="k">def</span> <span class="nf">get_fieldnames</span><span class="p">(</span><span class="n">structure</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">DataNested</span><span class="p">],</span> <span class="n">DataNested</span><span class="p">],</span>
+                   <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FieldNestedList</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate generic fieldnames for a given nested data structure, so that</span>
+<span class="sd">    it can be used in conjunction with `register_variables`, to register any</span>
+<span class="sd">    value from gym space to the telemetry conveniently.</span>
+
+<span class="sd">    :param structure: Nested data structure on which to operate.</span>
+<span class="sd">    :param namespace: Namespace used to prepend fields, using &#39;.&#39; delimiter.</span>
+<span class="sd">                      Empty string to disable.</span>
+<span class="sd">                      Optional: Disabled by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Create dummy data structure if gym.Space is provided</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">):</span>
+        <span class="n">structure</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+
+    <span class="n">fieldnames</span><span class="p">:</span> <span class="n">FieldNestedList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">fieldname_path</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span>
+    <span class="k">for</span> <span class="n">fieldname_path</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">flatten_with_path</span><span class="p">(</span><span class="n">structure</span><span class="p">):</span>
+        <span class="n">fieldname_path</span> <span class="o">=</span> <span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="o">*</span><span class="n">fieldname_path</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">),</span> <span class="p">(</span>
+            <span class="s2">&quot;&#39;structure&#39; (</span><span class="si">{structure}</span><span class="s2">) must have leaves of type `np.ndarray`.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Empty: return empty list</span>
+            <span class="n">fieldname</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">elif</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Scalar: fieldname path is enough</span>
+            <span class="n">fieldname</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">fieldname_path</span><span class="p">)))]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Tensor: basic numbering</span>
+            <span class="n">fieldname</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">fieldname_path</span><span class="p">),</span> <span class="n">i</span><span class="p">)))</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">size</span><span class="p">)])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="n">fieldnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fieldname</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tree</span><span class="o">.</span><span class="n">unflatten_as</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">fieldnames</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="register_variables">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/misc.html#gym_jiminy.common.utils.misc.register_variables">[docs]</a>
+<span class="k">def</span> <span class="nf">register_variables</span><span class="p">(</span><span class="n">controller</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">AbstractController</span><span class="p">,</span>
+                       <span class="n">fieldnames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
+                           <span class="n">ValuesView</span><span class="p">[</span><span class="n">FieldNested</span><span class="p">],</span> <span class="n">FieldNested</span><span class="p">],</span>
+                       <span class="n">data</span><span class="p">:</span> <span class="n">DataNested</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Register data from `Gym.Space` to the telemetry of a controller.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Variables are registered by reference. This is necessary because, under</span>
+<span class="sd">        the hood, Jiminy telemetry stores pointers to the underlying memory for</span>
+<span class="sd">        efficiency. Consequently, the user is responsible to manage the</span>
+<span class="sd">        lifetime of the data to avoid it being garbage collected, and to make</span>
+<span class="sd">        sure the variables are updated by reassigning its value instead of</span>
+<span class="sd">        re-allocating memory, using either `np.copyto`, `[:]` operator, or</span>
+<span class="sd">        `jiminy.array_copyto` (from  slowest to fastest).</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        The telemetry only supports `np.float64` or `np.int64` dtypes.</span>
+
+<span class="sd">    :param controller: Robot&#39;s controller of the simulator used to register</span>
+<span class="sd">                       variables to the telemetry.</span>
+<span class="sd">    :param fieldnames: Nested variable names, as returned by `get_fieldnames`</span>
+<span class="sd">                       method. It can be a nested list or/and dict. The leaves</span>
+<span class="sd">                       are str corresponding to the name of each scalar data.</span>
+<span class="sd">    :param data: Data from `gym.Space` to register.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">fieldname</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="n">tree</span><span class="o">.</span><span class="n">flatten_up_to</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">fieldnames</span><span class="p">),</span> <span class="n">tree</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fieldname</span><span class="p">,</span> <span class="nb">list</span><span class="p">),</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;&#39;fieldname&#39; (</span><span class="si">{</span><span class="n">fieldname</span><span class="si">}</span><span class="s2">) should be a list of strings.&quot;</span><span class="p">)</span>
+        <span class="n">controller</span><span class="o">.</span><span class="n">register_variables</span><span class="p">(</span><span class="n">fieldname</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="sample">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/utils/misc.html#gym_jiminy.common.utils.misc.sample">[docs]</a>
+<span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="n">low</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span>
+           <span class="n">high</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+           <span class="n">dist</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RandomDistribution</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;uniform&#39;</span><span class="p">,</span>
+           <span class="n">scale</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+           <span class="n">enable_log_scale</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+           <span class="n">shape</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+           <span class="n">rg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Randomly sample values from a given distribution.</span>
+
+<span class="sd">    .. note:</span>
+<span class="sd">        If &#39;low&#39;, &#39;high&#39;, and &#39;scale&#39; are floats, then the output is float if</span>
+<span class="sd">        &#39;shape&#39; is None, otherwise it has type `np.ndarray` and shape &#39;shape&#39;.</span>
+<span class="sd">        Similarly, if any of &#39;low&#39;, &#39;high&#39;, and &#39;scale&#39; are `np.ndarray`, then</span>
+<span class="sd">        its shape follows the broadcasting rules between these variables.</span>
+
+<span class="sd">    :param low: Lower value for bounded distribution, negative-side standard</span>
+<span class="sd">                deviation otherwise.</span>
+<span class="sd">                Optional: -1.0 by default.</span>
+<span class="sd">    :param high: Upper value for bounded distribution, positive-side standard</span>
+<span class="sd">                 deviation otherwise.</span>
+<span class="sd">                 Optional: 1.0 by default.</span>
+<span class="sd">    :param dist: The statistical from which to draw samples, either provided as</span>
+<span class="sd">                 a pre-defined string or a callable. For strings, then it must</span>
+<span class="sd">                 be a member function of `np.random.Generator` (only &#39;uniform&#39;</span>
+<span class="sd">                 and &#39;normal&#39; are supported for now). For callables, it must</span>
+<span class="sd">                 corresponds to a standardized distribution and satisfying</span>
+<span class="sd">                 `gym_jiminy.common.utils.RandomDistribution` protocol. This is</span>
+<span class="sd">                 especially useful for specifying custom parameters of complex</span>
+<span class="sd">                 distributions such as Beta. Using `functools.partial` is</span>
+<span class="sd">                 recommended, eg `partial(np.random.Generator.Beta, a=1, b=8)`.</span>
+<span class="sd">                 Optional: &#39;uniform&#39; by default.</span>
+<span class="sd">    :param scale: Shrink the standard deviation of the distribution around the</span>
+<span class="sd">                  mean by this factor.</span>
+<span class="sd">                  Optional: No scaling by default</span>
+<span class="sd">    :param enable_log_scale: The sampled values are power of 10.</span>
+<span class="sd">    :param shape: Enforce of the sampling shape. Only available if &#39;low&#39;,</span>
+<span class="sd">                  &#39;high&#39; and &#39;scale&#39; are floats. `None` to disable.</span>
+<span class="sd">                  Optional: Disabled by default.</span>
+<span class="sd">    :param rg: Custom random number generator from which to draw samples.</span>
+<span class="sd">               Optional: Default to `np.random`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Compute mean and deviation from low and high arguments</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">low</span> <span class="o">+</span> <span class="n">high</span><span class="p">)</span>
+    <span class="n">dev</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">high</span> <span class="o">-</span> <span class="n">low</span><span class="p">)</span>
+
+    <span class="c1"># Get sample shape.</span>
+    <span class="c1"># Better use dev than mean since it works even if only scale is array.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">shape</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">dev</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">broadcast</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[]),</span> <span class="n">dev</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;&#39;shape&#39; </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2"> must be broadcast-able with &#39;low&#39;, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;&#39;high&#39; and &#39;scale&#39; </span><span class="si">{</span><span class="n">dev</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> if specified.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+    <span class="c1"># Define &quot;standardized&quot; distribution callable if only its name was provided</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">dist</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;uniform&#39;</span><span class="p">,</span> <span class="s1">&#39;normal&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">dist</span><span class="si">}</span><span class="s2">&#39; distribution type is not supported for now.&quot;</span><span class="p">)</span>
+        <span class="n">dist_fn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">,</span> <span class="n">dist</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dist</span> <span class="o">==</span> <span class="s1">&#39;uniform&#39;</span><span class="p">:</span>
+            <span class="c1"># The uniform distribution is NOT standardized by default</span>
+            <span class="n">dist_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">dist_fn</span><span class="p">,</span> <span class="n">low</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dist_fn</span> <span class="o">=</span> <span class="n">dist</span>
+
+    <span class="c1"># Generate samples from distribution</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">dist_fn</span><span class="p">(</span><span class="n">rg</span> <span class="ow">or</span> <span class="n">GLOBAL_RNG</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1"># Apply mean and standard deviation transformation</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">dev</span> <span class="o">*</span> <span class="n">value</span>
+
+    <span class="c1"># Revert log scale if requested</span>
+    <span class="k">if</span> <span class="n">enable_log_scale</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">value</span>
+
+    <span class="k">return</span> <span class="n">value</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

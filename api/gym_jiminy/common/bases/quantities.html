@@ -1,0 +1,965 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quantities &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Compositions" href="compositions.html" />
+    <link rel="prev" title="Blocks" href="blocks.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Bases</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="interfaces.html">Interfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="blocks.html">Blocks</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Quantities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.WeakMutableCollection"><code class="docutils literal notranslate"><span class="pre">WeakMutableCollection</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.QuantityStateMachine"><code class="docutils literal notranslate"><span class="pre">QuantityStateMachine</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.SharedCache"><code class="docutils literal notranslate"><span class="pre">SharedCache</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode"><code class="docutils literal notranslate"><span class="pre">QuantityEvalMode</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.sync"><code class="docutils literal notranslate"><span class="pre">sync()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity"><code class="docutils literal notranslate"><span class="pre">DatasetTrajectoryQuantity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.quantities.StateQuantity"><code class="docutils literal notranslate"><span class="pre">StateQuantity</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="compositions.html">Compositions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pipeline.html">Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Bases</a></li>
+      <li class="breadcrumb-item active">Quantities</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/bases/quantities.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.bases.quantities">
+<span id="quantities"></span><h1>Quantities<a class="headerlink" href="#module-gym_jiminy.common.bases.quantities" title="Link to this heading">¶</a></h1>
+<p>This module promotes quantities as first-class objects.</p>
+<p>Defining quantities this way allows for standardization of common intermediary
+metrics for computation of reward components and and termination conditions, eg
+the center of pressure or the average spatial velocity of a frame. Overall, it
+greatly reduces code duplication and bugs.</p>
+<p>Apart from that, it offers a dedicated quantity manager that is responsible for
+optimizing the computation path, which is expected to significantly increase
+the step collection throughput. This speedup is achieved by caching already
+computed that did not changed since then, computing redundant intermediary
+quantities only once per step, and gathering similar quantities in a large
+batch to leverage vectorization of math instructions.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.WeakMutableCollection">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">WeakMutableCollection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#WeakMutableCollection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.WeakMutableCollection" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.MutableSet" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableSet</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueT</span></code>]</p>
+<p>Mutable unordered list container storing weak reference to objects.
+Elements will be discarded when no strong reference to the value exists
+anymore, and a user-specified callback will be triggered if any.</p>
+<p>Internally, it is implemented as a set for which uniqueness is
+characterized by identity instead of equality operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>callback</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><a class="reference internal" href="#gym_jiminy.common.bases.quantities.WeakMutableCollection" title="gym_jiminy.common.bases.quantities.WeakMutableCollection"><em>WeakMutableCollection</em></a><em>[</em><em>ValueT</em><em>]</em><em>, </em><em>ReferenceType</em><em>]</em><em>, </em><em>None</em><em>] </em><em>| </em><em>None</em>) – Callback that will be triggered every time an element
+is discarded from the container.
+Optional: None by default.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.WeakMutableCollection.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#WeakMutableCollection.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.WeakMutableCollection.add" title="Link to this definition">¶</a></dt>
+<dd><p>Add a new element to the container if not already contained.</p>
+<p>This has no effect if the element is already present.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obj</strong> – Object to add to the container.</p></li>
+<li><p><strong>value</strong> (<em>ValueT</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.WeakMutableCollection.discard">
+<span class="sig-name descname"><span class="pre">discard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#WeakMutableCollection.discard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.WeakMutableCollection.discard" title="Link to this definition">¶</a></dt>
+<dd><p>Remove an element from the container if stored in it.</p>
+<p>This method does not raise an exception when the element is missing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obj</strong> – Object to remove from the container.</p></li>
+<li><p><strong>value</strong> (<em>ValueT</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.QuantityStateMachine">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">QuantityStateMachine</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names=&lt;not</span> <span class="pre">given&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#QuantityStateMachine"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.QuantityStateMachine" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.IntEnum" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntEnum</span></code></a></p>
+<p>Specify the current state of a given (unique) quantity, which determines
+the steps to perform for retrieving its current value.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.QuantityStateMachine.IS_RESET">
+<span class="sig-name descname"><span class="pre">IS_RESET</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.QuantityStateMachine.IS_RESET" title="Link to this definition">¶</a></dt>
+<dd><p>The quantity at hand has just been reset. The quantity must first be
+initialized, then refreshed and finally stored in cached before to retrieve
+its value.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.QuantityStateMachine.IS_INITIALIZED">
+<span class="sig-name descname"><span class="pre">IS_INITIALIZED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.QuantityStateMachine.IS_INITIALIZED" title="Link to this definition">¶</a></dt>
+<dd><p>The quantity at hand has been initialized but never evaluated for the
+current robot state. Its value must still be refreshed and stored in cache
+before to retrieve it.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.QuantityStateMachine.IS_CACHED">
+<span class="sig-name descname"><span class="pre">IS_CACHED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.QuantityStateMachine.IS_CACHED" title="Link to this definition">¶</a></dt>
+<dd><p>The quantity at hand has been evaluated and its value stored in cache.
+As such, its value can be retrieve from cache directly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.SharedCache">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">SharedCache</span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#SharedCache"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.SharedCache" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueT</span></code>]</p>
+<p>Basic thread local shared cache.</p>
+<p>Its API mimics <cite>std::optional</cite> from the Standard C++ library. All it does
+is encapsulating any Python object as a mutable variable, plus exposing a
+simple mechanism for keeping track of all “owners” of the cache.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This implementation is not thread safe.</p>
+</div>
+<dl class="field-list simple">
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.SharedCache.owners">
+<span class="sig-name descname"><span class="pre">owners</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Collection" title="(in Python v3.13)"><span class="pre">Collection</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><span class="pre">InterfaceQuantity</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.SharedCache.owners" title="Link to this definition">¶</a></dt>
+<dd><p>Owners of the shared buffer, ie quantities relying on it to store the
+result of their evaluation. This information may be useful for determining
+the most efficient computation path overall.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Quantities must add themselves to this list when passing them a shared
+cache instance.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Internally, it stores weak references to avoid holding alive quantities
+that could be garbage collected otherwise. <cite>WeakSet</cite> cannot be used
+because owners are objects all having the same hash, eg “identical”
+quantities.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.SharedCache.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">owner</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#SharedCache.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.SharedCache.add" title="Link to this definition">¶</a></dt>
+<dd><p>Add a given quantity instance to the set of co-owners associated
+with the shared cache at hand.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>All shared cache co-owners must be instances of the same unique
+quantity. An exception will be thrown if an attempt is made to add
+a quantity instance that does not satisfy this condition.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>owner</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>[</em><em>ValueT</em><em>]</em>) – Quantity instance to add to the set of co-owners.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.SharedCache.discard">
+<span class="sig-name descname"><span class="pre">discard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">owner</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#SharedCache.discard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.SharedCache.discard" title="Link to this definition">¶</a></dt>
+<dd><p>Remove a given quantity instance from the set of co-owners
+associated with the shared cache at hand.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>owner</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>[</em><em>ValueT</em><em>]</em>) – Quantity instance to remove from the set of co-owners.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.SharedCache.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ignore_auto_refresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reset_state_machine</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#SharedCache.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.SharedCache.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Clear value stored in cache if any.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ignore_auto_refresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to skip automatic refresh of all
+co-owner quantities of this shared cache.
+Optional: False by default.</p></li>
+<li><p><strong>reset_state_machine</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to reset completely the state
+machine of the underlying quantity, ie not
+considering it initialized anymore.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.SharedCache.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#SharedCache.get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.SharedCache.get" title="Link to this definition">¶</a></dt>
+<dd><p>Return cached value if any, otherwise evaluate it and store it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ValueT</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">InterfaceQuantity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requirements</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_refresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#InterfaceQuantity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueT</span></code>]</p>
+<p>Interface for generic quantities involved observer-controller blocks,
+reward components or termination conditions.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Quantities are meant to be managed automatically via <cite>QuantityManager</cite>.
+Dealing with quantities manually is error-prone, and as such, is
+strongly discourage. Nonetheless, power-user that understand the risks
+are allowed to do it.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mutual dependency between quantities is disallowed.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The user is responsible for implementing the dunder methods <cite>__eq__</cite>
+and <cite>__hash__</cite> that characterize identical quantities. This property is
+used internally by <cite>QuantityManager</cite> to synchronize cache between them.
+It is advised to use decorator <cite>&#64;dataclass(unsafe_hash=True)</cite> for
+convenience, but it can also be done manually.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>requirements</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>]</em>) – Intermediary quantities on which this quantity
+depends for its evaluation, as a dictionary
+whose keys are tuple gathering their respective
+class plus any keyword-arguments of its
+constructor except ‘env’ and ‘parent’.</p></li>
+<li><p><strong>auto_refresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether this quantity must be refreshed
+automatically as soon as its shared cache has been
+cleared if specified.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.allow_update_graph">
+<span class="sig-name descname"><span class="pre">allow_update_graph</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.ClassVar" title="(in Python v3.13)"><span class="pre">ClassVar</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.allow_update_graph" title="Link to this definition">¶</a></dt>
+<dd><p>Whether dynamic computation graph update is allowed. This implies that
+the quantity can be reset at any point in time to re-compute the optimal
+computation path, typically after deletion or addition of some other node
+to its dependent sub-graph. When this happens, the quantity gets reset on
+the spot, even if a simulation is already running. This is not always
+acceptable, hence the capability to disable this feature at class-level.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.requirements">
+<span class="sig-name descname"><span class="pre">requirements</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><span class="pre">InterfaceQuantity</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.requirements" title="Link to this definition">¶</a></dt>
+<dd><p>Intermediary quantities on which this quantity may rely on for its
+evaluation at some point, depending on the optimal computation path at
+runtime. They will be exposed to the user as usual attributes.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.cache">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#gym_jiminy.common.bases.quantities.SharedCache" title="gym_jiminy.common.bases.quantities.SharedCache"><span class="pre">SharedCache</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.cache" title="Link to this definition">¶</a></dt>
+<dd><p>Get shared cache if available, otherwise raises an exception.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not meant to be overloaded.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.is_active">
+<span class="sig-name descname"><span class="pre">is_active</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">any_cache_owner</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#InterfaceQuantity.is_active"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.is_active" title="Link to this definition">¶</a></dt>
+<dd><p>Whether this quantity is considered active, namely <cite>initialize</cite> has
+been called at least once since previous tracking reset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>any_owner</strong> – False to check only if this exact instance is active,
+True if any of the identical quantities (sharing the
+same cache) is considered sufficient.
+Optional: False by default.</p></li>
+<li><p><strong>any_cache_owner</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#InterfaceQuantity.get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.get" title="Link to this definition">¶</a></dt>
+<dd><p>Get cached value of requested quantity if available, otherwise
+evaluate it and store it in cache.</p>
+<p>This quantity is considered active as soon as this method has been
+called at least once since previous tracking reset. The method
+<cite>is_active</cite> will be return true even before calling <cite>initialize</cite>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not meant to be overloaded.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ValueT</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reset_tracking</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_requirements</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_others</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#InterfaceQuantity.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Consider that the quantity must be re-initialized before being
+evaluated once again.</p>
+<p>If shared cache is available, then it will be cleared first then all
+identical quantities will be jointly reset.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called right before performing any agent step,
+otherwise this quantity will not be refreshed if it was evaluated
+previously.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not meant to be overloaded.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reset_tracking</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Do not consider this quantity as active anymore
+until the <cite>get</cite> method gets called once again.
+Optional: False by default.</p></li>
+<li><p><strong>ignore_requirements</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to skip reset reset of intermediary quantities.
+Optional: False by default.</p></li>
+<li><p><strong>ignore_others</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to ignore any shared cache co-owner quantity instances.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#InterfaceQuantity.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.InterfaceQuantity.refresh">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#InterfaceQuantity.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ValueT</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.QuantityEvalMode">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">QuantityEvalMode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names=&lt;not</span> <span class="pre">given&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#QuantityEvalMode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.IntEnum" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntEnum</span></code></a></p>
+<p>Specify on which state to evaluate a given quantity.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.QuantityEvalMode.TRUE">
+<span class="sig-name descname"><span class="pre">TRUE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode.TRUE" title="Link to this definition">¶</a></dt>
+<dd><p>Current state of the environment.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.QuantityEvalMode.REFERENCE">
+<span class="sig-name descname"><span class="pre">REFERENCE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode.REFERENCE" title="Link to this definition">¶</a></dt>
+<dd><p>State of the reference trajectory at the current simulation time.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.AbstractQuantity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">AbstractQuantity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requirements</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_refresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#AbstractQuantity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.AbstractQuantity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueT</span></code>]</p>
+<p>Base class for generic quantities involved observer-controller blocks,
+reward components or termination conditions.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A dataset of trajectories made available through <cite>self.trajectories</cite>.
+The latter is synchronized because all quantities as long as shared
+cached is available. At least one trajectory must be added to the
+dataset and selected prior to using <cite>QuantityEvalMode.REFERENCE</cite>
+evaluation mode since the dataset is initially empty by default.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>InterfaceQuantity</cite> documentation for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>requirements</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>]</em>) – Intermediary quantities on which this quantity
+depends for its evaluation, as a dictionary
+whose keys are tuple gathering their respective
+class plus any keyword-arguments of its
+constructor except ‘env’ and ‘parent’.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity. If mode is
+set to <cite>QuantityEvalMode.TRUE</cite>, then current simulation
+state will be used in dynamics computations. If mode is
+set to <cite>QuantityEvalMode.REFERENCE</cite>, then the state at the
+current simulation time of the selected reference
+trajectory will be used instead.</p></li>
+<li><p><strong>auto_refresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether this quantity must be refreshed
+automatically as soon as its shared cache has been
+cleared if specified.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.AbstractQuantity.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.AbstractQuantity.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.AbstractQuantity.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#AbstractQuantity.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.AbstractQuantity.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.sync">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">sync</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fun</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#sync"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.sync" title="Link to this definition">¶</a></dt>
+<dd><p>Wrap any <cite>InterfaceQuantity</cite> instance method to forward call to all
+co-owners of the same shared cache.</p>
+<p>This wrapper is useful to keep all identical instances of the same quantity
+in sync.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>fun</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>...</em><em>]</em><em>, </em><em>None</em><em>]</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[…], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">DatasetTrajectoryQuantity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#DatasetTrajectoryQuantity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<a class="reference internal" href="../../../jiminy_py/dynamics.html#jiminy_py.dynamics.State" title="jiminy_py.dynamics.State"><code class="xref py py-class docutils literal notranslate"><span class="pre">State</span></code></a>]</p>
+<p>This class manages a dataset of trajectories.</p>
+<p>The dataset is empty by default. Trajectories must be added or discarded
+manually. Only one trajectory can be selected at once. Once a trajectory
+has been selecting, its state at the current simulation can be easily
+retrieved.</p>
+<p>This class supports trajectories for which only part of the attributes of
+the underlying state sequence have been specified. Obviously, missing
+attributes of a trajectory will also be missing from the retrieved state.
+It is the responsibility of the practitioner to make sure that all the
+information that is necessary for its own application is available.</p>
+<p>All instances of this quantity sharing the same cache are synchronized,
+which means that adding, discarding, or selecting a trajectory on any of
+them would propagate on all the others.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.is_locked">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_locked</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.is_locked" title="Link to this definition">¶</a></dt>
+<dd><p>Whether this dataset is locked, which means that no additional
+trajectories can be added nor discarded.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.name" title="Link to this definition">¶</a></dt>
+<dd><p>Name of the trajectory that is currently selected.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.trajectory">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">trajectory</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../../../jiminy_py/dynamics.html#jiminy_py.dynamics.Trajectory" title="jiminy_py.dynamics.Trajectory"><span class="pre">Trajectory</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.trajectory" title="Link to this definition">¶</a></dt>
+<dd><p>Trajectory that is currently selected if any, raises an exception
+otherwise.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'raise'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'wrap'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'clip'</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Time wrapping mode of the trajectory that is currently selected.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.robot">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../../../jiminy_py/core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><span class="pre">Robot</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.robot" title="Link to this definition">¶</a></dt>
+<dd><p>Robot associated with the selected trajectory.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.use_theoretical_model">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">use_theoretical_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.use_theoretical_model" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the selected trajectory is associated with the theoretical
+dynamical model or extended simulation model of the robot.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.time_offset_ratio">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_offset_ratio</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.time_offset_ratio" title="Link to this definition">¶</a></dt>
+<dd><p>Relative time offset between the current simulation time and the
+selected trajectory.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.cache">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#gym_jiminy.common.bases.quantities.SharedCache" title="gym_jiminy.common.bases.quantities.SharedCache"><span class="pre">SharedCache</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.cache" title="Link to this definition">¶</a></dt>
+<dd><p>Get shared cache if available, otherwise raises an exception.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not meant to be overloaded.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trajectory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'raise'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#DatasetTrajectoryQuantity.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.add" title="Link to this definition">¶</a></dt>
+<dd><p>Jointly add a trajectory to the local internal registry of all
+instances sharing the same cache as this quantity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the trajectory. It must be unique. If a
+trajectory with the exact same name already exists, then
+it must be discarded first, so as to prevent silently
+overwriting it by mistake.</p></li>
+<li><p><strong>trajectory</strong> (<a class="reference internal" href="../../../jiminy_py/dynamics.html#jiminy_py.dynamics.Trajectory" title="jiminy_py.dynamics.Trajectory"><em>Trajectory</em></a>) – Trajectory instance to register.</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'raise'</em><em>, </em><em>'wrap'</em><em>, </em><em>'clip'</em><em>]</em>) – Specifies how to deal with query time of are out of the
+time interval of the trajectory. See <cite>Trajectory.get</cite>
+documentation for details.
+Optional: ‘raise’ by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.discard">
+<span class="sig-name descname"><span class="pre">discard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#DatasetTrajectoryQuantity.discard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.discard" title="Link to this definition">¶</a></dt>
+<dd><p>Jointly remove a trajectory from the local internal registry of all
+instances sharing the same cache as this quantity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the trajectory to discard.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#DatasetTrajectoryQuantity.clear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.clear" title="Link to this definition">¶</a></dt>
+<dd><p>Clear the trajectory dataset from the local internal registry of all
+instances sharing the same cache as this quantity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.select">
+<span class="sig-name descname"><span class="pre">select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#DatasetTrajectoryQuantity.select"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.select" title="Link to this definition">¶</a></dt>
+<dd><p>Select an existing trajectory from the dataset shared amongst all
+managed quantities, then reset the quantity itself.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is no way to select a different reference trajectory for
+individual quantities at the time being.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the trajectory to select.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.lock">
+<span class="sig-name descname"><span class="pre">lock</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#DatasetTrajectoryQuantity.lock"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.lock" title="Link to this definition">¶</a></dt>
+<dd><p>Forbid adding/discarding trajectories to the dataset from now on.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#DatasetTrajectoryQuantity.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Compute state of selected trajectory at current simulation time.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="../../../jiminy_py/dynamics.html#jiminy_py.dynamics.State" title="jiminy_py.dynamics.State"><em>State</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.StateQuantity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.quantities.</span></span><span class="sig-name descname"><span class="pre">StateQuantity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_kinematics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_dynamics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_centroidal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_energy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_jacobian</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#StateQuantity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.StateQuantity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<a class="reference internal" href="../../../jiminy_py/dynamics.html#jiminy_py.dynamics.State" title="jiminy_py.dynamics.State"><code class="xref py py-class docutils literal notranslate"><span class="pre">State</span></code></a>]</p>
+<p>State to consider when evaluating any quantity deriving from
+<cite>AbstractQuantity</cite> using the same evaluation mode as this instance.</p>
+<p>This quantity is refreshed automatically no matter what. This guarantees
+that all low-level kinematics and dynamics quantities that can be computed
+from the current state are up-to-date. More specifically, every quantities
+would be up-to-date if the evaluation mode is <cite>QuantityEvalMode.TRUE</cite>,
+while it would depends on the information available on the selected
+trajectory if the evaluation mode is <cite>QuantityEvalMode.REFERENCE</cite>. See
+<cite>update_quantities</cite> documentation for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity. If mode is
+set to <cite>QuantityEvalMode.TRUE</cite>, then current simulation
+state will be used in dynamics computations. If mode is
+set to <cite>QuantityEvalMode.REFERENCE</cite>, then at the state of
+some reference trajectory at the current simulation time
+will be used instead.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+<li><p><strong>update_kinematics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to update body and frame transforms,
+spatial velocities and accelerations stored
+in <cite>self.pinocchio_data</cite> if necessary to be
+consistent with the current state of the
+robot. This argument has no effect if mode is
+set to <cite>QuantityEvalMode.TRUE</cite> because this
+property is already guarantee.
+Optional: False by default.</p></li>
+<li><p><strong>update_dynamics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to update the non-linear effects and
+the joint internal forces stored in
+<cite>self.pinocchio_data</cite> if necessary.
+Optional: False by default.</p></li>
+<li><p><strong>update_centroidal</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to update the centroidal dynamics
+(incl. CoM) stored in <cite>self.pinocchio_data</cite>
+if necessary.
+Optional: True by default.</p></li>
+<li><p><strong>update_energy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to update the potential and kinematic
+energy stored in <cite>self.pinocchio_data</cite> if
+necessary.
+Optional: False by default.</p></li>
+<li><p><strong>update_jacobian</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to update the joint Jacobian matrices
+stored in <cite>self.pinocchio_data</cite> if necessary.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.StateQuantity.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.quantities.StateQuantity.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.StateQuantity.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#StateQuantity.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.StateQuantity.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.quantities.StateQuantity.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/quantities.html#StateQuantity.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.quantities.StateQuantity.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the current state depending on the mode of evaluation, and
+make sure that kinematics and dynamics quantities are up-to-date.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="../../../jiminy_py/dynamics.html#jiminy_py.dynamics.State" title="jiminy_py.dynamics.State"><em>State</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="blocks.html" class="btn btn-neutral float-left" title="Blocks" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="compositions.html" class="btn btn-neutral float-right" title="Compositions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

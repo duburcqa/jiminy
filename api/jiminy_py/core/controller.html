@@ -1,0 +1,393 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>controller &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="engine" href="engine.html" />
+    <link rel="prev" title="motors" href="motors.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Jiminy Python API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">core</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="constraints.html">analytical constraints</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="motors.html">motors</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">controller</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.AbstractController"><code class="docutils literal notranslate"><span class="pre">AbstractController</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.BaseController"><code class="docutils literal notranslate"><span class="pre">BaseController</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.FunctionalController"><code class="docutils literal notranslate"><span class="pre">FunctionalController</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="engine.html">engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utilities.html">utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../simulator.html">simulator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../viewer.html">viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../log.html">log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">plot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dynamics.html">dynamics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Jiminy Python API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">core</a></li>
+      <li class="breadcrumb-item active">controller</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/api/jiminy_py/core/controller.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="controller">
+<h1>controller<a class="headerlink" href="#controller" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">AbstractController</span></span><a class="headerlink" href="#jiminy_py.core.AbstractController" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>Raises an exception
+This class cannot be instantiated from Python</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)command</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the command.</p>
+<p>It assumes that the robot internal state (including sensors) is consistent
+with other input arguments. It fetches the sensor data automatically.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> – Current time.</p></li>
+<li><p><strong>q</strong> – Current configuration vector.</p></li>
+<li><p><strong>v</strong> – Current velocity vector.</p></li>
+<li><p><strong>command</strong> – Output effort vector.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.get_options">
+<span class="sig-name descname"><span class="pre">get_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)arg1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.get_options" title="Link to this definition">¶</a></dt>
+<dd><p>Dictionary with the parameters of the controller.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(Robot)robot</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize the internal state of the controller for a given robot.</p>
+<p>This method can be called multiple times with different robots. The internal
+state of the controller will be systematically overwritten.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>robot</strong> – Robot</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.internal_dynamics">
+<span class="sig-name descname"><span class="pre">internal_dynamics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)u_custom</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.internal_dynamics" title="Link to this definition">¶</a></dt>
+<dd><p>Emulate custom phenomenon that are part of the internal dynamics of the system
+but not included in the physics engine.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> – Current time.</p></li>
+<li><p><strong>q</strong> – Current configuration vector.</p></li>
+<li><p><strong>v</strong> – Current velocity vector.</p></li>
+<li><p><strong>uCustom</strong> – Output effort vector.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.is_initialized">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_initialized</span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.is_initialized" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractController)self) -&gt; bool:</p>
+<p>Whether the controller has been initialized.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that a controller can be considered initialized even if its telemetry is
+not properly configured. If not, it must be done before being ready to use.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.register_constant">
+<span class="sig-name descname"><span class="pre">register_constant</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)value</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.register_constant" title="Link to this definition">¶</a></dt>
+<dd><p>Register a constant (so-called invariant) to the telemetry.</p>
+<p>The user is responsible to convert it as a byte array (eg <cite>std::string</cite>),
+either using <cite>toString</cite> for arithmetic types or <cite>saveToBinary</cite> complex types.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – Name of the constant.</p></li>
+<li><p><strong>value</strong> – Constant to add to the telemetry.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.register_variable">
+<span class="sig-name descname"><span class="pre">register_variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)value</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.register_variable" title="Link to this definition">¶</a></dt>
+<dd><p>Dynamically registered a scalar variable to the telemetry. It is the main entry
+point for a user to log custom variables.</p>
+<p>Internally, all it does is to store a reference to the variable, then it logs
+its value periodically. There is no update mechanism what so ever nor safety
+check. The user has to take care of the life span of the variable, and to
+update it manually whenever it is necessary to do so.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – Name of the variable. It will appear in the header of the log.</p></li>
+<li><p><strong>values</strong> – Variable to add to the telemetry.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.register_variables">
+<span class="sig-name descname"><span class="pre">register_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(list)fieldnames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)values</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.register_variables" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.remove_entries">
+<span class="sig-name descname"><span class="pre">remove_entries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)arg1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.remove_entries" title="Link to this definition">¶</a></dt>
+<dd><p>Remove all variables dynamically registered to the telemetry.</p>
+<p>Note that one must reset Jiminy Engine for this to take effect.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)reset_dynamic_telemetry=False</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Reset the internal state of the controller.</p>
+<p>Note that it resets the configuration of the telemetry.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>s This method is not intended to be called manually. The Engine is taking care
+of it when its own <cite>reset</cite> method is called.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>resetDynamicTelemetry</strong> – Whether variables dynamically registered to the
+telemetry must be removed. Optional: False by default.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.robot">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot</span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.robot" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractController)self) -&gt; jiminy_py.core.core.Robot</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.sensor_measurements">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sensor_measurements</span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.sensor_measurements" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractController)self) -&gt; jiminy_py.core.core.SensorMeasurementTree</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractController.set_options">
+<span class="sig-name descname"><span class="pre">set_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)options</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractController.set_options" title="Link to this definition">¶</a></dt>
+<dd><p>Set the configuration options of the controller.</p>
+<p>Note that one must reset Jiminy Engine for this to take effect.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>controllerOptions</strong> – Dictionary with the parameters of the controller.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.BaseController">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">BaseController</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)arg1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.BaseController" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#jiminy_py.core.AbstractController" title="jiminy_py.core.AbstractController"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractController</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.BaseController.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(BaseController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)command</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.BaseController.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the command.</p>
+<blockquote>
+<div><p>It assumes that the robot internal state (including sensors) is consistent
+with other input arguments. It fetches the sensor data automatically.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param t<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Current time.</p>
+</dd>
+<dt class="field-even">param q<span class="colon">:</span></dt>
+<dd class="field-even"><p>Current configuration vector.</p>
+</dd>
+<dt class="field-odd">param v<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Current velocity vector.</p>
+</dd>
+<dt class="field-even">param command<span class="colon">:</span></dt>
+<dd class="field-even"><p>Output effort vector.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>compute_command( (BaseController)arg1, (float)arg2, (numpy.ndarray)arg3, (numpy.ndarray)arg4, (numpy.ndarray)arg5) -&gt; None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.BaseController.internal_dynamics">
+<span class="sig-name descname"><span class="pre">internal_dynamics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(BaseController)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)u_custom</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.BaseController.internal_dynamics" title="Link to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Emulate custom phenomenon that are part of the internal dynamics of the system</dt><dd><p>but not included in the physics engine.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param t<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Current time.</p>
+</dd>
+<dt class="field-even">param q<span class="colon">:</span></dt>
+<dd class="field-even"><p>Current configuration vector.</p>
+</dd>
+<dt class="field-odd">param v<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Current velocity vector.</p>
+</dd>
+<dt class="field-even">param uCustom<span class="colon">:</span></dt>
+<dd class="field-even"><p>Output effort vector.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>internal_dynamics( (BaseController)arg1, (float)arg2, (numpy.ndarray)arg3, (numpy.ndarray)arg4, (numpy.ndarray)arg5) -&gt; None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.BaseController.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(BaseController)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)reset_dynamic_telemetry=False</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.BaseController.reset" title="Link to this definition">¶</a></dt>
+<dd><p>reset( (BaseController)self [, (bool)reset_dynamic_telemetry=False]) -&gt; None</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.FunctionalController">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">FunctionalController</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)arg1</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)compute_command=None</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)internal_dynamics=None</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.FunctionalController" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseFunctionalController</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.FunctionalController.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(FunctionalController)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)reset_dynamic_telemetry=False</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.FunctionalController.reset" title="Link to this definition">¶</a></dt>
+<dd><p>reset( (FunctionalController)self [, (bool)reset_dynamic_telemetry=False]) -&gt; None</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="motors.html" class="btn btn-neutral float-left" title="motors" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="engine.html" class="btn btn-neutral float-right" title="engine" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

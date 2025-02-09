@@ -1,0 +1,647 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spaces &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Helpers" href="math.html" />
+    <link rel="prev" title="Pipeline" href="pipeline.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Utils</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="pipeline.html">Pipeline</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Spaces</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.get_robot_state_space"><code class="docutils literal notranslate"><span class="pre">get_robot_state_space()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.get_robot_measurements_space"><code class="docutils literal notranslate"><span class="pre">get_robot_measurements_space()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.get_bounds"><code class="docutils literal notranslate"><span class="pre">get_bounds()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.zeros"><code class="docutils literal notranslate"><span class="pre">zeros()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.fill"><code class="docutils literal notranslate"><span class="pre">fill()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.copyto"><code class="docutils literal notranslate"><span class="pre">copyto()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.clip"><code class="docutils literal notranslate"><span class="pre">clip()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.contains"><code class="docutils literal notranslate"><span class="pre">contains()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.build_reduce"><code class="docutils literal notranslate"><span class="pre">build_reduce()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.build_map"><code class="docutils literal notranslate"><span class="pre">build_map()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.build_copyto"><code class="docutils literal notranslate"><span class="pre">build_copyto()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.build_clip"><code class="docutils literal notranslate"><span class="pre">build_clip()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.build_contains"><code class="docutils literal notranslate"><span class="pre">build_contains()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.build_normalize"><code class="docutils literal notranslate"><span class="pre">build_normalize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.spaces.build_flatten"><code class="docutils literal notranslate"><span class="pre">build_flatten()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="math.html">Helpers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="misc.html">Helpers</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Utils</a></li>
+      <li class="breadcrumb-item active">Spaces</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/utils/spaces.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.utils.spaces">
+<span id="spaces"></span><h1>Spaces<a class="headerlink" href="#module-gym_jiminy.common.utils.spaces" title="Link to this heading">¶</a></h1>
+<p>Utilities operating over complex <cite>Gym.Space`s associated with arbitrarily
+nested data structure of `np.ndarray</cite> and heavily optimized for speed.</p>
+<p>They combine static control flow pre-computed for given space and eventually
+some pre-allocated values with Just-In-Time (JIT) compiling via Numba when
+possible for optimal performance.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.get_robot_state_space">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">get_robot_state_space</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">robot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_theoretical_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_velocity_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#get_robot_state_space"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.get_robot_state_space" title="Link to this definition">¶</a></dt>
+<dd><p>Get the state space associated with a given robot.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>robot</strong> (<a class="reference internal" href="../../../jiminy_py/core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a>) – Jiminy robot to consider.</p></li>
+<li><p><strong>use_theoretical_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to compute the state space associated
+with the theoretical model instead of the
+extended simulation model.</p></li>
+<li><p><strong>ignore_velocity_limit</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to ignore the velocity bounds
+specified in model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Dict</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.get_robot_measurements_space">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">get_robot_measurements_space</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">robot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_finite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#get_robot_measurements_space"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.get_robot_measurements_space" title="Link to this definition">¶</a></dt>
+<dd><p>Get the sensor space associated with a given robot.</p>
+<p>It gathers the sensors data in a dictionary. It maps each available type of
+sensor to the associated data matrix. Rows correspond to the sensor type’s
+fields, and columns correspond to each individual sensor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>robot</strong> (<a class="reference internal" href="../../../jiminy_py/core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a>) – Jiminy robot to consider.</p></li>
+<li><p><strong>is_finite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to set infer finite bounds from physical
+properties of the robot whenever possible. For now, this
+only has an effect for encoders (position only) and
+effort sensors. In pratice, it may be worth to disable
+finite bounds if sensors are flawed (noise and bias),
+causing their measurement to be out-of-bounds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Dict</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.get_bounds">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">get_bounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_abs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_rel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#get_bounds"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.get_bounds" title="Link to this definition">¶</a></dt>
+<dd><p>Get the lower and upper bounds of a given ‘gym.Space’ if any.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>space</strong> (<em>Space</em>) – <cite>gym.Space</cite> on which to operate.</p></li>
+<li><p><strong>tol_abs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Absolute tolerance.
+Optional: 0.0 by default</p></li>
+<li><p><strong>tol_rel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Relative tolerance. It will be ignored if either the lower
+or upper is not specified.
+Optional: 0.0 by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Lower and upper bounds as a tuple.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<em>ndarray</em> | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a> | <em>None</em>, <em>ndarray</em> | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a> | <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.zeros">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">zeros</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enforce_bounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#zeros"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.zeros" title="Link to this definition">¶</a></dt>
+<dd><p>Allocate data structure from <cite>gym.Space</cite> and initialize it to zero.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><em>DataNestedT</em><em>]</em>) – <cite>gym.Space</cite> on which to operate.</p></li>
+<li><p><strong>dtype</strong> (<em>dtype</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><em>None</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#type" title="(in Python v3.13)"><em>type</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><em>_SupportsDType</em><em>[</em><em>dtype</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.13)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.13)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsIndex" title="(in Python v3.13)"><em>SupportsIndex</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsIndex" title="(in Python v3.13)"><em>SupportsIndex</em></a><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><em>_DTypeDict</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.13)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Can be specified to overwrite original space dtype.
+Optional: None by default</p></li>
+<li><p><strong>enforce_bounds</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>DataNestedT</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.fill">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fill_value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#fill"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.fill" title="Link to this definition">¶</a></dt>
+<dd><p>Set every element of ‘data’ from <cite>gym.Space</cite> to scalar ‘fill_value’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>) – Data structure to update.</p></li>
+<li><p><strong>fill_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>number</em>) – Value used to fill any scalar from the leaves.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.copyto">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">copyto</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dst</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">src</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#copyto"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.copyto" title="Link to this definition">¶</a></dt>
+<dd><p>Copy arbitrarily nested data structure of ‘np.ndarray’ to a given
+pre-allocated destination.</p>
+<p>It avoids memory allocation completely, so that memory pointers of ‘data’
+remains unchanged. As direct consequences, it is necessary to preallocate
+memory beforehand, and it only supports arrays of fixed shape.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Unlike the function returned by ‘build_copyto’, only the flattened data
+structure needs to match, not the original one. This means that the
+source and/or destination can be flattened already when provided.
+Beware values must be sorted by keys in case of nested dict.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dst</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>) – Hierarchical data structure to update, possibly flattened.</p></li>
+<li><p><strong>value</strong> – Hierarchical data to copy, possibly flattened.</p></li>
+<li><p><strong>src</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.copy">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataNestedT</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataNestedT</span></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.copy" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Space</span><span class="p"><span class="pre">[</span></span><span class="pre">DataNestedT</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Space</span><span class="p"><span class="pre">[</span></span><span class="pre">DataNestedT</span><span class="p"><span class="pre">]</span></span></span></span></dt>
+<dd><p>Shallow copy recursively ‘data’ from <cite>gym.Space</cite>, so that only leaves
+are still references.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> – Hierarchical data structure to copy without allocation.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.clip">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">clip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#clip"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.clip" title="Link to this definition">¶</a></dt>
+<dd><p>Clip data from <cite>gym.Space</cite> to make sure it is within bounds.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em>) – Data to clip.</p></li>
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em><em>]</em>) – <cite>gym.Space</cite> on which to operate.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.contains">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">contains</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_abs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_rel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#contains"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.contains" title="Link to this definition">¶</a></dt>
+<dd><p>Check if all leaves of a nested data structure are within bounds of
+their respective <cite>gym.Space</cite>, up to some tolerance threshold. If both
+absolute and relative tolerances are provided, then satisfying only one of
+the two criteria is considered sufficient.</p>
+<p>By design, it is always <cite>True</cite> for all spaces but <cite>gym.spaces.Box</cite>,
+<cite>gym.spaces.Discrete</cite> and <cite>gym.spaces.MultiDiscrete</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em>) – Data structure to check.</p></li>
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em><em>]</em>) – <cite>gym.Space</cite> on which to operate.</p></li>
+<li><p><strong>tol_abs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Absolute tolerance.</p></li>
+<li><p><strong>tol_rel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Relative tolerance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.build_reduce">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">build_reduce</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">op</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">arity</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initializer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_bounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_abs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_rel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#build_reduce"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.build_reduce" title="Link to this definition">¶</a></dt>
+<dd><p>Generate specialized callable applying transform and reduction on all
+leaves of given nested space.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Original ordering of the leaves is preserved. More precisely, both
+transform and reduction will be applied recursively in keys order.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is assumed without checking that all nested data structures are
+consistent together and with the space if provided. It holds true both
+data known at generation-time or runtime. It is only required for data
+that may be provided at runtime to include the original data structure,
+so it may contain additional branches which will be ignored.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Providing additional data at runtime is supported but impede
+performance. Arity larger than 1 is not supported because the code path
+could not be fully specialized, causing dramatic slowdown.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>There is no built-in ‘short-circuit’ mechanism, which means that it
+will go through all leaves systematically unless the reduction operator
+itself raises an exception.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>...</em><em>]</em><em>, </em><em>ValueInT</em><em>]</em>) – Transform applied to every leaves of the nested data structures
+before performing the actual reduction. This function can
+perform in-place or out-of-place operations without restriction.
+<cite>None</cite> is not supported because it would be irrelevant. Note
+that if tracking the hierarchy during reduction is not
+necessary, then it would be way more efficient to first flatten
+the pre-allocated nested data structure once for all, and then
+perform reduction on this flattened view using the standard
+‘functools.reduce’ method. Still, flattening at runtime using
+‘flatten’ would still much slower than a specialized nested
+reduction.</p></li>
+<li><p><strong>op</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>ValueOutT</em><em>, </em><em>ValueInT</em><em>]</em><em>, </em><em>ValueOutT</em><em>] </em><em>| </em><em>None</em>) – Optional reduction operator applied cumulatively on all leaves
+after transform. See ‘functools.reduce’ documentation for
+details. <cite>None</cite> to only apply transform on all leaves without
+reduction. This is useful when apply in-place transform.</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em><em>]</em>) – Pre-allocated nested data structure. Optional if the space
+is provided.</p></li>
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em><em>] </em><em>| </em><em>None</em>) – Container space on which to operate (eg <cite>gym.spaces.Dict</cite> or
+<cite>gym.spaces.Tuple</cite>). Optional iif the nested data structure
+is provided.</p></li>
+<li><p><strong>arity</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>0</em><em>, </em><em>1</em><em>] </em><em>| </em><em>None</em>) – Arity of the generated callable. <cite>None</cite> to indicate that it
+must be determined at runtime, which is slower. Either way,
+only 0 or 1 arity is supported for now.</p></li>
+<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra arguments to systematically forward as transform input
+for all leaves. Note that, as for Python built-ins methods,
+keywords are not supported for the sake of efficiency.</p></li>
+<li><p><strong>initializer</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>]</em><em>, </em><em>ValueOutT</em><em>] </em><em>| </em><em>None</em>) – Function used to compute the initial value before
+starting reduction. Optional if the reduction operator
+has same input and output types. If <cite>None</cite>, then the
+value corresponding to the first leaf after transform
+will be used instead.</p></li>
+<li><p><strong>forward_bounds</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to forward the lower and upper bounds of the
+<cite>gym.Space</cite> associated with each leaf as transform
+input. In this case, they will be added after the
+data structure provided at runtime but before other
+extra arguments if any. It is up to the user to make
+sure all leaves have bounds, otherwise it will raise
+an exception at generation-time. This argument is
+ignored if not space is specified.</p></li>
+<li><p><strong>tol_abs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Absolute tolerance added to the lower and upper bounds of
+the <cite>gym.Space</cite> associated with each leaf.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>tol_rel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Relative tolerance added to the lower and upper bounds of
+the <cite>gym.Space</cite> associated with each leaf.
+Optional: 0.0 by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Fully-specialized reduction callable.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[…], <em>ValueOutT</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.build_map">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">build_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">arity</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_bounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_abs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_rel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#build_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.build_map" title="Link to this definition">¶</a></dt>
+<dd><p>Generate specialized callable returning applying out-of-place transform
+to all leaves of given nested space.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method systematically allocates memory to store the resulting
+nested data structure, which is costly. If pre-allocation is possible,
+it would more efficient to use <cite>build_reduce</cite> without operator instead.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Providing additional data at runtime is supported but impede
+performance. Arity larger than 1 is not supported because the code path
+could not be fully specialized, causing dramatic slowdown.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is assumed without check that all nested data structures are
+consistent together and with the space if provided. It holds true both
+data known at generation-time or runtime. Yet, it is only required for
+data provided at runtime if any to include the original data structure,
+so it may contain additional branches which will be ignored.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>...</em><em>]</em><em>, </em><em>ValueT</em><em>]</em>) – Transform applied to every leaves of the nested data structures.
+This function is supposed to allocate its own memory while
+performing some out-of-place operations then return the outcome.</p></li>
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em><em> | </em><em>None</em>) – Pre-allocated nested data structure. Optional iif the space is
+provided. This enables generating specialized random sampling
+methods for instance.</p></li>
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em><em>] </em><em>| </em><em>None</em>) – <cite>gym.spaces.Dict</cite> on which to operate. Optional iif the
+nested data structure is provided.</p></li>
+<li><p><strong>arity</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>0</em><em>, </em><em>1</em><em>] </em><em>| </em><em>None</em>) – Arity of the generated callable. <cite>None</cite> to indicate that it
+must be determined at runtime, which is slower. Either way,
+only 0 or 1 arity is supported for now.</p></li>
+<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra arguments to systematically forward as transform input
+for all leaves. Note that, as for Python built-ins methods,
+keywords are not supported for the sake of efficiency.</p></li>
+<li><p><strong>forward_bounds</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to forward the lower and upper bounds of the
+<cite>gym.Space</cite> associated with each leaf as transform
+input. In this case, they will be added after the
+data structure provided at runtime but before other
+extra arguments if any. It is up to the user to make
+sure all leaves have bounds, otherwise it will raise
+an exception at generation-time. This argument is
+ignored if not space is specified.
+Optional: <cite>True</cite> by default.</p></li>
+<li><p><strong>tol_abs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Absolute tolerance added to the lower and upper bounds of
+the <cite>gym.Space</cite> associated with each leaf.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>tol_rel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Relative tolerance added to the lower and upper bounds of
+the <cite>gym.Space</cite> associated with each leaf.
+Optional: 0.0 by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Fully-specialized mapping callable.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ValueT</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.build_copyto">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">build_copyto</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dst</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#build_copyto"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.build_copyto" title="Link to this definition">¶</a></dt>
+<dd><p>Generate specialized <cite>copyto</cite> method for a given pre-allocated
+destination.</p>
+<p>Note that the key ordering of source and destination data structures do NOT
+have to match, only the hierarchy has to be the same. Beside, additional
+subtrees of the output data structure will be ignored if any.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dst</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>) – Nested data structure to be updated.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ValueT</em>] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ValueT</em>] | <em>ndarray</em>], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.build_clip">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">build_clip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#build_clip"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.build_clip" title="Link to this definition">¶</a></dt>
+<dd><p>Generate specialized <cite>clip</cite> method for some pre-allocated nested data
+structure and corresponding space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>) – Nested data structure whose leaves must be clipped.</p></li>
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em><em>]</em>) – <cite>gym.Space</cite> on which to operate.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ValueT</em>] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ValueT</em>] | <em>ndarray</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.build_contains">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">build_contains</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_abs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol_rel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#build_contains"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.build_contains" title="Link to this definition">¶</a></dt>
+<dd><p>Generate specialized <cite>contains</cite> method for some pre-allocated nested
+data structure and corresponding space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>) – Pre-allocated nested data structure whose leaves must be
+within bounds if defined and ignored otherwise.</p></li>
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em><em>]</em>) – <cite>gym.Space</cite> on which to operate.</p></li>
+<li><p><strong>tol_abs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Absolute tolerance for floating point equality check.
+Optional: <cite>0.0</cite> by default.</p></li>
+<li><p><strong>tol_rel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Relative tolerance for floating point aprox equality check.
+Optional: <cite>0.0</cite> by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[], <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.build_normalize">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">build_normalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">src</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_unbounded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_reversed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#build_normalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.build_normalize" title="Link to this definition">¶</a></dt>
+<dd><p>Generate a normalization or de-normalization method specialized for a
+given pre-allocated destination.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The generated method applies element-wise de-normalization to all
+elements of the leaf spaces having finite bounds. For those that does
+not, it simply copies the value from ‘src’ to ‘dst’.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method requires all leaf spaces to have type <cite>gym.spaces.Box</cite>
+with dtype ‘np.floating’.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dst</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>) – Nested data structure to updated.</p></li>
+<li><p><strong>space</strong> (<em>Space</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em><em>]</em>) – Original (de-normalized) <cite>gym.Space</cite> on which to operate.</p></li>
+<li><p><strong>src</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em><em> | </em><em>None</em>) – Normalized nested data if ‘is_reversed’ is True, original data
+(de-normalized) otherwise. <cite>None</cite> to pass it at runtime.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>is_reversed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – True to de-normalize, False to normalize.</p></li>
+<li><p><strong>ignore_unbounded</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[…], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.spaces.build_flatten">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.spaces.</span></span><span class="sig-name descname"><span class="pre">build_flatten</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_nested</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_flat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'C'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_reversed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/spaces.html#build_flatten"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.spaces.build_flatten" title="Link to this definition">¶</a></dt>
+<dd><p>Generate a flattening or un-flattening method specialized for some
+pre-allocated nested data.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Multi-dimensional leaf spaces are supported. Values will be flattened
+in 1D vectors using ‘C’ order (row-major). It ignores the actual memory
+layout the leaves of ‘data_nested’ and they are not required to have
+the same dtype as ‘data_flat’.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_nested</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em>) – Nested data structure.</p></li>
+<li><p><strong>data_flat</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ValueT</em><em>] </em><em>| </em><em>ndarray</em><em> | </em><em>None</em>) – Flat array consistent with the nested data structure.
+Optional iif <cite>is_reversed</cite> is <cite>True</cite>.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>order</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'C'</em><em>, </em><em>'F'</em><em>]</em>) – Order in which the elements of multi-dimensional arrays are
+sorted into the flattened vector. See ‘numpy.ravel’
+documentation for details. Only ‘C’ and ‘F’ are supported.
+Optiona: ‘C’ by default.</p></li>
+<li><p><strong>is_reversed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – True to update ‘data_flat’ (flattening), ‘data_nested’
+otherwise (un-flattening).
+Optional: True if ‘data_flat’ is specified, False
+otherwise.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[…], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="pipeline.html" class="btn btn-neutral float-left" title="Pipeline" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="math.html" class="btn btn-neutral float-right" title="Helpers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

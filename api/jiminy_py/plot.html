@@ -1,0 +1,539 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>plot &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="dynamics" href="dynamics.html" />
+    <link rel="prev" title="log" href="log.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Jiminy Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="core/index.html">core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simulator.html">simulator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="log.html">log</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">plot</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.plot.TabData"><code class="docutils literal notranslate"><span class="pre">TabData</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabData.axes"><code class="docutils literal notranslate"><span class="pre">TabData.axes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabData.gridspec"><code class="docutils literal notranslate"><span class="pre">TabData.gridspec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabData.legend_data"><code class="docutils literal notranslate"><span class="pre">TabData.legend_data</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabData.button"><code class="docutils literal notranslate"><span class="pre">TabData.button</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabData.button_axcut"><code class="docutils literal notranslate"><span class="pre">TabData.button_axcut</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabData.nav_stack"><code class="docutils literal notranslate"><span class="pre">TabData.nav_stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabData.nav_pos"><code class="docutils literal notranslate"><span class="pre">TabData.nav_pos</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure"><code class="docutils literal notranslate"><span class="pre">TabbedFigure</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.close"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.adjust_layout"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.adjust_layout()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.refresh"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.refresh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.add_tab"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.add_tab()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.select_active_tab"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.select_active_tab()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.remove_tab"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.remove_tab()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.clear"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.clear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.save_tab"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.save_tab()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.save_all_tabs"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.save_all_tabs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.plot.TabbedFigure.plot"><code class="docutils literal notranslate"><span class="pre">TabbedFigure.plot()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.plot.plot_log"><code class="docutils literal notranslate"><span class="pre">plot_log()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="dynamics.html">dynamics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Jiminy Python API</a></li>
+      <li class="breadcrumb-item active">plot</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/api/jiminy_py/plot.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-jiminy_py.plot">
+<span id="plot"></span><h1>plot<a class="headerlink" href="#module-jiminy_py.plot" title="Link to this heading">¶</a></h1>
+<p>This modules provides a set of tools to visualize telemetry log data in a
+convenient and portable way. These tools are designed to work on any platform
+without root permission, including in local Jupyter notebook, VS Code, and
+Google Colaboratory. No graphical server is required for offscreen rendering.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.plot.</span></span><span class="sig-name descname"><span class="pre">TabData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gridspec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">legend_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">button</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">button_axcut</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nav_stack</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nav_pos</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabData" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Internal data stored for each tab if <cite>TabbedFigure</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>axes</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a><em>[</em><em>Axes</em><em>]</em>)</p></li>
+<li><p><strong>gridspec</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em><em>]</em>)</p></li>
+<li><p><strong>legend_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a><em>[</em><em>Artist</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em><em>]</em>)</p></li>
+<li><p><strong>button</strong> (<em>Button</em>)</p></li>
+<li><p><strong>button_axcut</strong> (<em>Axes</em>)</p></li>
+<li><p><strong>nav_stack</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/weakref.html#weakref.WeakKeyDictionary" title="(in Python v3.13)"><em>WeakKeyDictionary</em></a><em>]</em>)</p></li>
+<li><p><strong>nav_pos</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData.axes">
+<span class="sig-name descname"><span class="pre">axes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#jiminy_py.plot.TabData.axes" title="Link to this definition">¶</a></dt>
+<dd><p>Matpolib <cite>Axes</cite> handles of every subplots.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData.gridspec">
+<span class="sig-name descname"><span class="pre">gridspec</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#jiminy_py.plot.TabData.gridspec" title="Link to this definition">¶</a></dt>
+<dd><p>The requested shape (nrows, ncols) of the subplot grid.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData.legend_data">
+<span class="sig-name descname"><span class="pre">legend_data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><span class="pre">Artist</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#jiminy_py.plot.TabData.legend_data" title="Link to this definition">¶</a></dt>
+<dd><p>Matpolib Legend data as returned by <cite>get_legend_handles_labels</cite> method.</p>
+<p>First element of pair is a list of Artist to legend, which usually are
+<cite>line2D</cite> object, and the second element is the list of labels for each of
+them.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData.button">
+<span class="sig-name descname"><span class="pre">button</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Button</span></em><a class="headerlink" href="#jiminy_py.plot.TabData.button" title="Link to this definition">¶</a></dt>
+<dd><p>Button on which to click to switch to the tab at hand.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData.button_axcut">
+<span class="sig-name descname"><span class="pre">button_axcut</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Axes</span></em><a class="headerlink" href="#jiminy_py.plot.TabData.button_axcut" title="Link to this definition">¶</a></dt>
+<dd><p>Axe of the button.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This attribute is used internally to define the position and size of
+the button.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData.nav_stack">
+<span class="sig-name descname"><span class="pre">nav_stack</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/weakref.html#weakref.WeakKeyDictionary" title="(in Python v3.13)"><span class="pre">WeakKeyDictionary</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#jiminy_py.plot.TabData.nav_stack" title="Link to this definition">¶</a></dt>
+<dd><p>Matplotlib <cite>NavigationToolbar2</cite> navigation stack history.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This attribute is used internally for undo/redo history. It is not
+meant to be modified manually, but only copied/restored when needed.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabData.nav_pos">
+<span class="sig-name descname"><span class="pre">nav_pos</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></em><a class="headerlink" href="#jiminy_py.plot.TabData.nav_pos" title="Link to this definition">¶</a></dt>
+<dd><p>Matplotlib <cite>NavigationToolbar2</cite> navigation stack position.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This attribute is used internally for undo/redo history. It is not
+meant to be modified manually, but only copied/restored when needed.</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.plot.</span></span><span class="sig-name descname"><span class="pre">TabbedFigure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sync_tabs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'jiminy'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offscreen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>A windows with several tabs holding matplotlib subplots. It enables
+adding, modifying and removing tabs sequentially and conveniently.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It has been designed to be cross-platform, and supported by any
+Matplotlib backend. So it can be used on-the-spot right after fresh
+install of Python and <cite>jiminy_py</cite>, without requiring elevated
+privilege to install Qt4/5 or Tkinter.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It only supports plotting time series, the time corresponding to the
+horizontal axis of every subplot.</p>
+</div>
+<p>Create empty tabbed figure.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It will show-up on display automatically only adding the first tab.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sync_tabs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Synchronize time window on every tabs (horizontal
+axis), rather than independently for every tabs.</p></li>
+<li><p><strong>window_title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired indow title.
+Optional: “jiminy” by default.</p></li>
+<li><p><strong>offscreen</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to enable display on screen of figure.
+Optional: False by default.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Unused extra keyword arguments to enable forwarding.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.close" title="Link to this definition">¶</a></dt>
+<dd><p>Close figure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.adjust_layout">
+<span class="sig-name descname"><span class="pre">adjust_layout</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refresh_canvas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.adjust_layout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.adjust_layout" title="Link to this definition">¶</a></dt>
+<dd><p>Optimize buttons width and grid subplot arrangement of the active
+tab for readability based on the current window size. Then, adjust
+margins to maximize plot sizes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> (<em>Event</em><em> | </em><em>None</em>) – Event spent by figure <cite>mpl_connect</cite> ‘resize_event’.</p></li>
+<li><p><strong>refresh_canvas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Force redrawing figure canvas.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Refresh canvas drawing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.add_tab">
+<span class="sig-name descname"><span class="pre">add_tab</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tab_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nrows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ncols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refresh_canvas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.add_tab"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.add_tab" title="Link to this definition">¶</a></dt>
+<dd><p>Create a new tab holding the provided data.</p>
+<p>Each tab holds exactly one grid of subplots. There is one subplot for
+each time series that has been provided, and all of them having to be
+associated with the exact same time sequence. The layout is dynamically
+optimized for readability.</p>
+<p>The added tab will only be selected as the active one automatically if
+there were no tab beforehand.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tab_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the tab to be added. It must be a unique
+identifier not already used for another tab. It will
+be displayed as label for the buttons used to select
+the active tab.</p></li>
+<li><p><strong>time</strong> (<em>ndarray</em>) – Unique time sequence associated with the provided time
+series. It does not have to be evenly spaced but must be
+monotonically increasing.</p></li>
+<li><p><strong>data</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>] </em><em>| </em><em>ndarray</em><em>]</em>) – Set of time series to plot. If a simple array is provided,
+then there will be only one subplot, with one (unlabeled)
+line if the array is 1D, one per column otherwise. If a
+dictionary of arrays is provided, there is one subplot per
+item, the key being used as label and the value is treated
+as simple array. Finally, in case of a nested dictionary,
+each sub-value must be a 1D array and sub-keys will be
+used to label individual lines.</p></li>
+<li><p><strong>plot_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>...</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Callable method taking axis object, time, and data
+array in argument, or string instance method of
+<cite>matplotlib.axes.Axes</cite>.
+Optional: <cite>step(…, where=’post’)</cite> by default.</p></li>
+<li><p><strong>nrows</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Desired number of rows for the subplot grid if any.
+If not specified, it will be determined automatically,
+so that the actual width of each subplot is as close as
+possible to their height.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>ncols</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Desired number of columns for the subplot grid if any.
+If not specified, it will be determined automatically,
+so that the actual width of each subplot is as close as
+possible to their height.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>refresh_canvas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to refresh the figure. This step can be
+skipped if other tabs are going to be added or
+deleted soon, to avoid useless computation and
+figure flickering.
+Optional: True by default.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.select_active_tab">
+<span class="sig-name descname"><span class="pre">select_active_tab</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tab_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.select_active_tab"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.select_active_tab" title="Link to this definition">¶</a></dt>
+<dd><p>Select the active tab.</p>
+<p>A single tab is considered active at a time.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tab_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the tab to select. It must be to one of the
+names that has been specified when calling <cite>add_tab</cite>
+previously.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.remove_tab">
+<span class="sig-name descname"><span class="pre">remove_tab</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tab_name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refresh_canvas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.remove_tab"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.remove_tab" title="Link to this definition">¶</a></dt>
+<dd><p>Remove a given tab.</p>
+<p>If the removed tab was the active one, the first tab that has been
+added while be made active from now on.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tab_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the tab to remove. It must be to one of the
+names that has been specified when calling <cite>add_tab</cite>
+previously.</p></li>
+<li><p><strong>refresh_canvas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to refresh the figure. This step can be
+skipped if other tabs are going to be added or
+deleted soon, to avoid useless computation and
+figure flickering.
+Optional: True by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.clear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.clear" title="Link to this definition">¶</a></dt>
+<dd><p>Remove all tabs at once.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.save_tab">
+<span class="sig-name descname"><span class="pre">save_tab</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pdf_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.save_tab"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.save_tab" title="Link to this definition">¶</a></dt>
+<dd><p>Export the active tab in a single-page PDF file, excluding tab
+buttons. Lines are stored as vector instead of being rasterized.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pdf_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired location for generated pdf file.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.save_all_tabs">
+<span class="sig-name descname"><span class="pre">save_all_tabs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pdf_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.save_all_tabs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.save_all_tabs" title="Link to this definition">¶</a></dt>
+<dd><p>Export the whole figure in a single PDF file containing one page per
+tab and excluding systematically the tab buttons.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>save_tab</cite> documentation for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pdf_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired location for generated pdf file.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.plot.TabbedFigure.plot">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tabs_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdf_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#TabbedFigure.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.TabbedFigure.plot" title="Link to this definition">¶</a></dt>
+<dd><p>Create a new tabbed figure along with multiple tabs holding the
+provided data, then eventually export it as PDF.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>ndarray</em>) – Unique time sequence associated with the provided time
+series. It does not have to be evenly spaced but must be
+monotonically increasing.</p></li>
+<li><p><strong>tabs_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>] </em><em>| </em><em>ndarray</em><em>]</em><em>]</em>) – Set of time series to plot in multiple tabs, as a
+nested dictionary. There will be one tab per item,
+the key and value being the name and the data of the
+tab, respectively. See <cite>add_tab</cite> documentation about
+how the data are displayed based on their structure.</p></li>
+<li><p><strong>pdf_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – If specified, the whole figure will be exported in a
+PDF file at the desired location without rendering on
+screen. See <cite>save_all_tabs</cite> documentation for details.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward to <cite>add_tab</cite> method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#jiminy_py.plot.TabbedFigure" title="jiminy_py.plot.TabbedFigure"><em>TabbedFigure</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.plot.plot_log">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.plot.</span></span><span class="sig-name descname"><span class="pre">plot_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_flexiblity_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/plot.html#plot_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.plot.plot_log" title="Link to this definition">¶</a></dt>
+<dd><p>Display standard simulation data over time.</p>
+<p>The figure features several tabs:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Subplots with robot configuration</p></li>
+<li><p>Subplots with robot velocity</p></li>
+<li><p>Subplots with robot acceleration</p></li>
+<li><p>Subplots with motors torques</p></li>
+<li><p>Subplots with raw sensor data (one tab for each type of sensor)</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Logged data (constants and variables) as a dictionary.</p></li>
+<li><p><strong>robot</strong> (<a class="reference internal" href="core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a><em> | </em><em>None</em>) – Jiminy robot associated with the logged trajectory.
+Optional: None by default. If None, then it will be
+reconstructed from ‘log_data’ using <cite>build_robot_from_log</cite>.</p></li>
+<li><p><strong>enable_flexiblity_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Enable display of flexibility joints in robot’s configuration,
+velocity and acceleration subplots.
+Optional: False by default.</p></li>
+<li><p><strong>block</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether to wait for the figure to be closed before
+returning. Non-op for offscreen rendering and notebooks.
+Optional: False in interactive mode, True otherwise.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward to <cite>TabbedFigure</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#jiminy_py.plot.TabbedFigure" title="jiminy_py.plot.TabbedFigure"><em>TabbedFigure</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="log.html" class="btn btn-neutral float-left" title="log" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="dynamics.html" class="btn btn-neutral float-right" title="dynamics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

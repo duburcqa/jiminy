@@ -1,0 +1,820 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locomotion &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Wrappers" href="../wrappers/index.html" />
+    <link rel="prev" title="Generic" href="generic.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Compositions</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="generic.html">Generic</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Locomotion</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward"><code class="docutils literal notranslate"><span class="pre">TrackingBaseHeightReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward"><code class="docutils literal notranslate"><span class="pre">TrackingBaseOdometryVelocityReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.l2_norm"><code class="docutils literal notranslate"><span class="pre">l2_norm()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPoseReward"><code class="docutils literal notranslate"><span class="pre">DriftTrackingBaseOdometryPoseReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward"><code class="docutils literal notranslate"><span class="pre">TrackingCapturePointReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward"><code class="docutils literal notranslate"><span class="pre">TrackingFootPositionsReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward"><code class="docutils literal notranslate"><span class="pre">TrackingFootOrientationsReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward"><code class="docutils literal notranslate"><span class="pre">TrackingFootForceDistributionReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward"><code class="docutils literal notranslate"><span class="pre">MinimizeAngularMomentumReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward"><code class="docutils literal notranslate"><span class="pre">MinimizeFrictionReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.BaseRollPitchTermination"><code class="docutils literal notranslate"><span class="pre">BaseRollPitchTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.FallingTermination"><code class="docutils literal notranslate"><span class="pre">FallingTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.FootCollisionTermination"><code class="docutils literal notranslate"><span class="pre">FootCollisionTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.min_depth"><code class="docutils literal notranslate"><span class="pre">min_depth()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance"><code class="docutils literal notranslate"><span class="pre">_MultiContactMinGroundDistance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.FlyingTermination"><code class="docutils literal notranslate"><span class="pre">FlyingTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.ImpactForceTermination"><code class="docutils literal notranslate"><span class="pre">ImpactForceTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPositionTermination"><code class="docutils literal notranslate"><span class="pre">DriftTrackingBaseOdometryPositionTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryOrientationTermination"><code class="docutils literal notranslate"><span class="pre">DriftTrackingBaseOdometryOrientationTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryPositionsTermination"><code class="docutils literal notranslate"><span class="pre">ShiftTrackingFootOdometryPositionsTermination</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.angle_distance"><code class="docutils literal notranslate"><span class="pre">angle_distance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryOrientationsTermination"><code class="docutils literal notranslate"><span class="pre">ShiftTrackingFootOdometryOrientationsTermination</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Compositions</a></li>
+      <li class="breadcrumb-item active">Locomotion</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/compositions/locomotion.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.compositions.locomotion">
+<span id="locomotion"></span><h1>Locomotion<a class="headerlink" href="#module-gym_jiminy.common.compositions.locomotion" title="Link to this heading">¶</a></h1>
+<p>Rewards mainly relevant for locomotion tasks on floating-base robots.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingBaseHeightReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingBaseHeightReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the height of the floating base of the
+robot relative to lowest contact point wrt some reference trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingBaseOdometryVelocityReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingBaseOdometryVelocityReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the odometry velocity wrt some reference
+trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.l2_norm">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">l2_norm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#l2_norm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.l2_norm" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the L2-norm of a vector.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>array</strong> – Input array.</p></li>
+<li><p><strong>vec</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPoseReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">DriftTrackingBaseOdometryPoseReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#DriftTrackingBaseOdometryPoseReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPoseReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the drift of the odometry pose over a
+horizon wrt some reference trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>DeltaBaseOdometryPosition</cite>, <cite>DeltaBaseOdometryOrientation</cite> and
+<cite>TrackingQuantityReward</cite> documentations for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the drift.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingCapturePointReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingCapturePointReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the capture point wrt some reference
+trajectory.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingFootPositionsReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingFootPositionsReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the relative position of the feet wrt each
+other.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingFootOrientationsReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingFootOrientationsReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the relative orientation of the feet wrt
+each other.</p>
+<p>The error corresponds to the sum of squared total angles of the differences
+between the true and reference relative orientations for each foot.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">TrackingFootForceDistributionReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#TrackingFootForceDistributionReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward" title="gym_jiminy.common.compositions.generic.TrackingQuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrackingQuantityReward</span></code></a></p>
+<p>Reward the agent for tracking the relative vertical force in world frame
+applied on each foot.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The force is normalized by the weight of the robot rather than the
+total force applied on all feet. This is important as it not only takes
+into account the force distribution between the feet, but also the
+overall ground contact interact force. This way, building up momentum
+before jumping will be distinguished for standing still. Moreover, it
+ensures that the reward is always properly defined, even if the robot
+has no contact with the ground at all, which typically arises during
+the flying phase of running.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">MinimizeAngularMomentumReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#MinimizeAngularMomentumReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityReward" title="gym_jiminy.common.bases.compositions.QuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityReward</span></code></a></p>
+<p>Reward the agent for minimizing the angular momentum in world plane.</p>
+<p>The angular momentum along x- and y-axes in local odometry frame is
+transform in a normalized reward to maximize by applying RBF kernel on the
+error. See <cite>TrackingQuantityReward</cite> documentation for technical details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">MinimizeFrictionReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#MinimizeFrictionReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityReward" title="gym_jiminy.common.bases.compositions.QuantityReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityReward</span></code></a></p>
+<p>Reward the agent for minimizing the tangential forces at all the contact
+points and collision bodies, and to avoid jerky intermittent contact state.</p>
+<p>The L^2-norm is used to aggregate all the local tangential forces. While
+the L^1-norm would be more natural in this specific cases, using the L-2
+norm is preferable as it promotes space-time regularity, ie balancing the
+force distribution evenly between all the candidate contact points and
+avoiding jerky contact forces over time (high-frequency vibrations),
+phenomena to which the L^1-norm is completely insensitive.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Cutoff threshold for the RBF kernel transform.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.BaseRollPitchTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">BaseRollPitchTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#BaseRollPitchTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.BaseRollPitchTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Encourages the agent to keep the floating base straight, ie its torso in
+case of a humanoid robot, by prohibiting excessive roll and pitch angles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>low</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><em>number</em><em>] </em><em>| </em><em>None</em>) – Lower bound below which termination is triggered.</p></li>
+<li><p><strong>high</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><em>number</em><em>] </em><em>| </em><em>None</em>) – Upper bound above which termination is triggered.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.FallingTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">FallingTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_base_height</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#FallingTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.FallingTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Terminate the episode immediately if the floating base of the robot
+gets too close from the ground.</p>
+<p>It is assumed that the state is no longer recoverable when its condition
+is triggered. As such, the episode is terminated on the spot as the
+situation is hopeless. Generally speaking, aborting an epsiode in
+anticipation of catastrophic failure is beneficial. Assuming the condition
+is on point, doing this improves the signal to noice ratio when estimating
+the gradient by avoiding cluterring the training batches with irrelevant
+information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>min_base_height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Minimum height of the floating base of the
+robot below which termination is triggered.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.FootCollisionTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">FootCollisionTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">security_margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#FootCollisionTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.FootCollisionTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Terminate the episode immediately if some of the feet of the robot are
+getting too close from each other.</p>
+<p>Self-collision must be avoided at all cost, as it can damage the hardware.
+Considering this condition as a dramatically failure urges the agent to do
+his best in this matter, to the point of becoming risk averse.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>security_margin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Minimum signed distance below which termination is triggered. This
+can be interpreted as inflating or deflating the geometry objects
+by the safety margin depending on whether it is positive or
+negative. See <cite>MultiFootCollisionDetection</cite> for details.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.min_depth">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">min_depth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">positions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">heights</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normals</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#min_depth"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.min_depth" title="Link to this definition">¶</a></dt>
+<dd><p>Approximate minimum distance from the ground profile among a set of the
+query points.</p>
+<p>Internally, it uses a first order approximation assuming zero local
+curvature around each query point.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>positions</strong> (<em>ndarray</em>) – Position of all the query points from which to compute
+from the ground profile, as a 2D array whose first
+dimension gathers the 3 position coordinates (X, Y, Z)
+while the second correponds to the N individual query
+points.</p></li>
+<li><p><strong>heights</strong> (<em>ndarray</em>) – Vertical height wrt the ground profile of the N individual
+query points in world frame as 1D array.</p></li>
+<li><p><strong>normals</strong> (<em>ndarray</em>) – Normal of the ground profile for the projection in world
+plane of all the query points, as a 2D array whose first
+dimension gathers the 3 position coordinates (X, Y, Z)
+while the second correponds to the N individual query
+points.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">_MultiContactMinGroundDistance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#_MultiContactMinGroundDistance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]</p>
+<p>Minimum distance from the ground profile among all the contact points.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Internally, it does not compute the exact shortest distance from the
+ground profile because it would be computionally too demanding for now.
+As a surrogate, it relies on a first order approximation assuming zero
+local curvature around all the contact points individually.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The set of contact points must not change over episodes. In addition,
+collision bodies are not supported for now.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#_MultiContactMinGroundDistance.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#_MultiContactMinGroundDistance.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.FlyingTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">FlyingTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_height</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#FlyingTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.FlyingTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Discourage the agent of jumping by terminating the episode immediately
+if the robot is flying too high above the ground.</p>
+<p>This kind of behavior is unsually undesirable because it may be frightning
+for people nearby, damage the hardware, be difficult to predict and be
+hardly repeatable. Moreover, such dynamic motions tend to transfer poorly
+to reality because the simulation to real gap is worsening.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>max_height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum height of the lowest contact points wrt the
+groupd above which termination is triggered.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.ImpactForceTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">ImpactForceTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_force_rel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#ImpactForceTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.ImpactForceTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/compositions.html#gym_jiminy.common.bases.compositions.QuantityTermination" title="gym_jiminy.common.bases.compositions.QuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></p>
+<p>Terminate the episode immediately in case of violent impact on the
+ground.</p>
+<p>Similarly to the jumping behavior, this kind of behavior is usually
+undesirable. See <cite>FlyingTermination</cite> documentation for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>max_force_rel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum vertical force applied on any of the
+contact points or collision bodies above which
+termination is triggered.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPositionTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">DriftTrackingBaseOdometryPositionTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_position_err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#DriftTrackingBaseOdometryPositionTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPositionTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination" title="gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">DriftTrackingQuantityTermination</span></code></a></p>
+<p>Terminate the episode if the current base odometry position is drifting
+too much over wrt some reference trajectory that is being tracked.</p>
+<p>It is generally important to make sure that the robot is not deviating too
+much from some reference trajectory. It sounds appealing to make sure that
+the absolute error between the current and reference trajectory is bounded
+at all time. However, such a condition is very restrictive, especially for
+robots dealing with external disturbances or evolving on an uneven terrain.
+Moreover, when it comes to infinite-horizon trajectories in particular, eg
+periodic motions, avoiding drifting away over time involves being able to
+sense the absolute position of the robot in world frame via exteroceptive
+navigation sensors such as depth cameras or LIDARs. This kind of advanced
+sensor may not be able, thereby making the objective out of reach. Still,
+in the case of legged locomotion, what really matters is tracking
+accurately a nominal limit cycle as long as doing so does not compromise
+local stability. If it does, then the agent expected to make every effort
+to recover balance as fast as possible before going back to the nominal
+limit cycle, without trying to catch up with the ensuing drift since the
+exact absolute odometry pose in world frame is of little interest. See
+<cite>BaseOdometryPose</cite> and <cite>DriftTrackingQuantityTermination</cite> documentations
+for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>max_position_err</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum drift error in translation (X, Y) in world plane above
+which termination is triggered.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the drift.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryOrientationTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">DriftTrackingBaseOdometryOrientationTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_orientation_err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#DriftTrackingBaseOdometryOrientationTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryOrientationTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination" title="gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">DriftTrackingQuantityTermination</span></code></a></p>
+<p>Terminate the episode if the current base odometry orientation is
+drifting too much over wrt some reference trajectory that is being tracked.</p>
+<p>See <cite>BaseOdometryPose</cite> and <cite>DriftTrackingBaseOdometryPositionTermination</cite>
+documentations for details.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It takes into account the  number of turns of the yaw angle of the
+floating base over the whole span of the history.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>max_orientation_err</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum drift error in orientation (yaw,) in world plane above
+which termination is triggered.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the drift.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryPositionsTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">ShiftTrackingFootOdometryPositionsTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_position_err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#ShiftTrackingFootOdometryPositionsTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryPositionsTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination" title="gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">ShiftTrackingQuantityTermination</span></code></a></p>
+<p>Terminate the episode if the selected reference trajectory is not
+tracked with expected accuracy regarding the relative foot odometry
+positions, whatever the timestep being considered over some fixed-size
+sliding window.</p>
+<p>See <cite>MultiFootRelativeXYZQuat</cite> and <cite>ShiftTrackingMotorPositionsTermination</cite>
+documentation for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>max_position_err</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum shift error in translation (X, Y) in world plane above
+which termination is triggered.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the shift.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.angle_distance">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">angle_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">angle_left</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle_right</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#angle_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.angle_distance" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the element-wise distance between two batches of angles.</p>
+<p>The distance is defined as the smallest angle in absolute value between
+right and left angles (ignoring multi-turns).</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>angle_difference</cite> documentation for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angle_left</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a>) – Left-hand side angles.</p></li>
+<li><p><strong>angle_right</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a>) – Right-hand side angles.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em> | <em>number</em> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryOrientationsTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.compositions.locomotion.</span></span><span class="sig-name descname"><span class="pre">ShiftTrackingFootOdometryOrientationsTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_orientation_err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/compositions/locomotion.html#ShiftTrackingFootOdometryOrientationsTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryOrientationsTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="generic.html#gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination" title="gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination"><code class="xref py py-class docutils literal notranslate"><span class="pre">ShiftTrackingQuantityTermination</span></code></a></p>
+<p>Terminate the episode if the selected reference trajectory is not
+tracked with expected accuracy regarding the relative foot odometry
+orientations, whatever the timestep being considered over some fixed-size
+sliding window.</p>
+<p>See <cite>MultiFootRelativeXYZQuat</cite> and <cite>ShiftTrackingMotorPositionsTermination</cite>
+documentation for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.
+Maximum shift error in orientation (yaw,) in world plane above
+which termination is triggered.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the shift.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+<li><p><strong>max_orientation_err</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="generic.html" class="btn btn-neutral float-left" title="Generic" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../wrappers/index.html" class="btn btn-neutral float-right" title="Wrappers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

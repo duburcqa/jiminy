@@ -1,0 +1,822 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.blocks.proportional_derivative_controller &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.blocks.proportional_derivative_controller</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.blocks.proportional_derivative_controller</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implementation of basic Proportional-Derivative controller block compatible</span>
+<span class="sd">with gym_jiminy reinforcement learning pipeline environment design.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">import</span> <span class="nn">jiminy_py.core</span> <span class="k">as</span> <span class="nn">jiminy</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">EncoderSensor</span><span class="p">,</span> <span class="n">array_copyto</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span> <span class="n">BaseControllerBlock</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">zeros</span><span class="p">,</span> <span class="n">fill</span>
+
+
+<span class="c1"># Name of the n-th position derivative</span>
+<span class="n">N_ORDER_DERIVATIVE_NAMES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Position&quot;</span><span class="p">,</span> <span class="s2">&quot;Velocity&quot;</span><span class="p">,</span> <span class="s2">&quot;Acceleration&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="integrate_zoh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.integrate_zoh">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">integrate_zoh</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">state_min</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">state_max</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Second order approximate integration scheme assuming Zero-Order-Hold for</span>
+<span class="sd">    the acceleration, taking position, velocity and acceleration bounds into</span>
+<span class="sd">    account.</span>
+
+<span class="sd">    Internally, it simply chains two first-order integrators in cascade. The</span>
+<span class="sd">    acceleration will be updated in-place if clipping is necessary to satisfy</span>
+<span class="sd">    bounds.</span>
+
+<span class="sd">    :param state: Current state, ordered from lowest to highest derivative</span>
+<span class="sd">                  order, ie: s[i](t) = s[i](t-1) + integ_{t-1}^{t}(s[i+1](t)),</span>
+<span class="sd">                  as a 2D array whose first dimension gathers the 3 derivative</span>
+<span class="sd">                  orders. It will be updated in-place.</span>
+<span class="sd">    :param state_min: Lower bounds of the state as a 2D array.</span>
+<span class="sd">    :param state_max: Upper bounds of the state as a 2D array.</span>
+<span class="sd">    :param dt: Integration delta of time since previous state update.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Make sure that dt is not negative</span>
+    <span class="k">assert</span> <span class="n">dt</span> <span class="o">&gt;=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">&quot;Integration backward in time is not supported.&quot;</span>
+
+    <span class="c1"># Early return if timestep is too small</span>
+    <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Split position, velocity and acceleration for convenience</span>
+    <span class="n">position</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">acceleration</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="c1"># Loop over motors individually as it is faster than masked vectorization</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">dim</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim</span><span class="p">):</span>
+        <span class="c1"># Split position, velocity and acceleration bounds</span>
+        <span class="n">position_min</span><span class="p">,</span> <span class="n">velocity_min</span><span class="p">,</span> <span class="n">acceleration_min</span> <span class="o">=</span> <span class="n">state_min</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span>
+        <span class="n">position_max</span><span class="p">,</span> <span class="n">velocity_max</span><span class="p">,</span> <span class="n">acceleration_max</span> <span class="o">=</span> <span class="n">state_max</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span>
+
+        <span class="c1"># Clip acceleration</span>
+        <span class="n">acceleration</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+            <span class="nb">max</span><span class="p">(</span><span class="n">acceleration</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">acceleration_min</span><span class="p">),</span> <span class="n">acceleration_max</span><span class="p">)</span>
+
+        <span class="c1"># Backup the initial velocity to later compute the clipped acceleration</span>
+        <span class="n">velocity_prev</span> <span class="o">=</span> <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="c1"># Integrate acceleration 1-step ahead</span>
+        <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">acceleration</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">dt</span>
+
+        <span class="c1"># Make sure that &quot;true&quot; velocity bounds are satisfied</span>
+        <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">velocity_min</span><span class="p">),</span> <span class="n">velocity_max</span><span class="p">)</span>
+
+        <span class="c1"># Force slowing down early enough to avoid violating acceleration</span>
+        <span class="c1"># limits when hitting position bounds.</span>
+        <span class="n">horizon</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+            <span class="nb">int</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">velocity_prev</span><span class="p">)</span> <span class="o">/</span> <span class="n">acceleration_max</span> <span class="o">/</span> <span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="n">dt</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+        <span class="n">position_min_delta</span> <span class="o">=</span> <span class="n">position_min</span> <span class="o">-</span> <span class="n">position</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">position_max_delta</span> <span class="o">=</span> <span class="n">position_max</span> <span class="o">-</span> <span class="n">position</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">horizon</span> <span class="o">&gt;</span> <span class="n">dt</span><span class="p">:</span>
+            <span class="n">drift</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">horizon</span> <span class="o">*</span> <span class="p">(</span><span class="n">horizon</span> <span class="o">-</span> <span class="n">dt</span><span class="p">))</span> <span class="o">*</span> <span class="n">acceleration_max</span>
+            <span class="n">position_min_delta</span> <span class="o">-=</span> <span class="n">drift</span>
+            <span class="n">position_max_delta</span> <span class="o">+=</span> <span class="n">drift</span>
+        <span class="n">velocity_min</span> <span class="o">=</span> <span class="n">position_min_delta</span> <span class="o">/</span> <span class="n">horizon</span>
+        <span class="n">velocity_max</span> <span class="o">=</span> <span class="n">position_max_delta</span> <span class="o">/</span> <span class="n">horizon</span>
+        <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">velocity_min</span><span class="p">),</span> <span class="n">velocity_max</span><span class="p">)</span>
+
+        <span class="c1"># Velocity after hitting bounds must be cancellable in a single step</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">acceleration_max</span><span class="p">:</span>
+            <span class="n">velocity_min</span> <span class="o">=</span> <span class="o">-</span> <span class="nb">max</span><span class="p">(</span>
+                <span class="n">position_min_delta</span> <span class="o">/</span> <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="n">acceleration_max</span>
+            <span class="n">velocity_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                <span class="n">position_max_delta</span> <span class="o">/</span> <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="n">acceleration_max</span>
+            <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">velocity_min</span><span class="p">),</span> <span class="n">velocity_max</span><span class="p">)</span>
+
+        <span class="c1"># Back-propagate velocity clipping at the acceleration-level</span>
+        <span class="n">acceleration</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">velocity_prev</span><span class="p">)</span> <span class="o">/</span> <span class="n">dt</span>
+
+        <span class="c1"># Integrate position 1-step ahead</span>
+        <span class="n">position</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">velocity</span><span class="p">[</span><span class="n">i</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="pd_controller">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.pd_controller">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">pd_controller</span><span class="p">(</span><span class="n">encoder_data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">command_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">command_state_lower</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">command_state_upper</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">kp</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">kd</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">motors_effort_limit</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                  <span class="n">control_dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                  <span class="n">out</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute command torques under discrete-time proportional-derivative</span>
+<span class="sd">    feedback control.</span>
+
+<span class="sd">    Internally, it integrates the command state (position, velocity and</span>
+<span class="sd">    acceleration) at controller update period in order to obtain the desired</span>
+<span class="sd">    motor positions &#39;q_desired&#39; and velocities &#39;v_desired&#39;, takes into account</span>
+<span class="sd">    some lower and upper bounds. By computing them this way, the target motor</span>
+<span class="sd">    positions and velocities can be interpreted as targets that has be to reach</span>
+<span class="sd">    right before updating the command once again. Enforcing consistency between</span>
+<span class="sd">    target position and velocity in such a way is a necessary but insufficient</span>
+<span class="sd">    condition for the motors to be able to track them.</span>
+
+<span class="sd">    The command effort is computed as follows:</span>
+
+<span class="sd">        tau = - kp * ((q_measured - q_desired) + kd * (v_measured - v_desired))</span>
+
+<span class="sd">    The torque will be held constant until the next controller update.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `PDController` documentation to get more information, and</span>
+<span class="sd">        `integrate_zoh` documentation for details about the state integration.</span>
+
+<span class="sd">    :param encoder_data: Current position and velocity of the actuators.</span>
+<span class="sd">    :param command_state: Current command state, namely, all the derivatives of</span>
+<span class="sd">                          the target motors positions up to acceleration order.</span>
+<span class="sd">    :param command_state_lower: Lower bound of the command state that must be</span>
+<span class="sd">                                satisfied at all cost.</span>
+<span class="sd">    :param command_state_upper: Upper bound of the command state that must be</span>
+<span class="sd">                                satisfied at all cost.</span>
+<span class="sd">    :param kp: PD controller position-proportional gain in motor order.</span>
+<span class="sd">    :param kd: PD controller velocity-proportional gain in motor order.</span>
+<span class="sd">    :param motors_effort_limit: Maximum effort that the actuators can output.</span>
+<span class="sd">    :param control_dt: Controller update period. It will be involved in the</span>
+<span class="sd">                       integration of the command state.</span>
+<span class="sd">    :param out: Pre-allocated memory to store the command motor torques.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Integrate target motor positions and velocities</span>
+    <span class="n">integrate_zoh</span><span class="p">(</span><span class="n">command_state</span><span class="p">,</span>
+                  <span class="n">command_state_lower</span><span class="p">,</span>
+                  <span class="n">command_state_upper</span><span class="p">,</span>
+                  <span class="n">control_dt</span><span class="p">)</span>
+
+    <span class="c1"># Compute the joint tracking error</span>
+    <span class="n">q_error</span><span class="p">,</span> <span class="n">v_error</span> <span class="o">=</span> <span class="n">command_state</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">encoder_data</span>
+
+    <span class="c1"># Compute PD command</span>
+    <span class="n">out</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">kp</span> <span class="o">*</span> <span class="p">(</span><span class="n">q_error</span> <span class="o">+</span> <span class="n">kd</span> <span class="o">*</span> <span class="n">v_error</span><span class="p">)</span>
+
+    <span class="c1"># Clip the command motors torques before returning</span>
+    <span class="n">out</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+        <span class="n">out</span><span class="p">,</span> <span class="o">-</span><span class="n">motors_effort_limit</span><span class="p">),</span> <span class="n">motors_effort_limit</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="pd_adapter">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.pd_adapter">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">pd_adapter</span><span class="p">(</span><span class="n">action</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+               <span class="n">order</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">command_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+               <span class="n">command_state_lower</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+               <span class="n">command_state_upper</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+               <span class="n">is_instantaneous</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+               <span class="n">motors_velocity_deadband</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+               <span class="n">step_dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+               <span class="n">out</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the target motor accelerations that must be held constant for a</span>
+<span class="sd">    given time interval in order to reach the desired value of some derivative</span>
+<span class="sd">    of the target motor positions at the end of that interval if possible.</span>
+
+<span class="sd">    Internally, it applies backward in time the same integration scheme as the</span>
+<span class="sd">    PD controller. Knowing the initial and final value of the derivative over</span>
+<span class="sd">    the time interval, constant target motor accelerations can be uniquely</span>
+<span class="sd">    deduced. In practice, it consists in successive clipped finite difference</span>
+<span class="sd">    of that derivative up to acceleration-level.</span>
+
+<span class="sd">    :param action: Desired value of the n-th derivative of the command motor</span>
+<span class="sd">                   positions at the end of the controller update.</span>
+<span class="sd">    :param order: Derivative order of the position associated with the action.</span>
+<span class="sd">    :param command_state: Current command state, namely, all the derivatives of</span>
+<span class="sd">                          the target motors positions up to acceleration order.</span>
+<span class="sd">                          If &#39;is_instantaneous=True&#39;, then it will be updated</span>
+<span class="sd">                          in-place.</span>
+<span class="sd">    :param command_state_lower: Lower bound of the command state that must be</span>
+<span class="sd">                                satisfied at all cost.</span>
+<span class="sd">    :param command_state_upper: Upper bound of the command state that must be</span>
+<span class="sd">                                satisfied at all cost.</span>
+<span class="sd">    :param motors_velocity_deadband: Target velocity deadband for which the</span>
+<span class="sd">                                     target motor velocity will be cancelled</span>
+<span class="sd">                                     out completely.</span>
+<span class="sd">    :param step_dt: Time interval during which the target motor accelerations</span>
+<span class="sd">                    will be held constant.</span>
+<span class="sd">    :param out: Pre-allocated memory to store the target motor accelerations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Early return if timestep is too small</span>
+    <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">step_dt</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Update command accelerations based on the action and its derivative order</span>
+    <span class="k">if</span> <span class="n">is_instantaneous</span><span class="p">:</span>
+        <span class="c1"># Update the command state directly</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Compute command velocity</span>
+            <span class="n">velocity</span> <span class="o">=</span> <span class="p">(</span><span class="n">action</span> <span class="o">-</span> <span class="n">command_state</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">step_dt</span>
+
+            <span class="c1"># Clip command velocity</span>
+            <span class="n">velocity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="n">velocity</span><span class="p">,</span> <span class="n">command_state_lower</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">command_state_upper</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+            <span class="c1"># Velocity dead-band to avoid slow drift of target position</span>
+            <span class="k">if</span> <span class="n">motors_velocity_deadband</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">velocity</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">velocity</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">motors_velocity_deadband</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+            <span class="c1"># Update command position instantaneously</span>
+            <span class="n">command_state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">velocity</span> <span class="o">*</span> <span class="n">step_dt</span>
+            <span class="n">command_state</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Velocity dead-band to avoid slow drift of target position</span>
+            <span class="k">if</span> <span class="n">motors_velocity_deadband</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">action</span> <span class="o">=</span> <span class="n">action</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">action</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">motors_velocity_deadband</span><span class="p">)</span>
+
+            <span class="c1"># Compute command acceleration</span>
+            <span class="n">acceleration</span> <span class="o">=</span> <span class="p">(</span><span class="n">action</span> <span class="o">-</span> <span class="n">command_state</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">step_dt</span>
+
+            <span class="c1"># Clip command acceleration</span>
+            <span class="n">acceleration</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="n">acceleration</span><span class="p">,</span> <span class="n">command_state_lower</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="n">command_state_upper</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+            <span class="c1"># Update command velocity instantaneously</span>
+            <span class="n">command_state</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">acceleration</span> <span class="o">*</span> <span class="n">step_dt</span>
+
+        <span class="c1"># Hold the acceleration constant equal to zero</span>
+        <span class="n">out</span><span class="p">[:]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Compute command velocity</span>
+            <span class="n">velocity</span> <span class="o">=</span> <span class="p">(</span><span class="n">action</span> <span class="o">-</span> <span class="n">command_state</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">step_dt</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># The action corresponds to the command motor velocities</span>
+            <span class="n">velocity</span> <span class="o">=</span> <span class="n">action</span>
+
+        <span class="c1"># Clip command velocity</span>
+        <span class="n">velocity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+            <span class="n">velocity</span><span class="p">,</span> <span class="n">command_state_lower</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">command_state_upper</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Velocity dead-band to avoid slow drift of target position</span>
+        <span class="k">if</span> <span class="n">motors_velocity_deadband</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">velocity</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">velocity</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">motors_velocity_deadband</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="c1"># Compute command acceleration</span>
+        <span class="n">out</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">velocity</span> <span class="o">-</span> <span class="n">command_state</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">step_dt</span></div>
+
+
+
+<div class="viewcode-block" id="get_encoder_to_motor_map">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.get_encoder_to_motor_map">[docs]</a>
+<span class="k">def</span> <span class="nf">get_encoder_to_motor_map</span><span class="p">(</span><span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the mapping from encoder sensors to motors.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        If reordering is necessary, then a list of indices is returned, which</span>
+<span class="sd">        can used to permute encoder sensor data to match the command torque</span>
+<span class="sd">        vector. Yet, it relies on so-called &quot;fancy&quot; or &quot;advanced&quot; indexing for</span>
+<span class="sd">        doing so, which means that the returned data is a copy of the original</span>
+<span class="sd">        data instead of a reference. On the contrary, it reordering is not</span>
+<span class="sd">        necessary, a slice is returned instead and no copy happens whatsoever.</span>
+
+<span class="sd">    :param robot: Jiminy robot for which to compute mapping.</span>
+
+<span class="sd">    :returns: A slice if possible, a list of indices otherwise.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Loop over all actuated joints and look for their encoder counterpart</span>
+    <span class="n">encoder_to_motor_map</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,]</span> <span class="o">*</span> <span class="n">robot</span><span class="o">.</span><span class="n">nmotors</span>
+    <span class="n">encoders</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">encoders</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span> <span class="n">EncoderSensor</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">motor</span><span class="o">.</span><span class="n">index</span> <span class="o">==</span> <span class="n">sensor</span><span class="o">.</span><span class="n">motor_index</span><span class="p">:</span>
+                <span class="n">encoder_to_motor_map</span><span class="p">[</span><span class="n">sensor</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">index</span>
+                <span class="k">del</span> <span class="n">encoders</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;No encoder sensor associated with motor &#39;</span><span class="si">{</span><span class="n">motor</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+                <span class="s2">&quot;Every actuated joint must have a encoder sensor attached on &quot;</span>
+                <span class="s2">&quot;motor side.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Try converting it to slice if possible</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">encoder_to_motor_map</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">robot</span><span class="o">.</span><span class="n">nmotors</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+        <span class="k">return</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">encoder_to_motor_map</span></div>
+
+
+
+<div class="viewcode-block" id="PDController">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.PDController">[docs]</a>
+<span class="k">class</span> <span class="nc">PDController</span><span class="p">(</span>
+        <span class="n">BaseControllerBlock</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Low-level Proportional-Derivative controller.</span>
+
+<span class="sd">    The action are the target motors accelerations. The latter are integrated</span>
+<span class="sd">    twice using two first-order integrators in cascade, considering that the</span>
+<span class="sd">    acceleration is constant until the next controller update:</span>
+
+<span class="sd">        v_{t+1} = v_{t} + dt * a_{t}</span>
+<span class="sd">        q_{t+1} = q_{t} + dt * v_{t+1}</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The position and velocity bounds on the command corresponds to the</span>
+<span class="sd">        joint limits specified by the dynamical model of the robot. Then, lax</span>
+<span class="sd">        default acceleration bounds are extrapolated. More precisely, they are</span>
+<span class="sd">        chosen to be sufficient either to span the whole range of velocity or</span>
+<span class="sd">        to allow reaching the command effort limits depending on what is the</span>
+<span class="sd">        most restrictive. Position, velocity and acceleration.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        It must be connected directly to the base environment to control</span>
+<span class="sd">        without any intermediary controllers altering its action space.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">BaseObs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">update_ratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                 <span class="n">kp</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                 <span class="n">kd</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                 <span class="n">joint_position_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">joint_velocity_limit</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">),</span>
+                 <span class="n">joint_acceleration_limit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param name: Name of the block.</span>
+<span class="sd">        :param env: Environment to connect with.</span>
+<span class="sd">        :param update_ratio: Ratio between the update period of the controller</span>
+<span class="sd">                             and the one of the subsequent controller. -1 to</span>
+<span class="sd">                             match the simulation timestep of the environment.</span>
+<span class="sd">                             Optional: 1 by default.</span>
+<span class="sd">        :param kp: PD controller position-proportional gains in motor order.</span>
+<span class="sd">        :param kd: PD controller velocity-proportional gains in motor order.</span>
+<span class="sd">        :param joint_position_margin: Minimum distance of the joint target</span>
+<span class="sd">                                      positions from their respective bounds.</span>
+<span class="sd">                                      Optional: 0.0 by default.</span>
+<span class="sd">        :param joint_velocity_limit:</span>
+<span class="sd">            Further restrict maximum joint target velocities wrt their</span>
+<span class="sd">            hardware specifications.</span>
+<span class="sd">            Optional: &#39;inf&#39; by default.</span>
+<span class="sd">        :param joint_acceleration_limit:</span>
+<span class="sd">            Maximum joint target acceleration. `None` to infer acceleration</span>
+<span class="sd">            bounds (from prescribed PD gains plus maximum motor velocities and</span>
+<span class="sd">            efforts) that would be as restrictive as possible while allowing</span>
+<span class="sd">            bang-band control (i.e. unrestricted jump in target velocity or</span>
+<span class="sd">            command torque in a single environment timestep, depending on which</span>
+<span class="sd">            of these two criteria is the most limiting).</span>
+<span class="sd">            Optional: None by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure the action space of the environment has not been altered</span>
+        <span class="k">if</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">env</span><span class="o">.</span><span class="n">unwrapped</span><span class="o">.</span><span class="n">action_space</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Impossible to connect this block on an environment whose &quot;</span>
+                <span class="s2">&quot;action space has been altered.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that the number of PD gains matches the number of motors</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">kp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">kp</span><span class="p">,</span> <span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">nmotors</span><span class="p">,))</span>
+            <span class="n">kd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">kd</span><span class="p">,</span> <span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">nmotors</span><span class="p">,))</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;PD gains inconsistent with number of motors.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kp</span> <span class="o">=</span> <span class="n">kp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kd</span> <span class="o">=</span> <span class="n">kd</span>
+
+        <span class="c1"># Mapping from motors to encoders</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_motor_map</span> <span class="o">=</span> <span class="n">get_encoder_to_motor_map</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="p">)</span>
+
+        <span class="c1"># Whether stored reference to encoder measurements are already in the</span>
+        <span class="c1"># same order as the motors, allowing skipping re-ordering entirely.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_same_order</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_motor_map</span><span class="p">,</span> <span class="nb">slice</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_same_order</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Consider using the same ordering for encoders and motors for &quot;</span>
+                <span class="s2">&quot;optimal performance.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Define buffers storing information about the motors for efficiency.</span>
+        <span class="c1"># Note that even if the robot instance may change from one simulation</span>
+        <span class="c1"># to another, the observation and action spaces are required to stay</span>
+        <span class="c1"># the same the whole time. This induces that the motors effort limit</span>
+        <span class="c1"># must not change unlike the mapping from full state to motors.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">effort_limit</span> <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">])</span>
+
+        <span class="c1"># Refresh mechanical reduction ratio.</span>
+        <span class="c1"># FIXME: Is it considered invariant ? If not, it should be refreshed in</span>
+        <span class="c1"># `_setup`, as done for `DeformationEstimator`.</span>
+        <span class="n">encoder_to_joint_ratio</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">:</span>
+            <span class="n">motor_options</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+            <span class="n">encoder_to_joint_ratio</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">motor_options</span><span class="p">[</span><span class="s2">&quot;mechanicalReduction&quot;</span><span class="p">])</span>
+
+        <span class="c1"># Define the motors target position bounds</span>
+        <span class="n">motors_position_lower</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">position_limit_lower</span> <span class="o">+</span> <span class="n">ratio</span> <span class="o">*</span> <span class="n">joint_position_margin</span>
+            <span class="k">for</span> <span class="n">motor</span><span class="p">,</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">,</span> <span class="n">encoder_to_joint_ratio</span><span class="p">)])</span>
+        <span class="n">motors_position_upper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">position_limit_upper</span> <span class="o">-</span> <span class="n">ratio</span> <span class="o">*</span> <span class="n">joint_position_margin</span>
+            <span class="k">for</span> <span class="n">motor</span><span class="p">,</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">,</span> <span class="n">encoder_to_joint_ratio</span><span class="p">)])</span>
+
+        <span class="c1"># Define the motors target velocity bounds</span>
+        <span class="n">motors_velocity_limit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="nb">min</span><span class="p">(</span><span class="n">motor</span><span class="o">.</span><span class="n">velocity_limit</span><span class="p">,</span> <span class="n">ratio</span> <span class="o">*</span> <span class="n">joint_velocity_limit</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">motor</span><span class="p">,</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">,</span> <span class="n">encoder_to_joint_ratio</span><span class="p">)])</span>
+
+        <span class="c1"># Define acceleration bounds allowing unrestricted bang-bang control</span>
+        <span class="k">if</span> <span class="n">joint_acceleration_limit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">range_limit</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">motors_velocity_limit</span> <span class="o">/</span> <span class="n">env</span><span class="o">.</span><span class="n">step_dt</span>
+            <span class="n">effort_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit</span> <span class="o">/</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kp</span> <span class="o">*</span> <span class="n">env</span><span class="o">.</span><span class="n">step_dt</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">step_dt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kd</span><span class="p">))</span>
+            <span class="n">acceleration_limit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">range_limit</span><span class="p">,</span> <span class="n">effort_limit</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">acceleration_limit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="n">ratio</span> <span class="o">*</span> <span class="n">joint_acceleration_limit</span>
+                <span class="k">for</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="n">encoder_to_joint_ratio</span><span class="p">])</span>
+
+        <span class="c1"># Compute command state bounds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_command_state_lower</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">motors_position_lower</span><span class="p">,</span>
+                                              <span class="o">-</span><span class="n">motors_velocity_limit</span><span class="p">,</span>
+                                              <span class="o">-</span><span class="n">acceleration_limit</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_command_state_upper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">motors_position_upper</span><span class="p">,</span>
+                                              <span class="n">motors_velocity_limit</span><span class="p">,</span>
+                                              <span class="n">acceleration_limit</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Extract measured motor positions and velocities for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder_data</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">measurement</span><span class="p">[</span><span class="s2">&quot;measurements&quot;</span><span class="p">][</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+
+        <span class="c1"># Allocate memory for the command state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_command_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">nmotors</span><span class="p">))</span>
+
+        <span class="c1"># Initialize the controller</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">update_ratio</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that the state is within bounds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_command_state</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_space</span><span class="p">)</span>
+
+        <span class="c1"># References to command acceleration for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_command_acceleration</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_command_state</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_state_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the state space of the controller.</span>
+
+<span class="sd">        The state spaces corresponds to the target motors positions and</span>
+<span class="sd">        velocities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">low</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_command_state_lower</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span>
+            <span class="n">high</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_command_state_upper</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the action space of the controller.</span>
+
+<span class="sd">        The action spaces corresponds to the target motors accelerations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">low</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_command_state_lower</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="n">high</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_command_state_upper</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="c1"># Make sure control update is discrete-time</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">control_dt</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;This block does not support time-continuous update.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Reset the command state</span>
+        <span class="n">fill</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_command_state</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fieldnames</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;currentTarget</span><span class="si">{</span><span class="n">N_ORDER_DERIVATIVE_NAMES</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">}{</span><span class="n">motor</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">]</span>
+
+<div class="viewcode-block" id="PDController.get_state">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.PDController.get_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_command_state</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="PDController.compute_command">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.PDController.compute_command">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">command</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the target motor torques using a PD controller.</span>
+
+<span class="sd">        It is proportional to the error between the observed motors positions/</span>
+<span class="sd">        velocities and the target ones.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Calling this method manually while a simulation is running is</span>
+<span class="sd">            forbidden, because it would mess with the controller update period.</span>
+
+<span class="sd">        :param action: Desired target motor acceleration.</span>
+<span class="sd">        :param command: Current motor torques that will be updated in-place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract motor positions and velocity from encoder data</span>
+        <span class="n">encoder_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder_data</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_same_order</span><span class="p">:</span>
+            <span class="n">encoder_data</span> <span class="o">=</span> <span class="n">encoder_data</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_motor_map</span><span class="p">]</span>
+
+        <span class="c1"># Re-initialize the command state to the current motor state if the</span>
+        <span class="c1"># simulation is not running. This must be done here because the</span>
+        <span class="c1"># command state must be valid prior to calling `refresh_observation`</span>
+        <span class="c1"># for the first time, which happens at `reset`.</span>
+        <span class="n">is_simulation_running</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">is_simulation_running</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_simulation_running</span><span class="p">:</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">encoder_data</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_command_state_lower</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_command_state_upper</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span>
+                    <span class="n">out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_command_state</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="c1"># Update target motor accelerations</span>
+        <span class="n">array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_command_acceleration</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span>
+
+        <span class="c1"># Compute the motor efforts using PD control.</span>
+        <span class="c1"># The command state must not be updated if no simulation is running.</span>
+        <span class="n">pd_controller</span><span class="p">(</span>
+            <span class="n">encoder_data</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_command_state</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_command_state_lower</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_command_state_upper</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kp</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kd</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">motors_effort_limit</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">control_dt</span> <span class="k">if</span> <span class="n">is_simulation_running</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">command</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PDAdapter">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter">[docs]</a>
+<span class="k">class</span> <span class="nc">PDAdapter</span><span class="p">(</span>
+        <span class="n">BaseControllerBlock</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Adapt the action of a lower-level Proportional-Derivative controller</span>
+<span class="sd">    to be the target motor positions or velocities rather than accelerations.</span>
+
+<span class="sd">    The action is the desired value of some derivative of the target motor</span>
+<span class="sd">    positions. The target motor accelerations are then deduced so as to reach</span>
+<span class="sd">    this value by the next update of this controller if possible without</span>
+<span class="sd">    exceeding the position, velocity and acceleration bounds. Finally, these</span>
+<span class="sd">    target position accelerations are passed to a lower-level PD controller,</span>
+<span class="sd">    usually running at a higher frequency.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The higher the derivative order of the action, the smoother the command</span>
+<span class="sd">        motor torques. Thus, a high order is generally beneficial for robotic</span>
+<span class="sd">        applications. However, it introduces some kind of delay between the</span>
+<span class="sd">        action and its effects. This phenomenon limits the responsiveness of</span>
+<span class="sd">        the agent and therefore impedes its optimal performance. Besides, it</span>
+<span class="sd">        introduces addition layer of indirection between the action and its</span>
+<span class="sd">        effect which may be difficult to grasp for the agent. Finally,</span>
+<span class="sd">        exploration usually consists in addition temporally uncorrelated</span>
+<span class="sd">        gaussian random process at action-level. The effect of such random</span>
+<span class="sd">        processes tends to vanish when integrated, making exploration very</span>
+<span class="sd">        inefficient.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">BaseObs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">update_ratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">order</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                 <span class="n">joint_velocity_deadband</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">is_instantaneous</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param update_ratio: Ratio between the update period of the controller</span>
+<span class="sd">                             and the one of the subsequent controller. -1 to</span>
+<span class="sd">                             match the environment step `env.step_dt`.</span>
+<span class="sd">                             Optional: -1 by default.</span>
+<span class="sd">        :param order: Derivative order of the action. It accepts position or</span>
+<span class="sd">                      velocity (respectively 0 or 1).</span>
+<span class="sd">                      Optional: 1 by default.</span>
+<span class="sd">        :param joint_velocity_deadband:</span>
+<span class="sd">            Target velocity deadband to avoid high-frequency vibrations and</span>
+<span class="sd">            drifting of the target motor positions that would result internal</span>
+<span class="sd">            efforts in the mechanical structure for hyperstatic postures.</span>
+<span class="sd">            Note that it is only enabled during evaluation, not training.</span>
+<span class="sd">            Optional: 0.0 by default.</span>
+<span class="sd">        :param is_instantaneous: Whether to consider that the command state</span>
+<span class="sd">                                 must be updated instantaneously, breaking</span>
+<span class="sd">                                 continuity of higher-order derivatives, or</span>
+<span class="sd">                                 continuously by updating the target</span>
+<span class="sd">                                 acceleration instead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the specified derivative order is valid</span>
+        <span class="k">assert</span> <span class="n">order</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;Derivative order out-of-bounds&quot;</span>
+
+        <span class="c1"># Make sure that a PD controller block is already connected</span>
+        <span class="n">controller</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">controller</span>  <span class="c1"># type: ignore[attr-defined]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">controller</span><span class="p">,</span> <span class="n">PDController</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;This block must be directly connected to a lower-level &quot;</span>
+                <span class="s2">&quot;`PDController` block.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="n">order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_instantaneous</span> <span class="o">=</span> <span class="n">is_instantaneous</span>
+
+        <span class="c1"># Define some proxies for convenience</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pd_controller</span> <span class="o">=</span> <span class="n">controller</span>
+
+        <span class="c1"># Refresh mechanical reduction ratio.</span>
+        <span class="c1"># FIXME: Is it considered invariant ?</span>
+        <span class="n">encoder_to_joint_ratio</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">:</span>
+            <span class="n">motor_options</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+            <span class="n">encoder_to_joint_ratio</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">motor_options</span><span class="p">[</span><span class="s2">&quot;mechanicalReduction&quot;</span><span class="p">])</span>
+
+        <span class="c1"># Define the motors target velocity bounds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_motors_velocity_deadband</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">ratio</span> <span class="o">*</span> <span class="n">joint_velocity_deadband</span>
+            <span class="k">for</span> <span class="n">ratio</span> <span class="ow">in</span> <span class="n">encoder_to_joint_ratio</span><span class="p">])</span>
+
+        <span class="c1"># Initialize the controller</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">update_ratio</span><span class="p">)</span>
+
+        <span class="c1"># Whether deadband is enabled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_enable_deadband</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the action space of the controller.</span>
+
+<span class="sd">        The action spaces corresponds to the N-th order derivative of the</span>
+<span class="sd">        target motors positions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">low</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd_controller</span><span class="o">.</span><span class="n">_command_state_lower</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">],</span>
+            <span class="n">high</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd_controller</span><span class="o">.</span><span class="n">_command_state_upper</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="c1"># Make sure control update is discrete-time</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">control_dt</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;This block does not support time-continuous update.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Enable deadband in evaluation mode only.</span>
+        <span class="c1"># Note that training/evaluation cannot be changed at this point.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_enable_deadband</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">training</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fieldnames</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;nextTarget</span><span class="si">{</span><span class="n">N_ORDER_DERIVATIVE_NAMES</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">]</span><span class="si">}{</span><span class="n">motor</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">]</span>
+
+<div class="viewcode-block" id="PDAdapter.compute_command">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/proportional_derivative_controller.html#gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter.compute_command">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">command</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the target motor accelerations from the desired value of</span>
+<span class="sd">        some derivative of the target motor positions.</span>
+
+<span class="sd">        :param action: Desired target motor acceleration.</span>
+<span class="sd">        :param command: Current motor torques that will be updated in-place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pd_adapter</span><span class="p">(</span>
+            <span class="n">action</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pd_controller</span><span class="o">.</span><span class="n">_command_state</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pd_controller</span><span class="o">.</span><span class="n">_command_state_lower</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pd_controller</span><span class="o">.</span><span class="n">_command_state_upper</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_instantaneous</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_motors_velocity_deadband</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_deadband</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">control_dt</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">is_simulation_running</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">command</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

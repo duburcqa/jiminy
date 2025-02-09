@@ -1,0 +1,891 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.compositions.generic &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.compositions.generic</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.compositions.generic</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Generic reward components that may be relevant for any kind of robot,</span>
+<span class="sd">regardless its topology (multiple or single branch, fixed or floating base...)</span>
+<span class="sd">and the application (locomotion, grasping...).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">sub</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">TypeVar</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">InfoType</span><span class="p">,</span> <span class="n">QuantityCreator</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">,</span>
+    <span class="n">QuantityEvalMode</span><span class="p">,</span> <span class="n">AbstractReward</span><span class="p">,</span> <span class="n">QuantityReward</span><span class="p">,</span>
+    <span class="n">AbstractTerminationCondition</span><span class="p">,</span> <span class="n">QuantityTermination</span><span class="p">,</span> <span class="n">partial_hashable</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..bases.compositions</span> <span class="kn">import</span> <span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">Number</span>
+<span class="kn">from</span> <span class="nn">..quantities</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">EnergyGenerationMode</span><span class="p">,</span> <span class="n">StackedQuantity</span><span class="p">,</span> <span class="n">BinaryOpQuantity</span><span class="p">,</span> <span class="n">DeltaQuantity</span><span class="p">,</span>
+    <span class="n">MultiActuatedJointKinematic</span><span class="p">,</span> <span class="n">MechanicalPowerConsumption</span><span class="p">,</span>
+    <span class="n">AverageMechanicalPowerConsumption</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">.mixin</span> <span class="kn">import</span> <span class="n">radial_basis_function</span>
+
+
+<span class="n">ValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;ValueT&#39;</span><span class="p">)</span>
+
+<span class="n">ArrayLike</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Number</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">]]]</span>
+
+
+<div class="viewcode-block" id="SurviveReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.SurviveReward">[docs]</a>
+<span class="k">class</span> <span class="nc">SurviveReward</span><span class="p">(</span><span class="n">AbstractReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for surviving, ie make episodes last as long as</span>
+<span class="sd">    possible by avoiding triggering termination conditions.</span>
+
+<span class="sd">    Constant positive reward equal to 1.0 systematically, unless the current</span>
+<span class="sd">    state of the environment is the terminal state. In which case, the value</span>
+<span class="sd">    0.0 is returned instead.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="s2">&quot;reward_survive&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_normalized</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="SurviveReward.compute">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.SurviveReward.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a constant positive reward equal to 1.0 systematically,</span>
+<span class="sd">        useless the episode is terminated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">terminated</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="mf">1.0</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TrackingQuantityReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.TrackingQuantityReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingQuantityReward</span><span class="p">(</span><span class="n">QuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class from which to derive reward defined as a difference between</span>
+<span class="sd">    the current and reference value of a given quantity.</span>
+
+<span class="sd">    A reference trajectory must be selected before evaluating this reward</span>
+<span class="sd">    otherwise an exception will be risen. See `DatasetTrajectoryQuantity` and</span>
+<span class="sd">    `AbstractQuantity` documentations for details.</span>
+
+<span class="sd">    The error is transformed in a normalized reward to maximize by applying RBF</span>
+<span class="sd">    kernel on the error. The reward will be 0.0 if the error cancels out</span>
+<span class="sd">    completely and less than &#39;CUTOFF_ESP&#39; above the user-specified cutoff</span>
+<span class="sd">    threshold.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">quantity_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span>
+                    <span class="p">[</span><span class="n">QuantityEvalMode</span><span class="p">],</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]],</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ValueT</span><span class="p">,</span> <span class="n">ValueT</span><span class="p">],</span> <span class="n">ValueT</span><span class="p">]</span> <span class="o">=</span> <span class="n">sub</span><span class="p">,</span>
+                 <span class="n">order</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param name: Desired name of the reward. This name will be used as key</span>
+<span class="sd">                     for storing current value of the reward in &#39;info&#39;, and to</span>
+<span class="sd">                     add the underlying quantity to the set of already managed</span>
+<span class="sd">                     quantities by the environment. As a result, it must be</span>
+<span class="sd">                     unique otherwise an exception will be raised.</span>
+<span class="sd">        :param quantity_creator: Any callable taking a quantity evaluation mode</span>
+<span class="sd">                                 as input argument and return a tuple gathering</span>
+<span class="sd">                                 the class of the underlying quantity to use as</span>
+<span class="sd">                                 reward after some post-processing, plus any</span>
+<span class="sd">                                 keyword-arguments of its constructor except</span>
+<span class="sd">                                 &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        :param op: Any callable taking the true and reference values of the</span>
+<span class="sd">                   quantity as input argument and returning the difference</span>
+<span class="sd">                   between them, considering the algebra defined by their Lie</span>
+<span class="sd">                   Group. The basic subtraction operator `operator.sub` is</span>
+<span class="sd">                   appropriate for the Euclidean space.</span>
+<span class="sd">                   Optional: `operator.sub` by default.</span>
+<span class="sd">        :param order: Order of L^p-norm that will be used as distance metric.</span>
+<span class="sd">                      Optional: 2 by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">BinaryOpQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity_left</span><span class="o">=</span><span class="n">quantity_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">),</span>
+                <span class="n">quantity_right</span><span class="o">=</span><span class="n">quantity_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">REFERENCE</span><span class="p">),</span>
+                <span class="n">op</span><span class="o">=</span><span class="n">op</span><span class="p">)),</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">radial_basis_function</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">),</span>
+            <span class="n">is_normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">is_terminal</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="TrackingActuatedJointPositionsReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.TrackingActuatedJointPositionsReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingActuatedJointPositionsReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the position of all the actuated joints of</span>
+<span class="sd">    the robot wrt some reference trajectory.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_actuated_joint_positions&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">MultiActuatedJointKinematic</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">kinematic_level</span><span class="o">=</span><span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="o">.</span><span class="n">POSITION</span><span class="p">,</span>
+                <span class="n">is_motor_side</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="MinimizeMechanicalPowerConsumption">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.MinimizeMechanicalPowerConsumption">[docs]</a>
+<span class="k">class</span> <span class="nc">MinimizeMechanicalPowerConsumption</span><span class="p">(</span><span class="n">QuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Encourages the agent to minimize its average mechanical power</span>
+<span class="sd">    consumption.</span>
+
+<span class="sd">    This reward is useful to favor carefully tailored short burst of motion</span>
+<span class="sd">    that may be power-angry for a very short duration, but more energy</span>
+<span class="sd">    efficient on average. The resulting motion tends to be more human-like.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+            <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="o">*</span><span class="p">,</span>
+            <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="n">generator_mode</span><span class="p">:</span> <span class="n">EnergyGenerationMode</span> <span class="o">=</span> <span class="n">EnergyGenerationMode</span><span class="o">.</span><span class="n">CHARGE</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the average.</span>
+<span class="sd">        :param generator_mode: Specify what happens to the energy generated by</span>
+<span class="sd">                               motors when breaking.</span>
+<span class="sd">                               Optional: `EnergyGenerationMode.CHARGE` by</span>
+<span class="sd">                               default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_power_consumption&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">AverageMechanicalPowerConsumption</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">horizon</span><span class="o">=</span><span class="n">horizon</span><span class="p">,</span>
+                <span class="n">generator_mode</span><span class="o">=</span><span class="n">generator_mode</span><span class="p">)),</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">radial_basis_function</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+            <span class="n">is_normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">is_terminal</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="compute_drift_error">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.compute_drift_error">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compute_drift_error</span><span class="p">(</span><span class="n">delta_true</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+                        <span class="n">delta_ref</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the difference between the true and reference variation of a</span>
+<span class="sd">    quantity over a given horizon, then apply some post-processing on it if</span>
+<span class="sd">    requested.</span>
+
+<span class="sd">    :param delta_true: True value of the variation as a N-dimensional array.</span>
+<span class="sd">    :param delta_ref: Reference value of the variation as a N-dimensional</span>
+<span class="sd">                      array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">drift</span> <span class="o">=</span> <span class="n">delta_true</span> <span class="o">-</span> <span class="n">delta_ref</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">drift</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="n">drift</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">drift</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="DriftTrackingQuantityTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.DriftTrackingQuantityTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">DriftTrackingQuantityTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class to derive termination condition from the drift between the</span>
+<span class="sd">    current and reference values of a given quantity over a horizon.</span>
+
+<span class="sd">    The drift is defined as the difference between the current and reference</span>
+<span class="sd">    variation of the quantity over a sliding window of length &#39;horizon&#39;. See</span>
+<span class="sd">    `DeltaQuantity` quantity for details.</span>
+
+<span class="sd">    In practice, no bound check is applied on the drift directly, which may be</span>
+<span class="sd">    multi-variate at this point. Instead, the L2-norm is used as metric in the</span>
+<span class="sd">    variation space for computing the error between the current and reference</span>
+<span class="sd">    variation of the quantity.</span>
+
+<span class="sd">    If the error does not exceed the maximum threshold, then the episode</span>
+<span class="sd">    continues. Otherwise, it is either truncated or terminated according to</span>
+<span class="sd">    &#39;is_truncation&#39; constructor argument. This check only applies after the end</span>
+<span class="sd">    of a grace period. Before that, the episode continues no matter what.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">quantity_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span>
+                    <span class="p">[</span><span class="n">QuantityEvalMode</span><span class="p">],</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ArrayOrScalar</span><span class="p">]],</span>
+                 <span class="n">thr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">ArrayLike</span><span class="p">],</span> <span class="n">ArrayOrScalar</span><span class="p">]</span> <span class="o">=</span> <span class="n">sub</span><span class="p">,</span>
+                 <span class="n">bounds_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">is_truncation</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param name: Desired name of the termination condition. This name will</span>
+<span class="sd">                     be used as key for storing the current episode state from</span>
+<span class="sd">                     the perspective of this specific condition in &#39;info&#39;, and</span>
+<span class="sd">                     to add the underlying quantity to the set of already</span>
+<span class="sd">                     managed quantities by the environment. As a result, it</span>
+<span class="sd">                     must be unique otherwise an exception will be raised.</span>
+<span class="sd">        :param quantity_creator: Any callable taking a quantity evaluation mode</span>
+<span class="sd">                                 as input argument and return a tuple gathering</span>
+<span class="sd">                                 the class of the underlying quantity to use as</span>
+<span class="sd">                                 reward after some post-processing, plus any</span>
+<span class="sd">                                 keyword-arguments of its constructor except</span>
+<span class="sd">                                 &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param thr: Termination is triggered if the drift exceeds this</span>
+<span class="sd">                    threshold.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the drift.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param op: Any callable taking as input argument the current and some</span>
+<span class="sd">                   previous value of the quantity in that exact order, and</span>
+<span class="sd">                   returning the signed difference between them. Typically,</span>
+<span class="sd">                   the substraction operation is appropriate for position in</span>
+<span class="sd">                   Euclidean space, but not for orientation as it is important</span>
+<span class="sd">                   to count turns.</span>
+<span class="sd">                   Optional: `sub` by default.</span>
+<span class="sd">        :param bounds_only: Whether to compute the total variation as the</span>
+<span class="sd">                            difference between the most recent and oldest value</span>
+<span class="sd">                            stored in the history, or the sum of differences</span>
+<span class="sd">                            between successive timesteps.</span>
+<span class="sd">        :param is_truncation: Whether the episode should be considered</span>
+<span class="sd">                              terminated or truncated whenever the termination</span>
+<span class="sd">                              condition is triggered.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=unnecessary-lambda-assignment</span>
+
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span> <span class="o">=</span> <span class="n">horizon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">op</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds_only</span> <span class="o">=</span> <span class="n">bounds_only</span>
+
+        <span class="c1"># Define variation quantity</span>
+        <span class="n">delta_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span>
+            <span class="p">[</span><span class="n">QuantityEvalMode</span><span class="p">],</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ArrayOrScalar</span><span class="p">]]</span>
+        <span class="n">delta_creator</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">DeltaQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>  <span class="c1"># noqa: E731</span>
+            <span class="n">quantity</span><span class="o">=</span><span class="n">quantity_creator</span><span class="p">(</span><span class="n">mode</span><span class="p">),</span>
+            <span class="n">horizon</span><span class="o">=</span><span class="n">horizon</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">op</span><span class="p">,</span>
+            <span class="n">bounds_only</span><span class="o">=</span><span class="n">bounds_only</span><span class="p">))</span>
+
+        <span class="c1"># Define drift quantity</span>
+        <span class="n">drift_tracking_quantity</span> <span class="o">=</span> <span class="p">(</span><span class="n">BinaryOpQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">quantity_left</span><span class="o">=</span><span class="n">delta_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">),</span>
+            <span class="n">quantity_right</span><span class="o">=</span><span class="n">delta_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">REFERENCE</span><span class="p">),</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">compute_drift_error</span><span class="p">))</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="n">drift_tracking_quantity</span><span class="p">,</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">thr</span><span class="p">),</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="n">is_truncation</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="min_norm">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.min_norm">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">min_norm</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the minimum Euclidean norm over all timestamps of a multivariate</span>
+<span class="sd">    time series.</span>
+
+<span class="sd">    :param values: Time series as a N-dimensional array whose last dimension</span>
+<span class="sd">                   corresponds to individual timestamps over a finite horizon.</span>
+<span class="sd">                   The value at each timestamp will be regarded as a 1D vector</span>
+<span class="sd">                   for computing their Euclidean norm.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num_times</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">values_squared_flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_times</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">values_squared_flat</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="compute_min_distance">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.compute_min_distance">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_min_distance</span><span class="p">(</span><span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                         <span class="n">left</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                         <span class="n">right</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the minimum time-aligned Euclidean distance between two</span>
+<span class="sd">    multivariate time series kept in sync.</span>
+
+<span class="sd">    Internally, the time-aligned difference between the two time series will</span>
+<span class="sd">    first be computed according to the user-specified binary operator &#39;op&#39;. The</span>
+<span class="sd">    classical Euclidean norm of the difference is then computed over all</span>
+<span class="sd">    timestamps individually and the minimum value is returned.</span>
+
+<span class="sd">    :param left: Time series as a N-dimensional array whose first dimension</span>
+<span class="sd">                 corresponds to individual timestamps over a finite horizon.</span>
+<span class="sd">                 The value at each timestamp will be regarded as a 1D vector</span>
+<span class="sd">                 for computing their Euclidean norm. It will be passed as</span>
+<span class="sd">                 left-hand side of the binary operator &#39;op&#39;.</span>
+<span class="sd">    :param right: Time series as a N-dimensional array with the exact same</span>
+<span class="sd">                  shape as &#39;left&#39;. See &#39;left&#39; for details. It will be passed as</span>
+<span class="sd">                  right-hand side of the binary operator &#39;op&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">min_norm</span><span class="p">(</span><span class="n">op</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="ShiftTrackingQuantityTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.ShiftTrackingQuantityTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">ShiftTrackingQuantityTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class to derive termination condition from the shift between the</span>
+<span class="sd">    current and reference values of a given quantity.</span>
+
+<span class="sd">    The shift is defined as the minimum time-aligned distance (L^2-norm of the</span>
+<span class="sd">    difference) between two multivariate time series. In this case, a</span>
+<span class="sd">    variable-length horizon bounded by &#39;max_stack&#39; is considered.</span>
+
+<span class="sd">    All elements must be within bounds for at least one time step in the fixed</span>
+<span class="sd">    horizon. If so, then the episode continues, otherwise it is either</span>
+<span class="sd">    truncated or terminated according to &#39;is_truncation&#39; constructor argument.</span>
+<span class="sd">    This only applies after the end of a grace period. Before that, the episode</span>
+<span class="sd">    continues no matter what.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">quantity_creator</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span>
+                    <span class="p">[</span><span class="n">QuantityEvalMode</span><span class="p">],</span> <span class="n">QuantityCreator</span><span class="p">[</span><span class="n">ArrayOrScalar</span><span class="p">]],</span>
+                 <span class="n">thr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="n">sub</span><span class="p">,</span>
+                 <span class="n">is_truncation</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param name: Desired name of the termination condition. This name will</span>
+<span class="sd">                     be used as key for storing the current episode state from</span>
+<span class="sd">                     the perspective of this specific condition in &#39;info&#39;, and</span>
+<span class="sd">                     to add the underlying quantity to the set of already</span>
+<span class="sd">                     managed quantities by the environment. As a result, it</span>
+<span class="sd">                     must be unique otherwise an exception will be raised.</span>
+<span class="sd">        :param quantity_creator: Any callable taking a quantity evaluation mode</span>
+<span class="sd">                                 as input argument and return a tuple gathering</span>
+<span class="sd">                                 the class of the underlying quantity to use as</span>
+<span class="sd">                                 reward after some post-processing, plus any</span>
+<span class="sd">                                 keyword-arguments of its constructor except</span>
+<span class="sd">                                 &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param thr: Termination is triggered if the shift exceeds this</span>
+<span class="sd">                    threshold.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the shift.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param op: Any callable taking the true and reference stacked values of</span>
+<span class="sd">                   the quantity as input argument and returning the difference</span>
+<span class="sd">                   between them, considering the algebra defined by their Lie</span>
+<span class="sd">                   Group. True and reference values are stacked in contiguous</span>
+<span class="sd">                   N-dimension arrays along the first axis, namely the first</span>
+<span class="sd">                   dimension gathers individual timesteps. For instance, the</span>
+<span class="sd">                   common subtraction operator `operator.sub` is appropriate</span>
+<span class="sd">                   for Euclidean space.</span>
+<span class="sd">                   Optional: `operator.sub` by default.</span>
+<span class="sd">        :param is_truncation: Whether the episode should be considered</span>
+<span class="sd">                              terminated or truncated whenever the termination</span>
+<span class="sd">                              condition is triggered.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=unnecessary-lambda-assignment</span>
+
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span> <span class="o">=</span> <span class="n">horizon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">op</span>
+
+        <span class="c1"># Convert horizon in stack length, assuming constant env timestep</span>
+        <span class="k">assert</span> <span class="n">horizon</span> <span class="o">&gt;=</span> <span class="n">env</span><span class="o">.</span><span class="n">step_dt</span>
+        <span class="n">max_stack</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">horizon</span> <span class="o">/</span> <span class="n">env</span><span class="o">.</span><span class="n">step_dt</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Define drift of quantity</span>
+        <span class="n">stack_creator</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">StackedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>  <span class="c1"># noqa: E731</span>
+            <span class="n">quantity</span><span class="o">=</span><span class="n">quantity_creator</span><span class="p">(</span><span class="n">mode</span><span class="p">),</span>
+            <span class="n">max_stack</span><span class="o">=</span><span class="n">max_stack</span><span class="p">,</span>
+            <span class="n">is_wrapping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+        <span class="c1"># Add drift quantity to the set of quantities managed by environment</span>
+        <span class="n">shift_tracking_quantity</span> <span class="o">=</span> <span class="p">(</span><span class="n">BinaryOpQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">quantity_left</span><span class="o">=</span><span class="n">stack_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">),</span>
+            <span class="n">quantity_right</span><span class="o">=</span><span class="n">stack_creator</span><span class="p">(</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">REFERENCE</span><span class="p">),</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">partial_hashable</span><span class="p">(</span><span class="n">compute_min_distance</span><span class="p">,</span> <span class="n">op</span><span class="p">)))</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span>
+                         <span class="n">name</span><span class="p">,</span>
+                         <span class="n">shift_tracking_quantity</span><span class="p">,</span>  <span class="c1"># type: ignore[arg-type]</span>
+                         <span class="kc">None</span><span class="p">,</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">thr</span><span class="p">),</span>
+                         <span class="nb">max</span><span class="p">(</span><span class="n">grace_period</span><span class="p">,</span> <span class="n">horizon</span><span class="p">),</span>
+                         <span class="n">is_truncation</span><span class="o">=</span><span class="n">is_truncation</span><span class="p">,</span>
+                         <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="_MultiActuatedJointBoundDistance">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_MultiActuatedJointBoundDistance</span><span class="p">(</span>
+        <span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Distance of the actuated joints from their respective lower and upper</span>
+<span class="sd">    mechanical stops.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param mode: Desired mode of evaluation for this quantity.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">,</span>
+            <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">position</span><span class="o">=</span><span class="p">(</span><span class="n">MultiActuatedJointKinematic</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">kinematic_level</span><span class="o">=</span><span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="o">.</span><span class="n">POSITION</span><span class="p">,</span>
+                    <span class="n">is_motor_side</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">))),</span>
+            <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Lower and upper bounds of the actuated joints</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position_low</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+<div class="viewcode-block" id="_MultiActuatedJointBoundDistance.initialize">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+        <span class="c1"># Initialize the actuated joint position indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+        <span class="n">position_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">kinematic_indices</span>
+
+        <span class="c1"># Refresh mechanical joint position indices</span>
+        <span class="n">position_limit_low</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">lowerPositionLimit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position_low</span> <span class="o">=</span> <span class="n">position_limit_low</span><span class="p">[</span><span class="n">position_indices</span><span class="p">]</span>
+        <span class="n">position_limit_high</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">upperPositionLimit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position_high</span> <span class="o">=</span> <span class="n">position_limit_high</span><span class="p">[</span><span class="n">position_indices</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="_MultiActuatedJointBoundDistance.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic._MultiActuatedJointBoundDistance.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="n">position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">position</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_low</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_high</span> <span class="o">-</span> <span class="n">position</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MechanicalSafetyTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.MechanicalSafetyTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">MechanicalSafetyTermination</span><span class="p">(</span><span class="n">AbstractTerminationCondition</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Discouraging the agent from hitting the mechanical stops by immediately</span>
+<span class="sd">    terminating the episode if the articulated joints approach them at</span>
+<span class="sd">    excessive speed.</span>
+
+<span class="sd">    Hitting the lower and upper mechanical stops is inconvenient but forbidding</span>
+<span class="sd">    it completely is not desirable as it induces safety margins that constrain</span>
+<span class="sd">    the problem too strictly. This is particularly true when the maximum motor</span>
+<span class="sd">    torque becomes increasingly limited and PD controllers are being used for</span>
+<span class="sd">    low-level motor control, which turns out to be the case in most instances.</span>
+<span class="sd">    Overall, such an hard constraint would impede performance while completing</span>
+<span class="sd">    the task successfully remains the highest priority. Still, the impact</span>
+<span class="sd">    velocity must be restricted to prevent destructive damage. It is</span>
+<span class="sd">    recommended to estimate an acceptable thresholdfrom real experimental data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">position_margin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">velocity_max</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param position_margin: Distance of actuated joints from their</span>
+<span class="sd">                                respective mechanical bounds below which</span>
+<span class="sd">                                their speed is being watched.</span>
+<span class="sd">        :param velocity_max: Maximum velocity above which further approaching</span>
+<span class="sd">                             the mechanical stops triggers termination when</span>
+<span class="sd">                             watched for being close from them.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position_margin</span> <span class="o">=</span> <span class="n">position_margin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">velocity_max</span> <span class="o">=</span> <span class="n">velocity_max</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_mechanical_safety&quot;</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span>
+
+        <span class="c1"># Add quantity to the set of quantities managed by the environment</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position_delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;position_delta&quot;</span><span class="p">)),</span> <span class="p">(</span>
+                <span class="n">_MultiActuatedJointBoundDistance</span><span class="p">,</span> <span class="p">{}))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;velocity&quot;</span><span class="p">)),</span> <span class="p">(</span>
+                <span class="n">MultiActuatedJointKinematic</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">kinematic_level</span><span class="o">=</span><span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="o">.</span><span class="n">VELOCITY</span><span class="p">,</span>
+                    <span class="n">is_motor_side</span><span class="o">=</span><span class="kc">False</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;position_delta&quot;</span><span class="p">,</span> <span class="s2">&quot;velocity&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field</span><span class="p">)))</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>   <span class="c1"># pylint: disable=broad-except</span>
+            <span class="c1"># This method must not fail under any circumstances</span>
+            <span class="k">pass</span>
+
+<div class="viewcode-block" id="MechanicalSafetyTermination.compute">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.MechanicalSafetyTermination.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate the termination condition.</span>
+
+<span class="sd">        The underlying quantity is first evaluated. The episode continues if</span>
+<span class="sd">        its value is within bounds, otherwise the episode is either truncated</span>
+<span class="sd">        or terminated according to &#39;is_truncation&#39;.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is not meant to be overloaded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Evaluate the quantity</span>
+        <span class="n">position_delta_low</span><span class="p">,</span> <span class="n">position_delta_high</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_delta</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">velocity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+        <span class="c1"># Check if the robot is going to hit the mechanical stops at high speed</span>
+        <span class="n">is_done</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">position_delta_low</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_margin</span><span class="p">)</span> <span class="o">&amp;</span>
+            <span class="p">(</span><span class="n">velocity</span> <span class="o">&lt;</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocity_max</span><span class="p">))</span>
+        <span class="n">is_done</span> <span class="o">|=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">position_delta_high</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_margin</span><span class="p">)</span> <span class="o">&amp;</span>
+            <span class="p">(</span><span class="n">velocity</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocity_max</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">is_done</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MechanicalPowerConsumptionTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.MechanicalPowerConsumptionTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">MechanicalPowerConsumptionTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode immediately if the average mechanical power</span>
+<span class="sd">    consumption is too high.</span>
+
+<span class="sd">    High power consumption is undesirable as it means that the motion is</span>
+<span class="sd">    suboptimal and probably unnatural and fragile. Moreover, it helps to</span>
+<span class="sd">    accommodate hardware capability to avoid motor overheating while increasing</span>
+<span class="sd">    battery autonomy and lifespan. Finally, it may be necessary to deal with</span>
+<span class="sd">    some hardware limitations on max power drain.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+            <span class="n">max_power</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="n">horizon</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">generator_mode</span><span class="p">:</span> <span class="n">EnergyGenerationMode</span> <span class="o">=</span> <span class="n">EnergyGenerationMode</span><span class="o">.</span><span class="n">CHARGE</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="o">*</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param max_power: Maximum average mechanical power consumption applied</span>
+<span class="sd">                          on any of the contact points or collision bodies</span>
+<span class="sd">                          above which termination is triggered.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the average. `None` to</span>
+<span class="sd">                        consider the instantaneous power consumption.</span>
+<span class="sd">                        Optional: `None` by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_power</span> <span class="o">=</span> <span class="n">max_power</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span> <span class="o">=</span> <span class="n">horizon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generator_mode</span> <span class="o">=</span> <span class="n">generator_mode</span>
+
+        <span class="c1"># Pick the right quantity creator depending on the horizon</span>
+        <span class="n">quantity_creator</span><span class="p">:</span> <span class="n">QuantityCreator</span>
+        <span class="k">if</span> <span class="n">horizon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">quantity_creator</span> <span class="o">=</span> <span class="p">(</span><span class="n">MechanicalPowerConsumption</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">generator_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">generator_mode</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">quantity_creator</span> <span class="o">=</span> <span class="p">(</span><span class="n">AverageMechanicalPowerConsumption</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">horizon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">,</span>
+                <span class="n">generator_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">generator_mode</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">))</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_power_consumption&quot;</span><span class="p">,</span>
+            <span class="n">quantity_creator</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_power</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ShiftTrackingMotorPositionsTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/generic.html#gym_jiminy.common.compositions.generic.ShiftTrackingMotorPositionsTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">ShiftTrackingMotorPositionsTermination</span><span class="p">(</span><span class="n">ShiftTrackingQuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode if the selected reference trajectory is not</span>
+<span class="sd">    tracked with expected accuracy regarding the actuated joint positions,</span>
+<span class="sd">    whatever the timestep being considered over some fixed-size sliding window.</span>
+
+<span class="sd">    The robot must track the reference if there is no hazard, only applying</span>
+<span class="sd">    minor corrections to keep balance. Rewarding the agent for doing so is</span>
+<span class="sd">    not effective as favoring robustness remains more profitable. Indeed, it</span>
+<span class="sd">    would anticipate disturbances, lowering its current reward to maximize the</span>
+<span class="sd">    future return, primarily averting termination. Limiting the shift over a</span>
+<span class="sd">    given horizon allows for large deviations to handle strong pushes.</span>
+<span class="sd">    Moreover, assuming that the agent is not able to keep track of the time</span>
+<span class="sd">    flow, which means that only the observation at the current step is provided</span>
+<span class="sd">    to the agent and o stateful network architecture such as LSTM is being</span>
+<span class="sd">    used, restricting the shift also urges to do what it takes to get back to</span>
+<span class="sd">    normal as soon as possible for fear of triggering termination, as it may</span>
+<span class="sd">    happen any time the deviation is above the maximum acceptable shift,</span>
+<span class="sd">    irrespective of its scale.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">thr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param thr: Maximum shift above which termination is triggered.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the shift.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_tracking_motor_positions&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">MultiActuatedJointKinematic</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">kinematic_level</span><span class="o">=</span><span class="n">pin</span><span class="o">.</span><span class="n">KinematicLevel</span><span class="o">.</span><span class="n">POSITION</span><span class="p">,</span>
+                <span class="n">is_motor_side</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+            <span class="n">thr</span><span class="p">,</span>
+            <span class="n">horizon</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

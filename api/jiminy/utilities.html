@@ -1,0 +1,680 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>utilities &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Jiminy Python API" href="../jiminy_py/index.html" />
+    <link rel="prev" title="engine" href="engine.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Jiminy C++ API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html">analytical constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="motors.html">motors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controller.html">controller</a></li>
+<li class="toctree-l2"><a class="reference internal" href="engine.html">engine</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#timer">Timer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy5TimerE"><code class="docutils literal notranslate"><span class="pre">Timer</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#io-file-and-directory">IO file and Directory</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#conversion-from-to-json">Conversion from/to JSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#geometry">Geometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#random-number-generation">Random number generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#telemetry">Telemetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pinocchio">Pinocchio</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy28getJointTypePositionSuffixesE14JointModelType"><code class="docutils literal notranslate"><span class="pre">getJointTypePositionSuffixes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy28getJointTypeVelocitySuffixesE14JointModelType"><code class="docutils literal notranslate"><span class="pre">getJointTypeVelocitySuffixes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy30convertForceGlobalFrameToJointERKN9pinocchio5ModelERKN9pinocchio4DataEN9pinocchio10FrameIndexERKN9pinocchio5ForceE"><code class="docutils literal notranslate"><span class="pre">convertForceGlobalFrameToJoint()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Jiminy C++ API</a></li>
+      <li class="breadcrumb-item active">utilities</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/api/jiminy/utilities.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="utilities">
+<h1>utilities<a class="headerlink" href="#utilities" title="Link to this heading">¶</a></h1>
+<section id="timer">
+<h2>Timer<a class="headerlink" href="#timer" title="Link to this heading">¶</a></h2>
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy5TimerE">
+<span class="target" id="classjiminy_1_1_timer"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">Timer</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy5TimerE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy5Timer5TimerEv">
+<span class="target" id="classjiminy_1_1_timer_1ad7b0892dfe659e1d9978d80bc70b6461"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">Timer</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy5Timer5TimerEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy5Timer3ticEv">
+<span class="target" id="classjiminy_1_1_timer_1a86f92df5acaa1f7a585cd53b547910a9"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">tic</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy5Timer3ticEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0ENK6jiminy5Timer3tocEdv">
+<span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">Period</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">ratio</span></span><span class="p"><span class="pre">&lt;</span></span><span class="m"><span class="pre">1</span></span><span class="p"><span class="pre">&gt;</span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="classjiminy_1_1_timer_1a34441873da830dd6004d02ab88122c1b"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">toc</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4I0ENK6jiminy5Timer3tocEdv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+<section id="io-file-and-directory">
+<h2>IO file and Directory<a class="headerlink" href="#io-file-and-directory" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getUserDirectory” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 12]
+    std::string JIMINY_DLLAPI getUserDirectory ()
+    ————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 26]
+      std::string JIMINY_DLLAPI getUserDirectory ()
+      ————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 26]
+      std::string JIMINY_DLLAPI getUserDirectory ()
+      ————————–^
+</p>
+</div>
+</section>
+<section id="conversion-from-to-json">
+<h2>Conversion from/to JSON<a class="headerlink" href="#conversion-from-to-json" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::convertToJson” with arguments “(const GenericConfig&amp;)”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 12]
+    Json::Value JIMINY_DLLAPI convertToJson (const GenericConfig &amp;value)
+    ————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 26]
+      Json::Value JIMINY_DLLAPI convertToJson (const GenericConfig &amp;value)
+      ————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 26]
+      Json::Value JIMINY_DLLAPI convertToJson (const GenericConfig &amp;value)
+      ————————–^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::convertFromJson” with arguments “(const Json::Value&amp;)”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 14]
+    GenericConfig JIMINY_DLLAPI convertFromJson (const Json::Value &amp;value)
+    ————–^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 28]
+      GenericConfig JIMINY_DLLAPI convertFromJson (const Json::Value &amp;value)
+      —————————-^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 28]
+      GenericConfig JIMINY_DLLAPI convertFromJson (const Json::Value &amp;value)
+      —————————-^
+</p>
+</div>
+</section>
+<section id="geometry">
+<h2>Geometry<a class="headerlink" href="#geometry" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::sumHeightmaps” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 18]
+    HeightmapFunction JIMINY_DLLAPI sumHeightmaps (const std::vector&lt; HeightmapFunction &gt; &amp;heightmaps)
+    ——————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 32]
+      HeightmapFunction JIMINY_DLLAPI sumHeightmaps (const std::vector&lt; HeightmapFunction &gt; &amp;heightmaps)
+      ——————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 32]
+      HeightmapFunction JIMINY_DLLAPI sumHeightmaps (const std::vector&lt; HeightmapFunction &gt; &amp;heightmaps)
+      ——————————–^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::mergeHeightmaps” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 18]
+    HeightmapFunction JIMINY_DLLAPI mergeHeightmaps (const std::vector&lt; HeightmapFunction &gt; &amp;heightmaps)
+    ——————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 32]
+      HeightmapFunction JIMINY_DLLAPI mergeHeightmaps (const std::vector&lt; HeightmapFunction &gt; &amp;heightmaps)
+      ——————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 32]
+      HeightmapFunction JIMINY_DLLAPI mergeHeightmaps (const std::vector&lt; HeightmapFunction &gt; &amp;heightmaps)
+      ——————————–^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::discretizeHeightmap” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 33]
+    hpp::fcl::CollisionGeometryPtr_t JIMINY_DLLAPI discretizeHeightmap (const HeightmapFunction &amp;heightmap, double xMin, double xMax, double xUnit, double yMin, double yMax, double yUnit, bool mustSimplify=false)
+    ———————————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 47]
+      hpp::fcl::CollisionGeometryPtr_t JIMINY_DLLAPI discretizeHeightmap (const HeightmapFunction &amp;heightmap, double xMin, double xMax, double xUnit, double yMin, double yMax, double yUnit, bool mustSimplify=false)
+      ———————————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 47]
+      hpp::fcl::CollisionGeometryPtr_t JIMINY_DLLAPI discretizeHeightmap (const HeightmapFunction &amp;heightmap, double xMin, double xMax, double xUnit, double yMin, double yMax, double yUnit, bool mustSimplify=false)
+      ———————————————–^
+</p>
+</div>
+</section>
+<section id="random-number-generation">
+<h2>Random number generation<a class="headerlink" href="#random-number-generation" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::uniform” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expected identifier in nested name, got keyword: float [error at 5]
+    float JIMINY_DLLAPI uniform (const uniform_random_bit_generator_ref&lt; uint32_t &gt; &amp;g)
+    —–^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 20]
+      float JIMINY_DLLAPI uniform (const uniform_random_bit_generator_ref&lt; uint32_t &gt; &amp;g)
+      ——————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 20]
+      float JIMINY_DLLAPI uniform (const uniform_random_bit_generator_ref&lt; uint32_t &gt; &amp;g)
+      ——————–^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::normal” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expected identifier in nested name, got keyword: float [error at 5]
+    float JIMINY_DLLAPI normal (const uniform_random_bit_generator_ref&lt; uint32_t &gt; &amp;g, float mean=0.0F, float stddev=1.0F)
+    —–^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 20]
+      float JIMINY_DLLAPI normal (const uniform_random_bit_generator_ref&lt; uint32_t &gt; &amp;g, float mean=0.0F, float stddev=1.0F)
+      ——————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 20]
+      float JIMINY_DLLAPI normal (const uniform_random_bit_generator_ref&lt; uint32_t &gt; &amp;g, float mean=0.0F, float stddev=1.0F)
+      ——————–^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::tiles” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 18]
+    HeightmapFunction JIMINY_DLLAPI tiles (const Eigen::Vector2d &amp;size, double heightMax, const Eigen::Vector2d &amp;interpDelta, uint32_t sparsity, double orientation, uint32_t seed)
+    ——————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 32]
+      HeightmapFunction JIMINY_DLLAPI tiles (const Eigen::Vector2d &amp;size, double heightMax, const Eigen::Vector2d &amp;interpDelta, uint32_t sparsity, double orientation, uint32_t seed)
+      ——————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 32]
+      HeightmapFunction JIMINY_DLLAPI tiles (const Eigen::Vector2d &amp;size, double heightMax, const Eigen::Vector2d &amp;interpDelta, uint32_t sparsity, double orientation, uint32_t seed)
+      ——————————–^
+</p>
+</div>
+</section>
+<section id="telemetry">
+<h2>Telemetry<a class="headerlink" href="#telemetry" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getLogVariable” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 16]
+    Eigen::VectorXd JIMINY_DLLAPI getLogVariable (const LogData &amp;logData, const std::string &amp;fieldname)
+    —————-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 30]
+      Eigen::VectorXd JIMINY_DLLAPI getLogVariable (const LogData &amp;logData, const std::string &amp;fieldname)
+      ——————————^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 30]
+      Eigen::VectorXd JIMINY_DLLAPI getLogVariable (const LogData &amp;logData, const std::string &amp;fieldname)
+      ——————————^
+</p>
+</div>
+</section>
+<section id="pinocchio">
+<h2>Pinocchio<a class="headerlink" href="#pinocchio" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getJointNameFromPositionIndex” with arguments “(pinocchio::Model const&amp;, int32_t const&amp;, std::string&amp;)”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 12]
+    std::string JIMINY_DLLAPI getJointNameFromPositionIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointPositionIndex)
+    ————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 26]
+      std::string JIMINY_DLLAPI getJointNameFromPositionIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointPositionIndex)
+      ————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 26]
+      std::string JIMINY_DLLAPI getJointNameFromPositionIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointPositionIndex)
+      ————————–^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getJointNameFromVelocityIndex” with arguments “(pinocchio::Model const&amp;, int32_t const&amp;, std::string&amp;)”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 12]
+    std::string JIMINY_DLLAPI getJointNameFromVelocityIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointVelocityIndex)
+    ————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 26]
+      std::string JIMINY_DLLAPI getJointNameFromVelocityIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointVelocityIndex)
+      ————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 26]
+      std::string JIMINY_DLLAPI getJointNameFromVelocityIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointVelocityIndex)
+      ————————–^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getJointTypeFromIndex” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 15]
+    JointModelType JIMINY_DLLAPI getJointTypeFromIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointIndex)
+    —————^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 29]
+      JointModelType JIMINY_DLLAPI getJointTypeFromIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointIndex)
+      —————————–^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 29]
+      JointModelType JIMINY_DLLAPI getJointTypeFromIndex (const pinocchio::Model &amp;model, pinocchio::JointIndex jointIndex)
+      —————————–^
+</p>
+</div>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy28getJointTypePositionSuffixesE14JointModelType">
+<span class="target" id="namespacejiminy_1a9a04380c140883032795f3371ea81254"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string_view</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-prename descclassname"><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">getJointTypePositionSuffixes</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">JointModelType</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">jointType</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy28getJointTypePositionSuffixesE14JointModelType" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy28getJointTypeVelocitySuffixesE14JointModelType">
+<span class="target" id="namespacejiminy_1ac810d55977de1e61cf496e8dd94d5e01"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string_view</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-prename descclassname"><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">getJointTypeVelocitySuffixes</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">JointModelType</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">jointType</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy28getJointTypeVelocitySuffixesE14JointModelType" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getFrameIndex” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 22]
+    pinocchio::FrameIndex JIMINY_DLLAPI getFrameIndex (const pinocchio::Model &amp;model, const std::string &amp;frameName, pinocchio::FrameType frameType=static_cast&lt; pinocchio::FrameType &gt;(pinocchio::JOINT|pinocchio::FIXED_JOINT|pinocchio::BODY|pinocchio::OP_FRAME|pinocchio::SENSOR))
+    ———————-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 36]
+      pinocchio::FrameIndex JIMINY_DLLAPI getFrameIndex (const pinocchio::Model &amp;model, const std::string &amp;frameName, pinocchio::FrameType frameType=static_cast&lt; pinocchio::FrameType &gt;(pinocchio::JOINT|pinocchio::FIXED_JOINT|pinocchio::BODY|pinocchio::OP_FRAME|pinocchio::SENSOR))
+      ————————————^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 36]
+      pinocchio::FrameIndex JIMINY_DLLAPI getFrameIndex (const pinocchio::Model &amp;model, const std::string &amp;frameName, pinocchio::FrameType frameType=static_cast&lt; pinocchio::FrameType &gt;(pinocchio::JOINT|pinocchio::FIXED_JOINT|pinocchio::BODY|pinocchio::OP_FRAME|pinocchio::SENSOR))
+      ————————————^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getFrameIndices” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 37]
+    std::vector&lt; pinocchio::FrameIndex &gt; JIMINY_DLLAPI getFrameIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;frameNames)
+    ————————————-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 51]
+      std::vector&lt; pinocchio::FrameIndex &gt; JIMINY_DLLAPI getFrameIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;frameNames)
+      —————————————————^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 51]
+      std::vector&lt; pinocchio::FrameIndex &gt; JIMINY_DLLAPI getFrameIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;frameNames)
+      —————————————————^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getJointIndex” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 22]
+    pinocchio::JointIndex JIMINY_DLLAPI getJointIndex (const pinocchio::Model &amp;model, const std::string &amp;jointName)
+    ———————-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 36]
+      pinocchio::JointIndex JIMINY_DLLAPI getJointIndex (const pinocchio::Model &amp;model, const std::string &amp;jointName)
+      ————————————^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 36]
+      pinocchio::JointIndex JIMINY_DLLAPI getJointIndex (const pinocchio::Model &amp;model, const std::string &amp;jointName)
+      ————————————^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getJointIndices” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 37]
+    std::vector&lt; pinocchio::JointIndex &gt; JIMINY_DLLAPI getJointIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;jointNames)
+    ————————————-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 51]
+      std::vector&lt; pinocchio::JointIndex &gt; JIMINY_DLLAPI getJointIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;jointNames)
+      —————————————————^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 51]
+      std::vector&lt; pinocchio::JointIndex &gt; JIMINY_DLLAPI getJointIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;jointNames)
+      —————————————————^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Cannot find function “jiminy::getJointPositionIndex” in doxygen xml output for project “jiminy” from directory: /home/runner/work/jiminy/jiminy/build/doxygen/xml</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getJointsPositionIndices” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 28]
+    std::vector&lt; Eigen::Index &gt; JIMINY_DLLAPI getJointsPositionIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;jointNames, bool onlyFirstIndex=false)
+    —————————-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 42]
+      std::vector&lt; Eigen::Index &gt; JIMINY_DLLAPI getJointsPositionIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;jointNames, bool onlyFirstIndex=false)
+      ——————————————^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 42]
+      std::vector&lt; Eigen::Index &gt; JIMINY_DLLAPI getJointsPositionIndices (const pinocchio::Model &amp;model, const std::vector&lt; std::string &gt; &amp;jointNames, bool onlyFirstIndex=false)
+      ——————————————^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Cannot find function “jiminy::getJointVelocityIndex” in doxygen xml output for project “jiminy” from directory: /home/runner/work/jiminy/jiminy/build/doxygen/xml</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::getJointVelocityIndices” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 28]
+    std::vector&lt; Eigen::Index &gt; JIMINY_DLLAPI getJointVelocityIndices (const pinocchio::Model &amp;model, const std::string &amp;jointName)
+    —————————-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 42]
+      std::vector&lt; Eigen::Index &gt; JIMINY_DLLAPI getJointVelocityIndices (const pinocchio::Model &amp;model, const std::string &amp;jointName)
+      ——————————————^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 42]
+      std::vector&lt; Eigen::Index &gt; JIMINY_DLLAPI getJointVelocityIndices (const pinocchio::Model &amp;model, const std::string &amp;jointName)
+      ——————————————^
+</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve function “jiminy::isPositionValid” with arguments “None”.
+Candidate function could not be parsed. Parsing error is
+Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expected identifier in nested name, got keyword: bool [error at 4]
+    bool JIMINY_DLLAPI isPositionValid (const pinocchio::Model &amp;model, const Eigen::VectorXd &amp;q, double tolAbs=Eigen::NumTraits&lt; double &gt;::dummy_precision())
+    —-^
+If the function has a return type:
+  Error in declarator or parameters-and-qualifiers
+  If pointer to member declarator:
+    Invalid C++ declaration: Expected ‘::’ in pointer to member (function). [error at 19]
+      bool JIMINY_DLLAPI isPositionValid (const pinocchio::Model &amp;model, const Eigen::VectorXd &amp;q, double tolAbs=Eigen::NumTraits&lt; double &gt;::dummy_precision())
+      ——————-^
+  If declarator-id:
+    Invalid C++ declaration: Expecting “(” in parameters-and-qualifiers. [error at 19]
+      bool JIMINY_DLLAPI isPositionValid (const pinocchio::Model &amp;model, const Eigen::VectorXd &amp;q, double tolAbs=Eigen::NumTraits&lt; double &gt;::dummy_precision())
+      ——————-^
+</p>
+</div>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy30convertForceGlobalFrameToJointERKN9pinocchio5ModelERKN9pinocchio4DataEN9pinocchio10FrameIndexERKN9pinocchio5ForceE">
+<span class="target" id="namespacejiminy_1ab1e7ee3fa5c543ae63db75ed9fe8dc75"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Force</span></span><span class="w"> </span><span class="sig-prename descclassname"><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">convertForceGlobalFrameToJoint</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Model</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">model</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Data</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">data</span></span>, <span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">frameIndex</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Force</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">fextInGlobal</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy30convertForceGlobalFrameToJointERKN9pinocchio5ModelERKN9pinocchio4DataEN9pinocchio10FrameIndexERKN9pinocchio5ForceE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Translate a force expressed at the given fixed frame to its parent joint frame. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – <strong>[in]</strong> Pinocchio model. </p></li>
+<li><p><strong>data</strong> – <strong>[in]</strong> Pinocchio data. </p></li>
+<li><p><strong>frameIndex</strong> – <strong>[in]</strong> Index of the frame. </p></li>
+<li><p><strong>fextInGlobal</strong> – <strong>[in]</strong> Force in the global frame to be converted.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Force in the parent joint local frame. </p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="engine.html" class="btn btn-neutral float-left" title="engine" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../jiminy_py/index.html" class="btn btn-neutral float-right" title="Jiminy Python API" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

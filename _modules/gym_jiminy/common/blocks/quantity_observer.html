@@ -1,0 +1,244 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.blocks.quantity_observer &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.blocks.quantity_observer</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.blocks.quantity_observer</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implementation of Mahony filter block compatible with gym_jiminy</span>
+<span class="sd">reinforcement learning pipeline environment design.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">from</span> <span class="nn">jiminy_py</span> <span class="kn">import</span> <span class="n">tree</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseAct</span><span class="p">,</span> <span class="n">BaseObserverBlock</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">DataNested</span><span class="p">,</span> <span class="n">build_copyto</span>
+
+
+<span class="n">ValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;ValueT&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">DataNested</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_space">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/quantity_observer.html#gym_jiminy.common.blocks.quantity_observer.get_space">[docs]</a>
+<span class="k">def</span> <span class="nf">get_space</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">DataNested</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">DataNested</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer space from a given value.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Beware that space inference is lossly. Firstly, one cannot discriminate</span>
+<span class="sd">        between `gym.spaces.Box` and other non-container spaces, e.g.</span>
+<span class="sd">        `gym.spaces.Discrete` or `gym.spaces.MultiBinary`. Because of this</span>
+<span class="sd">        limitation, it is assumed that all `np.ndarray` data has been sampled</span>
+<span class="sd">        by a `gym.spaces.Box` space. Secondly, it is impossible to determine</span>
+<span class="sd">        the bounds of the space, so it is assumed to be unbounded.</span>
+
+<span class="sd">    :param value: Any value sampled from a given space.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">tree</span><span class="o">.</span><span class="n">issubclass_mapping</span><span class="p">(</span><span class="n">data_type</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Dict</span><span class="p">([</span>
+            <span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">get_space</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>  <span class="c1"># type: ignore[union-attr]</span>
+    <span class="k">if</span> <span class="n">tree</span><span class="o">.</span><span class="n">issubclass_sequence</span><span class="p">(</span><span class="n">data_type</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Tuple</span><span class="p">([</span><span class="n">get_space</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">low</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">),</span>
+            <span class="n">high</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="QuantityObserver">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/quantity_observer.html#gym_jiminy.common.blocks.quantity_observer.QuantityObserver">[docs]</a>
+<span class="k">class</span> <span class="nc">QuantityObserver</span><span class="p">(</span><span class="n">BaseObserverBlock</span><span class="p">[</span><span class="n">ValueT</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseAct</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Add a given pre-defined quantity to the observation of the environment.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        The observation space of a quantity must be invariant. Yet, nothing</span>
+<span class="sd">        prevent the shape of the quantity to change dynamically. As a result,</span>
+<span class="sd">        it is up to user to make sure that does not occur in practice,</span>
+<span class="sd">        otherwise it will raise an exception.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseAct</span><span class="p">],</span>
+                 <span class="n">quantity</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">update_ratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param name: Name of the block.</span>
+<span class="sd">        :param env: Environment to connect with.</span>
+<span class="sd">        :param quantity: Type of the quantity.</span>
+<span class="sd">        :param update_ratio: Ratio between the update period of the observer</span>
+<span class="sd">                             and the one of the subsequent observer. -1 to</span>
+<span class="sd">                             match the simulation timestep of the environment.</span>
+<span class="sd">                             Optional: `1` by default.</span>
+<span class="sd">        :param kwargs: Additional arguments that will be forwarded to the</span>
+<span class="sd">                       constructor of the quantity.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Add the quantity to the environment and define proxy for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+
+        <span class="c1"># Initialize the observer</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">update_ratio</span><span class="p">)</span>
+
+        <span class="c1"># Try to bind the memory of the quantity to the observation.</span>
+        <span class="c1"># Note that there is no guarantee that the quantity will be updated</span>
+        <span class="c1"># in-place without dynamic memory allocation, so it needs to be checked</span>
+        <span class="c1"># at run-time systematically and copy the value if necessary.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+        <span class="c1"># Define specialized copyto operator for efficiency.</span>
+        <span class="c1"># This is necessary because there is no guarantee that the quantity</span>
+        <span class="c1"># will be updated in-place without dynamic memory allocation.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_observation</span> <span class="o">=</span> <span class="n">build_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>   <span class="c1"># pylint: disable=broad-except</span>
+            <span class="c1"># This method must not fail under any circumstances</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Let us infer the observation space from the value of the quantity.</span>
+        <span class="c1"># Note that it is always valid to fetch the value of a quantity, even</span>
+        <span class="c1"># if no simulation is running.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+            <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">ValueT</span><span class="p">],</span> <span class="n">get_space</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">()))</span>
+
+<div class="viewcode-block" id="QuantityObserver.refresh_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/quantity_observer.html#gym_jiminy.common.blocks.quantity_observer.QuantityObserver.refresh_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="n">BaseObs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Evaluate the quantity</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+        <span class="c1"># Update the observation in-place in case of dynamic memory allocation</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_observation</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

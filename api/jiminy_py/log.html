@@ -1,0 +1,347 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>log &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="plot" href="plot.html" />
+    <link rel="prev" title="viewer" href="viewer.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Jiminy Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="core/index.html">core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simulator.html">simulator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">viewer</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">log</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.log.extract_variables_from_log"><code class="docutils literal notranslate"><span class="pre">extract_variables_from_log()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.log.build_robot_from_log"><code class="docutils literal notranslate"><span class="pre">build_robot_from_log()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.log.build_robots_from_log"><code class="docutils literal notranslate"><span class="pre">build_robots_from_log()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.log.extract_trajectory_from_log"><code class="docutils literal notranslate"><span class="pre">extract_trajectory_from_log()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.log.extract_trajectories_from_log"><code class="docutils literal notranslate"><span class="pre">extract_trajectories_from_log()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.log.update_sensor_measurements_from_log"><code class="docutils literal notranslate"><span class="pre">update_sensor_measurements_from_log()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="plot.html">plot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamics.html">dynamics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Jiminy Python API</a></li>
+      <li class="breadcrumb-item active">log</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/api/jiminy_py/log.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-jiminy_py.log">
+<span id="log"></span><h1>log<a class="headerlink" href="#module-jiminy_py.log" title="Link to this heading">¶</a></h1>
+<p>Utilities for extracting structured information from log data, from
+reconstructing the robot to reading telemetry variables.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.log.extract_variables_from_log">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.log.</span></span><span class="sig-name descname"><span class="pre">extract_variables_from_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_vars</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fieldnames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldNested</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><span class="pre">Sequence</span></a><span class="p"><span class="pre">[</span></span><span class="pre">FieldNested</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">as_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="k"><span class="pre">False</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/jiminy_py/log.html#extract_variables_from_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.log.extract_variables_from_log" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.log.</span></span><span class="sig-name descname"><span class="pre">extract_variables_from_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_vars</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fieldnames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldNested</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><span class="pre">Sequence</span></a><span class="p"><span class="pre">[</span></span><span class="pre">FieldNested</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">as_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="k"><span class="pre">True</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></span></dt>
+<dd><p>Extract values associated with a set of variables in a specific
+namespace.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_vars</strong> – Logged variables as a dictionary.</p></li>
+<li><p><strong>fieldnames</strong> – Structured fieldnames.</p></li>
+<li><p><strong>namespace</strong> – Namespace of the fieldnames. Empty string to disable.
+Optional: Empty by default.</p></li>
+<li><p><strong>as_dict</strong> – Whether to return a dictionary mapping flattened fieldnames
+to values.
+Optional: True by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.log.build_robot_from_log">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.log.</span></span><span class="sig-name descname"><span class="pre">build_robot_from_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_dir_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_package_dirs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/log.html#build_robot_from_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.log.build_robot_from_log" title="Link to this definition">¶</a></dt>
+<dd><p>Create and initialize a robot from single- or multi- robot simulations.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It returns a valid and fully initialized robot, that can be used to
+perform new simulation if added to a Jiminy Engine, but the original
+controller is lost.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Model options and <cite>robot.pinocchio_model</cite> will be the same as during
+the simulation until the next call to <cite>reset</cite> or <cite>set_options</cite> methods.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In case of multi-robot simulation, one may use <cite>build_robots_from_log</cite>
+for building all robots at once without having the specify explicitly
+the name for each of them.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Logged data (constants plus variables) as a dictionary.</p></li>
+<li><p><strong>mesh_dir_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Overwrite the common root of all absolute mesh paths.
+It may be necessary to read logs generated on
+different environments.</p></li>
+<li><p><strong>mesh_package_dirs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em>) – Prepend custom mesh package search path
+directories to the ones provided by log file. It
+may be necessary to specify it to read log
+generated on a different environment.</p></li>
+<li><p><strong>robot_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Name of the robot to build from log. If <cite>None</cite>, then the
+name will be detected automatically in case of
+single-robot simulations, otherwise it will raise an
+exception.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Reconstructed robot.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.log.build_robots_from_log">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.log.</span></span><span class="sig-name descname"><span class="pre">build_robots_from_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_dir_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_package_dirs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/log.html#build_robots_from_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.log.build_robots_from_log" title="Link to this definition">¶</a></dt>
+<dd><p>Build all the robots in the log of the simulation.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Internally, this function calls <cite>build_robot_from_log</cite> to build each
+available robot. Refer to <cite>build_robot_from_log</cite> for more information.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Logged data (constants and variables) as a dictionary.</p></li>
+<li><p><strong>mesh_dir_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Overwrite the common root of all absolute mesh paths.
+It which may be necessary to read log generated on a
+different environment.</p></li>
+<li><p><strong>mesh_package_dirs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em>) – Prepend custom mesh package search path
+directories to the ones provided by log file. It
+may be necessary to specify it to read log
+generated on a different environment.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sequence of reconstructed robots.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference internal" href="core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.log.extract_trajectory_from_log">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.log.</span></span><span class="sig-name descname"><span class="pre">extract_trajectory_from_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/log.html#extract_trajectory_from_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.log.extract_trajectory_from_log" title="Link to this definition">¶</a></dt>
+<dd><p>Extract the minimal required information from raw log data in order to
+replay the simulation in a viewer.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<dl class="simple">
+<dt>It extracts the required data for replay, namely temporal evolution of:</dt><dd><ul class="simple">
+<li><p>robot configuration: to display of the robot on the scene,</p></li>
+<li><p>robot velocity: to update velocity-dependent markers such as DCM,</p></li>
+<li><p>external forces: to update force-dependent markers.</p></li>
+</ul>
+</dd>
+</dl>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Logged data (constants and variables) as a dictionary.</p></li>
+<li><p><strong>robot</strong> (<a class="reference internal" href="core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a><em> | </em><em>None</em>) – Jiminy robot associated with the logged trajectory.
+Optional: None by default. If None, then it will be
+reconstructed from ‘log_data’ using <cite>build_robot_from_log</cite>.</p></li>
+<li><p><strong>robot_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Name of the robot to be constructed in the log. If it
+is not known, call <cite>build_robot_from_log</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary whose keys are the name of each robot and values are
+the corresponding <cite>Trajectory</cite> object.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="dynamics.html#jiminy_py.dynamics.Trajectory" title="jiminy_py.dynamics.Trajectory"><em>Trajectory</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.log.extract_trajectories_from_log">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.log.</span></span><span class="sig-name descname"><span class="pre">extract_trajectories_from_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robots</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/log.html#extract_trajectories_from_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.log.extract_trajectories_from_log" title="Link to this definition">¶</a></dt>
+<dd><p>Extract the minimal required information from raw log data in order to
+replay the simulation in a viewer.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function calls <cite>extract_trajectory_from_log</cite> to extract each
+robot’s trajectory. Refer to <cite>extract_trajectory_from_log</cite> for more
+information.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Logged data (constants and variables) as a dictionary.</p></li>
+<li><p><strong>robots</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference internal" href="core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a><em>] </em><em>| </em><em>None</em>) – Sequence of Jiminy robots associated with the logged
+trajectory.
+Optional: None by default. If None, then it will be
+reconstructed from ‘log_data’ using <cite>build_robots_from_log</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary mapping each robot name to its corresponding
+trajectory.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference internal" href="dynamics.html#jiminy_py.dynamics.Trajectory" title="jiminy_py.dynamics.Trajectory"><em>Trajectory</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.log.update_sensor_measurements_from_log">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.log.</span></span><span class="sig-name descname"><span class="pre">update_sensor_measurements_from_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/log.html#update_sensor_measurements_from_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.log.update_sensor_measurements_from_log" title="Link to this definition">¶</a></dt>
+<dd><p>Helper to make it easy to emulate sensor data update based on log data.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It returns an update_hook that can forwarding the <cite>Viewer.replay</cite> to
+display sensor information such as contact forces for instance.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>log_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Logged data (constants and variables) as a dictionary.</p></li>
+<li><p><strong>robot</strong> (<a class="reference internal" href="core/robot.html#jiminy_py.core.Model" title="jiminy_py.core.Model"><em>Model</em></a>) – Jiminy robot associated with the logged trajectory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Callable taking update time in argument and returning nothing.
+Note that it does not through an exception if out-of-range, but
+rather clip to desired time to the available data range.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>[[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>, <em>ndarray</em>, <em>ndarray</em> | <em>None</em>], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="viewer.html" class="btn btn-neutral float-left" title="viewer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="plot.html" class="btn btn-neutral float-right" title="plot" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

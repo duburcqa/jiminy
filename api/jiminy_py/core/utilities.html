@@ -1,0 +1,452 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>utilities &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="robot" href="../robot.html" />
+    <link rel="prev" title="engine" href="engine.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Jiminy Python API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">core</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="constraints.html">analytical constraints</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="motors.html">motors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controller.html">controller</a></li>
+<li class="toctree-l3"><a class="reference internal" href="engine.html">engine</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#geometry">Geometry</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#random-number-generation">Random number generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pinocchio">Pinocchio</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#miscellaneous">Miscellaneous</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../simulator.html">simulator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../viewer.html">viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../log.html">log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">plot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dynamics.html">dynamics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Jiminy Python API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">core</a></li>
+      <li class="breadcrumb-item active">utilities</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/api/jiminy_py/core/utilities.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="utilities">
+<h1>utilities<a class="headerlink" href="#utilities" title="Link to this heading">¶</a></h1>
+<section id="geometry">
+<h2>Geometry<a class="headerlink" href="#geometry" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">HeightmapType</span></span><a class="headerlink" href="#jiminy_py.core.HeightmapType" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">enum</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapType.CONSTANT">
+<span class="sig-name descname"><span class="pre">CONSTANT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.HeightmapType.CONSTANT</span></em><a class="headerlink" href="#jiminy_py.core.HeightmapType.CONSTANT" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapType.GENERIC">
+<span class="sig-name descname"><span class="pre">GENERIC</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.HeightmapType.GENERIC</span></em><a class="headerlink" href="#jiminy_py.core.HeightmapType.GENERIC" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapType.STAIRS">
+<span class="sig-name descname"><span class="pre">STAIRS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.HeightmapType.STAIRS</span></em><a class="headerlink" href="#jiminy_py.core.HeightmapType.STAIRS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapType.names">
+<span class="sig-name descname"><span class="pre">names</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'CONSTANT':</span> <span class="pre">jiminy_py.core.HeightmapType.CONSTANT,</span> <span class="pre">'GENERIC':</span> <span class="pre">jiminy_py.core.HeightmapType.GENERIC,</span> <span class="pre">'STAIRS':</span> <span class="pre">jiminy_py.core.HeightmapType.STAIRS}</span></em><a class="headerlink" href="#jiminy_py.core.HeightmapType.names" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapType.values">
+<span class="sig-name descname"><span class="pre">values</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{1:</span> <span class="pre">jiminy_py.core.HeightmapType.CONSTANT,</span> <span class="pre">2:</span> <span class="pre">jiminy_py.core.HeightmapType.STAIRS,</span> <span class="pre">3:</span> <span class="pre">jiminy_py.core.HeightmapType.GENERIC}</span></em><a class="headerlink" href="#jiminy_py.core.HeightmapType.values" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapFunction">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">HeightmapFunction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)arg1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)heightmap_function</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(HeightmapType)heightmap_type=jiminy_py.core.HeightmapType.GENERIC</span></span></em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.HeightmapFunction" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.HeightmapFunction.py_function">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">py_function</span></span><a class="headerlink" href="#jiminy_py.core.HeightmapFunction.py_function" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.HeightmapFunction)self) -&gt; object</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.sum_heightmaps">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">sum_heightmaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)heightmaps</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#jiminy_py.core.HeightmapFunction" title="jiminy_py.core.HeightmapFunction"><span class="pre">HeightmapFunction</span></a></span></span><a class="headerlink" href="#jiminy_py.core.sum_heightmaps" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.merge_heightmaps">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">merge_heightmaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)heightmaps</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#jiminy_py.core.HeightmapFunction" title="jiminy_py.core.HeightmapFunction"><span class="pre">HeightmapFunction</span></a></span></span><a class="headerlink" href="#jiminy_py.core.merge_heightmaps" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.discretize_heightmap">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">discretize_heightmap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(HeightmapFunction)heightmap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)x_min</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)x_max</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)x_unit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)y_min</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)y_max</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)y_unit</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)must_simplify=False</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">CollisionGeometry</span></span></span><a class="headerlink" href="#jiminy_py.core.discretize_heightmap" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="random-number-generation">
+<h2>Random number generation<a class="headerlink" href="#random-number-generation" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.PCG32">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">PCG32</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(int)state</span></span></em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.PCG32" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>__init__( (object)arg1, (list)seed_seq) -&gt; object</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.PCG32.max">
+<span class="sig-name descname"><span class="pre">max</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4294967295</span></em><a class="headerlink" href="#jiminy_py.core.PCG32.max" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.PCG32.min">
+<span class="sig-name descname"><span class="pre">min</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#jiminy_py.core.PCG32.min" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.PCG32.seed">
+<span class="sig-name descname"><span class="pre">seed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(PCG32)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(list)seed_seq</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.PCG32.seed" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.PeriodicGaussianProcess">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">PeriodicGaussianProcess</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)wavelength</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)period</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.PeriodicGaussianProcess" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PeriodicTabularProcess</span></code></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.PeriodicFourierProcess">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">PeriodicFourierProcess</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)wavelength</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)period</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.PeriodicFourierProcess" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PeriodicTabularProcess</span></code></p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.uniform">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">uniform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)lo</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)hi</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#jiminy_py.core.uniform" title="Link to this definition">¶</a></dt>
+<dd><p>uniform( (object)generator [, (float)lo=0.0 [, (float)hi=1.0 [, (object)size=None]]]) -&gt; object</p>
+<p>uniform( (object)generator) -&gt; float</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.normal">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">normal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)mean</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)stddev</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#jiminy_py.core.normal" title="Link to this definition">¶</a></dt>
+<dd><p>normal( (object)generator [, (float)mean=0.0 [, (float)stddev=1.0 [, (object)size=None]]]) -&gt; object</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.random_tile_ground">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">random_tile_ground</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)height_max</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)interp_delta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(int)sparsity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)orientation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(int)seed</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#jiminy_py.core.HeightmapFunction" title="jiminy_py.core.HeightmapFunction"><span class="pre">HeightmapFunction</span></a></span></span><a class="headerlink" href="#jiminy_py.core.random_tile_ground" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="pinocchio">
+<h2>Pinocchio<a class="headerlink" href="#pinocchio" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">JointModelType</span></span><a class="headerlink" href="#jiminy_py.core.JointModelType" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">enum</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.FREE">
+<span class="sig-name descname"><span class="pre">FREE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.JointModelType.FREE</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.FREE" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.LINEAR">
+<span class="sig-name descname"><span class="pre">LINEAR</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.JointModelType.LINEAR</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.LINEAR" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.NONE">
+<span class="sig-name descname"><span class="pre">NONE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.JointModelType.NONE</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.NONE" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.PLANAR">
+<span class="sig-name descname"><span class="pre">PLANAR</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.JointModelType.PLANAR</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.PLANAR" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.ROTARY">
+<span class="sig-name descname"><span class="pre">ROTARY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.JointModelType.ROTARY</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.ROTARY" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.ROTARY_UNBOUNDED">
+<span class="sig-name descname"><span class="pre">ROTARY_UNBOUNDED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.JointModelType.ROTARY_UNBOUNDED</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.ROTARY_UNBOUNDED" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.SPHERICAL">
+<span class="sig-name descname"><span class="pre">SPHERICAL</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">jiminy_py.core.JointModelType.SPHERICAL</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.SPHERICAL" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.names">
+<span class="sig-name descname"><span class="pre">names</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'FREE':</span> <span class="pre">jiminy_py.core.JointModelType.FREE,</span> <span class="pre">'LINEAR':</span> <span class="pre">jiminy_py.core.JointModelType.LINEAR,</span> <span class="pre">'NONE':</span> <span class="pre">jiminy_py.core.JointModelType.NONE,</span> <span class="pre">'PLANAR':</span> <span class="pre">jiminy_py.core.JointModelType.PLANAR,</span> <span class="pre">'ROTARY':</span> <span class="pre">jiminy_py.core.JointModelType.ROTARY,</span> <span class="pre">'ROTARY_UNBOUNDED':</span> <span class="pre">jiminy_py.core.JointModelType.ROTARY_UNBOUNDED,</span> <span class="pre">'SPHERICAL':</span> <span class="pre">jiminy_py.core.JointModelType.SPHERICAL}</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.names" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.JointModelType.values">
+<span class="sig-name descname"><span class="pre">values</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{0:</span> <span class="pre">jiminy_py.core.JointModelType.NONE,</span> <span class="pre">1:</span> <span class="pre">jiminy_py.core.JointModelType.LINEAR,</span> <span class="pre">2:</span> <span class="pre">jiminy_py.core.JointModelType.ROTARY,</span> <span class="pre">3:</span> <span class="pre">jiminy_py.core.JointModelType.ROTARY_UNBOUNDED,</span> <span class="pre">4:</span> <span class="pre">jiminy_py.core.JointModelType.PLANAR,</span> <span class="pre">6:</span> <span class="pre">jiminy_py.core.JointModelType.SPHERICAL,</span> <span class="pre">7:</span> <span class="pre">jiminy_py.core.JointModelType.FREE}</span></em><a class="headerlink" href="#jiminy_py.core.JointModelType.values" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.build_geom_from_urdf">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">build_geom_from_urdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)urdf_filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(int)geom_type</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)mesh_package_dirs=[]</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)load_meshes=True</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)make_meshes_convex=False</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeometryModel</span></span></span><a class="headerlink" href="#jiminy_py.core.build_geom_from_urdf" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.build_models_from_urdf">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">build_models_from_urdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(str)urdf_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(bool)has_freeflyer</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)mesh_package_dirs=[]</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)build_visual_model=False</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)load_visual_meshes=False</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.13)"><span class="pre">tuple</span></a></span></span><a class="headerlink" href="#jiminy_py.core.build_models_from_urdf" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.get_joint_type">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">get_joint_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(JointModel)joint_model</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#jiminy_py.core.JointModelType" title="jiminy_py.core.JointModelType"><span class="pre">JointModelType</span></a></span></span><a class="headerlink" href="#jiminy_py.core.get_joint_type" title="Link to this definition">¶</a></dt>
+<dd><p>get_joint_type( (Model)pinocchio_model, (int)joint_index) -&gt; JointModelType</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.get_joint_indices">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">get_joint_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(StdVec_StdString)joint_names</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">StdVec_Index</span></span></span><a class="headerlink" href="#jiminy_py.core.get_joint_indices" title="Link to this definition">¶</a></dt>
+<dd><p>get_joint_indices( (Model)pinocchio_model, (StdVec_StdString)joint_names) -&gt; list</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.get_joint_position_first_index">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">get_joint_position_first_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)joint_name</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></span></span><a class="headerlink" href="#jiminy_py.core.get_joint_position_first_index" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.is_position_valid">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">is_position_valid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)position</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(float)tol_abs=1.1920928955078125e-07</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span></span><a class="headerlink" href="#jiminy_py.core.is_position_valid" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.get_frame_indices">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">get_frame_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(StdVec_StdString)frame_names</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><span class="pre">list</span></a></span></span><a class="headerlink" href="#jiminy_py.core.get_frame_indices" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">get_joint_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(StdVec_StdString)joint_names</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">StdVec_Index</span></span></span><a class="headerlink" href="#id0" title="Link to this definition">¶</a></dt>
+<dd><p>get_joint_indices( (Model)pinocchio_model, (StdVec_StdString)joint_names) -&gt; list</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.aba">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">aba</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(Data)pinocchio_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(StdVec_Force)fext</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.aba" title="Link to this definition">¶</a></dt>
+<dd><p>Compute ABA with external forces, store the result in <a class="reference external" href="Data::ddq">Data::ddq</a> and return it.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.rnea">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">rnea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(Data)pinocchio_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)a</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.rnea" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the RNEA without external forces, store the result in Data and return it.</p>
+<dl class="simple">
+<dt>rnea( (Model)pinocchio_model, (Data)pinocchio_data, (numpy.ndarray)q, (numpy.ndarray)v, (numpy.ndarray)a, (StdVec_Force)fext) -&gt; numpy.ndarray :</dt><dd><p>Compute the RNEA with external forces, store the result in Data and return it.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.crba">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">crba</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(Data)pinocchio_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)fastmath=False</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.crba" title="Link to this definition">¶</a></dt>
+<dd><p>Computes CRBA, store the result in Data and return it.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.computeKineticEnergy">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">computeKineticEnergy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(Data)pinocchio_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)update_kinematics=True</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.computeKineticEnergy" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the forward kinematics and the kinematic energy of the model for the given joint configuration and velocity given as input. The result is accessible through data.kinetic_energy.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.computeJMinvJt">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">computeJMinvJt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(Data)pinocchio_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)J</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)update_decomposition=True</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#jiminy_py.core.computeJMinvJt" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.solveJMinvJtv">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">solveJMinvJtv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Data)pinocchio_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)update_decomposition=True</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#jiminy_py.core.solveJMinvJtv" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="miscellaneous">
+<h2>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.LogicError">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">LogicError</span></span><a class="headerlink" href="#jiminy_py.core.LogicError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.OSError">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">OSError</span></span><a class="headerlink" href="#jiminy_py.core.OSError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#jiminy_py.core.OSError" title="jiminy_py.core.OSError"><code class="xref py py-class docutils literal notranslate"><span class="pre">OSError</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.NotImplementedError">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">NotImplementedError</span></span><a class="headerlink" href="#jiminy_py.core.NotImplementedError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#jiminy_py.core.LogicError" title="jiminy_py.core.LogicError"><code class="xref py py-class docutils literal notranslate"><span class="pre">LogicError</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.BadControlFlow">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">BadControlFlow</span></span><a class="headerlink" href="#jiminy_py.core.BadControlFlow" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#jiminy_py.core.LogicError" title="jiminy_py.core.LogicError"><code class="xref py py-class docutils literal notranslate"><span class="pre">LogicError</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.LookupError">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">LookupError</span></span><a class="headerlink" href="#jiminy_py.core.LookupError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#jiminy_py.core.LookupError" title="jiminy_py.core.LookupError"><code class="xref py py-class docutils literal notranslate"><span class="pre">LookupError</span></code></a></p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.array_copyto">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">array_copyto</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)dst</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)src</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.array_copyto" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="jiminy_py.core.interpolate_positions">
+<span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">interpolate_positions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Model)pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)times_in</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)positions_in</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)times_out</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#jiminy_py.core.interpolate_positions" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="engine.html" class="btn btn-neutral float-left" title="engine" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../robot.html" class="btn btn-neutral float-right" title="robot" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

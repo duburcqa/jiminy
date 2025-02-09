@@ -1,0 +1,326 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blocks &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Quantities" href="quantities.html" />
+    <link rel="prev" title="Interfaces" href="interfaces.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Bases</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="interfaces.html">Interfaces</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Blocks</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.blocks.InterfaceBlock"><code class="docutils literal notranslate"><span class="pre">InterfaceBlock</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.blocks.BaseObserverBlock"><code class="docutils literal notranslate"><span class="pre">BaseObserverBlock</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.blocks.BaseControllerBlock"><code class="docutils literal notranslate"><span class="pre">BaseControllerBlock</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="quantities.html">Quantities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compositions.html">Compositions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pipeline.html">Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Bases</a></li>
+      <li class="breadcrumb-item active">Blocks</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/bases/blocks.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.bases.blocks">
+<span id="blocks"></span><h1>Blocks<a class="headerlink" href="#module-gym_jiminy.common.bases.blocks" title="Link to this heading">¶</a></h1>
+<p>This method gathers base implementations for blocks to be used in pipeline
+control design.</p>
+<p>It implements:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>the concept of blocks that can be connected to a gym environment</p></li>
+<li><p>the base controller block</p></li>
+<li><p>the base observer block</p></li>
+</ul>
+</div></blockquote>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.blocks.</span></span><span class="sig-name descname"><span class="pre">InterfaceBlock</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/blocks.html#InterfaceBlock"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">BlockState</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>]</p>
+<p>Base class for blocks used for pipeline control design. Blocks can be
+either observers and controllers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>A block may be stateful. In such a case, <cite>_initialize_state_space</cite>
+and <cite>get_state</cite> must be overloaded accordingly. The internal state will
+be added automatically to the observation space of the environment.</p>
+</div>
+<p>Initialize the block interface.</p>
+<p>It defines some proxies for fast access, then it initializes the
+internal state space of the block and allocates memory for it.</p>
+<dl class="simple">
+<dt>..warning::</dt><dd><p>All blocks (observers and controllers) must be an unique name
+within a given pipeline. In practice, it will be impossible to plug
+a given block to an existing pipeline if the later already has one
+block of the same type and name. The user is responsible to take
+care it never happens.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the block.</p></li>
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>BaseAct</em><em>]</em>) – Environment to connect with.</p></li>
+<li><p><strong>update_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Ratio between the update period of the top-level
+block and the one of the subsequent lower-level
+block. The value ‘-1’ to can be used for forcing
+the update period to match the simulation timestep
+of the base environment itself.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments that may be useful for mixing
+multiple inheritance through multiple inheritance.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock.state_space">
+<span class="sig-name descname"><span class="pre">state_space</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Space</span><span class="p"><span class="pre">[</span></span><span class="pre">BlockState</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock.state_space" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock.type">
+<span class="sig-name descname"><span class="pre">type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock.type" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock.env">
+<span class="sig-name descname"><span class="pre">env</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><span class="pre">InterfaceJiminyEnv</span></a><span class="p"><span class="pre">[</span></span><span class="pre">BaseObs</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">BaseAct</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock.env" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock.name" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock.update_ratio">
+<span class="sig-name descname"><span class="pre">update_ratio</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock.update_ratio" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock.get_state">
+<span class="sig-name descname"><span class="pre">get_state</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/blocks.html#InterfaceBlock.get_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock.get_state" title="Link to this definition">¶</a></dt>
+<dd><p>Get the internal state space of the controller.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>BlockState</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.InterfaceBlock.fieldnames">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fieldnames</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><span class="pre">Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">StructNested</span><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><span class="pre">Sequence</span></a><span class="p"><span class="pre">[</span></span><span class="pre">StructNested</span><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.InterfaceBlock.fieldnames" title="Link to this definition">¶</a></dt>
+<dd><p>Blocks fieldnames for logging.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.BaseObserverBlock">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.blocks.</span></span><span class="sig-name descname"><span class="pre">BaseObserverBlock</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/blocks.html#BaseObserverBlock"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.blocks.BaseObserverBlock" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceObserver" title="gym_jiminy.common.bases.interfaces.InterfaceObserver"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceObserver</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>], <a class="reference internal" href="#gym_jiminy.common.bases.blocks.InterfaceBlock" title="gym_jiminy.common.bases.blocks.InterfaceBlock"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceBlock</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">BlockState</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BlockState</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>]</p>
+<p>Base class to implement observe that can be used compute observation
+features of a <cite>BaseJiminyEnv</cite> environment, through any number of
+lower-level observer.</p>
+<a class="reference internal image-reference" href="../../../../_images/aafig-ae381d46b67db0cd87084c43666b3f08cf0ca8f8.svg"><img alt="../../../../_images/aafig-ae381d46b67db0cd87084c43666b3f08cf0ca8f8.svg" src="../../../../_images/aafig-ae381d46b67db0cd87084c43666b3f08cf0ca8f8.svg" style="width: 496.0px; height: 76.0px;" />
+</a>
+<p>Formally, an observer is a defined as a block mapping the observation space
+of the preceding observer, if any, and directly the one of the environment
+‘obs_env’, to any observation space ‘features’. It is more generic than
+estimating the state of the robot.</p>
+<p>The update period of the observer is the same than the simulation timestep
+of the environment for now.</p>
+<p>Initialize the observer interface.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra arguments that may be useful for mixing
+multiple inheritance through multiple inheritance.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments. See ‘args’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.BaseObserverBlock.fieldnames">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fieldnames</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><span class="pre">Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">StructNested</span><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><span class="pre">Sequence</span></a><span class="p"><span class="pre">[</span></span><span class="pre">StructNested</span><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.BaseObserverBlock.fieldnames" title="Link to this definition">¶</a></dt>
+<dd><p>Get mapping between each scalar element of the observation space of
+the observer block and the associated fieldname for logging.</p>
+<p>It is expected to return an object with the same structure than the
+observation space, but having lists of string as leaves. Generic
+fieldnames are used by default.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.BaseControllerBlock">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.blocks.</span></span><span class="sig-name descname"><span class="pre">BaseControllerBlock</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/blocks.html#BaseControllerBlock"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.blocks.BaseControllerBlock" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceController" title="gym_jiminy.common.bases.interfaces.InterfaceController"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceController</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>], <a class="reference internal" href="#gym_jiminy.common.bases.blocks.InterfaceBlock" title="gym_jiminy.common.bases.blocks.InterfaceBlock"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceBlock</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">BlockState</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BlockState</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>]</p>
+<p>Base class to implement controller that can be used compute targets to
+apply to the robot of a <cite>BaseJiminyEnv</cite> environment, through any number of
+lower-level controllers.</p>
+<a class="reference internal image-reference" href="../../../../_images/aafig-506950d67946aa370f719ef7a824bb8f823f16ab.svg"><img alt="../../../../_images/aafig-506950d67946aa370f719ef7a824bb8f823f16ab.svg" src="../../../../_images/aafig-506950d67946aa370f719ef7a824bb8f823f16ab.svg" style="width: 622.0px; height: 76.0px;" />
+</a>
+<p>Formally, a controller is defined as a block mapping any action space
+‘act_ctrl’ to the action space of the subsequent controller ‘cmd_ctrl’, if
+any, and ultimately to the one of the associated environment ‘act_env’, ie
+the motors efforts to apply on the robot.</p>
+<p>The update period of the controller must be higher than the control update
+period of the environment, but both can be infinite, i.e. time-continuous.</p>
+<p>Initialize the controller interface.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>No buffer is pre-allocated for the action since it is already done
+by the parent environment.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra arguments that may be useful for mixing
+multiple inheritance through multiple inheritance.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments. See ‘args’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.blocks.BaseControllerBlock.fieldnames">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fieldnames</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><span class="pre">Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">StructNested</span><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><span class="pre">Sequence</span></a><span class="p"><span class="pre">[</span></span><span class="pre">StructNested</span><span class="p"><span class="pre">[</span></span><span class="pre">ValueT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.blocks.BaseControllerBlock.fieldnames" title="Link to this definition">¶</a></dt>
+<dd><p>Get mapping between each scalar element of the action space of
+the controller block and the associated fieldname for logging.</p>
+<p>It is expected to return an object with the same structure than the
+action space, but having lists of string as leaves. Generic fieldnames
+are used by default.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="interfaces.html" class="btn btn-neutral float-left" title="Interfaces" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="quantities.html" class="btn btn-neutral float-right" title="Quantities" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

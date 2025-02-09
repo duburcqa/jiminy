@@ -1,0 +1,482 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proportional Derivative Controller &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Motor Safety Limit" href="motor_safety_limit.html" />
+    <link rel="prev" title="Blocks" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Blocks</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Proportional Derivative Controller</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.proportional_derivative_controller.integrate_zoh"><code class="docutils literal notranslate"><span class="pre">integrate_zoh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.proportional_derivative_controller.pd_controller"><code class="docutils literal notranslate"><span class="pre">pd_controller()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.proportional_derivative_controller.pd_adapter"><code class="docutils literal notranslate"><span class="pre">pd_adapter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.proportional_derivative_controller.get_encoder_to_motor_map"><code class="docutils literal notranslate"><span class="pre">get_encoder_to_motor_map()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDController"><code class="docutils literal notranslate"><span class="pre">PDController</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter"><code class="docutils literal notranslate"><span class="pre">PDAdapter</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="motor_safety_limit.html">Motor Safety Limit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mahony_filter.html">Mahony Filter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="body_orientation_observer.html">Body Orientation State Observation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="deformation_estimator.html">Deformation Estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantity_observer.html">Generic Quantity Observer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Blocks</a></li>
+      <li class="breadcrumb-item active">Proportional Derivative Controller</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/blocks/proportional_derivative_controller.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.blocks.proportional_derivative_controller">
+<span id="proportional-derivative-controller"></span><h1>Proportional Derivative Controller<a class="headerlink" href="#module-gym_jiminy.common.blocks.proportional_derivative_controller" title="Link to this heading">¶</a></h1>
+<p>Implementation of basic Proportional-Derivative controller block compatible
+with gym_jiminy reinforcement learning pipeline environment design.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.integrate_zoh">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.proportional_derivative_controller.</span></span><span class="sig-name descname"><span class="pre">integrate_zoh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_min</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_max</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#integrate_zoh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.integrate_zoh" title="Link to this definition">¶</a></dt>
+<dd><p>Second order approximate integration scheme assuming Zero-Order-Hold for
+the acceleration, taking position, velocity and acceleration bounds into
+account.</p>
+<p>Internally, it simply chains two first-order integrators in cascade. The
+acceleration will be updated in-place if clipping is necessary to satisfy
+bounds.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>state</strong> (<em>ndarray</em>) – Current state, ordered from lowest to highest derivative
+order, ie: s[i](t) = s[i](t-1) + integ_{t-1}^{t}(s[i+1](t)),
+as a 2D array whose first dimension gathers the 3 derivative
+orders. It will be updated in-place.</p></li>
+<li><p><strong>state_min</strong> (<em>ndarray</em>) – Lower bounds of the state as a 2D array.</p></li>
+<li><p><strong>state_max</strong> (<em>ndarray</em>) – Upper bounds of the state as a 2D array.</p></li>
+<li><p><strong>dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Integration delta of time since previous state update.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.pd_controller">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.proportional_derivative_controller.</span></span><span class="sig-name descname"><span class="pre">pd_controller</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">encoder_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command_state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command_state_lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command_state_upper</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motors_effort_limit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">control_dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#pd_controller"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.pd_controller" title="Link to this definition">¶</a></dt>
+<dd><p>Compute command torques under discrete-time proportional-derivative
+feedback control.</p>
+<p>Internally, it integrates the command state (position, velocity and
+acceleration) at controller update period in order to obtain the desired
+motor positions ‘q_desired’ and velocities ‘v_desired’, takes into account
+some lower and upper bounds. By computing them this way, the target motor
+positions and velocities can be interpreted as targets that has be to reach
+right before updating the command once again. Enforcing consistency between
+target position and velocity in such a way is a necessary but insufficient
+condition for the motors to be able to track them.</p>
+<p>The command effort is computed as follows:</p>
+<blockquote>
+<div><p>tau = - kp * ((q_measured - q_desired) + kd * (v_measured - v_desired))</p>
+</div></blockquote>
+<p>The torque will be held constant until the next controller update.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>PDController</cite> documentation to get more information, and
+<cite>integrate_zoh</cite> documentation for details about the state integration.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>encoder_data</strong> (<em>ndarray</em>) – Current position and velocity of the actuators.</p></li>
+<li><p><strong>command_state</strong> (<em>ndarray</em>) – Current command state, namely, all the derivatives of
+the target motors positions up to acceleration order.</p></li>
+<li><p><strong>command_state_lower</strong> (<em>ndarray</em>) – Lower bound of the command state that must be
+satisfied at all cost.</p></li>
+<li><p><strong>command_state_upper</strong> (<em>ndarray</em>) – Upper bound of the command state that must be
+satisfied at all cost.</p></li>
+<li><p><strong>kp</strong> (<em>ndarray</em>) – PD controller position-proportional gain in motor order.</p></li>
+<li><p><strong>kd</strong> (<em>ndarray</em>) – PD controller velocity-proportional gain in motor order.</p></li>
+<li><p><strong>motors_effort_limit</strong> (<em>ndarray</em>) – Maximum effort that the actuators can output.</p></li>
+<li><p><strong>control_dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Controller update period. It will be involved in the
+integration of the command state.</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em>) – Pre-allocated memory to store the command motor torques.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.pd_adapter">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.proportional_derivative_controller.</span></span><span class="sig-name descname"><span class="pre">pd_adapter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command_state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command_state_lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command_state_upper</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_instantaneous</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motors_velocity_deadband</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#pd_adapter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.pd_adapter" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the target motor accelerations that must be held constant for a
+given time interval in order to reach the desired value of some derivative
+of the target motor positions at the end of that interval if possible.</p>
+<p>Internally, it applies backward in time the same integration scheme as the
+PD controller. Knowing the initial and final value of the derivative over
+the time interval, constant target motor accelerations can be uniquely
+deduced. In practice, it consists in successive clipped finite difference
+of that derivative up to acceleration-level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>ndarray</em>) – Desired value of the n-th derivative of the command motor
+positions at the end of the controller update.</p></li>
+<li><p><strong>order</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Derivative order of the position associated with the action.</p></li>
+<li><p><strong>command_state</strong> (<em>ndarray</em>) – Current command state, namely, all the derivatives of
+the target motors positions up to acceleration order.
+If ‘is_instantaneous=True’, then it will be updated
+in-place.</p></li>
+<li><p><strong>command_state_lower</strong> (<em>ndarray</em>) – Lower bound of the command state that must be
+satisfied at all cost.</p></li>
+<li><p><strong>command_state_upper</strong> (<em>ndarray</em>) – Upper bound of the command state that must be
+satisfied at all cost.</p></li>
+<li><p><strong>motors_velocity_deadband</strong> (<em>ndarray</em><em> | </em><em>None</em>) – Target velocity deadband for which the
+target motor velocity will be cancelled
+out completely.</p></li>
+<li><p><strong>step_dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Time interval during which the target motor accelerations
+will be held constant.</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em>) – Pre-allocated memory to store the target motor accelerations.</p></li>
+<li><p><strong>is_instantaneous</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.get_encoder_to_motor_map">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.proportional_derivative_controller.</span></span><span class="sig-name descname"><span class="pre">get_encoder_to_motor_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">robot</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#get_encoder_to_motor_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.get_encoder_to_motor_map" title="Link to this definition">¶</a></dt>
+<dd><p>Get the mapping from encoder sensors to motors.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If reordering is necessary, then a list of indices is returned, which
+can used to permute encoder sensor data to match the command torque
+vector. Yet, it relies on so-called “fancy” or “advanced” indexing for
+doing so, which means that the returned data is a copy of the original
+data instead of a reference. On the contrary, it reordering is not
+necessary, a slice is returned instead and no copy happens whatsoever.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>robot</strong> (<a class="reference internal" href="../../../jiminy_py/core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a>) – Jiminy robot for which to compute mapping.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A slice if possible, a list of indices otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#slice" title="(in Python v3.13)"><em>slice</em></a> | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.PDController">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.proportional_derivative_controller.</span></span><span class="sig-name descname"><span class="pre">PDController</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">joint_position_margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">joint_velocity_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">inf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">joint_acceleration_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#PDController"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDController" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/blocks.html#gym_jiminy.common.bases.blocks.BaseControllerBlock" title="gym_jiminy.common.bases.blocks.BaseControllerBlock"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseControllerBlock</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Low-level Proportional-Derivative controller.</p>
+<p>The action are the target motors accelerations. The latter are integrated
+twice using two first-order integrators in cascade, considering that the
+acceleration is constant until the next controller update:</p>
+<blockquote>
+<div><p>v_{t+1} = v_{t} + dt * a_{t}
+q_{t+1} = q_{t} + dt * v_{t+1}</p>
+</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The position and velocity bounds on the command corresponds to the
+joint limits specified by the dynamical model of the robot. Then, lax
+default acceleration bounds are extrapolated. More precisely, they are
+chosen to be sufficient either to span the whole range of velocity or
+to allow reaching the command effort limits depending on what is the
+most restrictive. Position, velocity and acceleration.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It must be connected directly to the base environment to control
+without any intermediary controllers altering its action space.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the block.</p></li>
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>BaseAct</em><em>]</em>) – Environment to connect with.</p></li>
+<li><p><strong>update_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Ratio between the update period of the controller
+and the one of the subsequent controller. -1 to
+match the simulation timestep of the environment.
+Optional: 1 by default.</p></li>
+<li><p><strong>kp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>] </em><em>| </em><em>ndarray</em>) – PD controller position-proportional gains in motor order.</p></li>
+<li><p><strong>kd</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>] </em><em>| </em><em>ndarray</em>) – PD controller velocity-proportional gains in motor order.</p></li>
+<li><p><strong>joint_position_margin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Minimum distance of the joint target
+positions from their respective bounds.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>joint_velocity_limit</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Further restrict maximum joint target velocities wrt their
+hardware specifications.
+Optional: ‘inf’ by default.</p></li>
+<li><p><strong>joint_acceleration_limit</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><em>None</em>) – Maximum joint target acceleration. <cite>None</cite> to infer acceleration
+bounds (from prescribed PD gains plus maximum motor velocities and
+efforts) that would be as restrictive as possible while allowing
+bang-band control (i.e. unrestricted jump in target velocity or
+command torque in a single environment timestep, depending on which
+of these two criteria is the most limiting).
+Optional: None by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.PDController.fieldnames">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fieldnames</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDController.fieldnames" title="Link to this definition">¶</a></dt>
+<dd><p>Get mapping between each scalar element of the action space of
+the controller block and the associated fieldname for logging.</p>
+<p>It is expected to return an object with the same structure than the
+action space, but having lists of string as leaves. Generic fieldnames
+are used by default.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.PDController.get_state">
+<span class="sig-name descname"><span class="pre">get_state</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#PDController.get_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDController.get_state" title="Link to this definition">¶</a></dt>
+<dd><p>Get the internal state space of the controller.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.PDController.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#PDController.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDController.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the target motor torques using a PD controller.</p>
+<p>It is proportional to the error between the observed motors positions/
+velocities and the target ones.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Calling this method manually while a simulation is running is
+forbidden, because it would mess with the controller update period.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>ndarray</em>) – Desired target motor acceleration.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Current motor torques that will be updated in-place.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.proportional_derivative_controller.</span></span><span class="sig-name descname"><span class="pre">PDAdapter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">joint_velocity_deadband</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_instantaneous</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#PDAdapter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/blocks.html#gym_jiminy.common.bases.blocks.BaseControllerBlock" title="gym_jiminy.common.bases.blocks.BaseControllerBlock"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseControllerBlock</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Adapt the action of a lower-level Proportional-Derivative controller
+to be the target motor positions or velocities rather than accelerations.</p>
+<p>The action is the desired value of some derivative of the target motor
+positions. The target motor accelerations are then deduced so as to reach
+this value by the next update of this controller if possible without
+exceeding the position, velocity and acceleration bounds. Finally, these
+target position accelerations are passed to a lower-level PD controller,
+usually running at a higher frequency.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The higher the derivative order of the action, the smoother the command
+motor torques. Thus, a high order is generally beneficial for robotic
+applications. However, it introduces some kind of delay between the
+action and its effects. This phenomenon limits the responsiveness of
+the agent and therefore impedes its optimal performance. Besides, it
+introduces addition layer of indirection between the action and its
+effect which may be difficult to grasp for the agent. Finally,
+exploration usually consists in addition temporally uncorrelated
+gaussian random process at action-level. The effect of such random
+processes tends to vanish when integrated, making exploration very
+inefficient.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>update_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Ratio between the update period of the controller
+and the one of the subsequent controller. -1 to
+match the environment step <cite>env.step_dt</cite>.
+Optional: -1 by default.</p></li>
+<li><p><strong>order</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Derivative order of the action. It accepts position or
+velocity (respectively 0 or 1).
+Optional: 1 by default.</p></li>
+<li><p><strong>joint_velocity_deadband</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Target velocity deadband to avoid high-frequency vibrations and
+drifting of the target motor positions that would result internal
+efforts in the mechanical structure for hyperstatic postures.
+Note that it is only enabled during evaluation, not training.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>is_instantaneous</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to consider that the command state
+must be updated instantaneously, breaking
+continuity of higher-order derivatives, or
+continuously by updating the target
+acceleration instead.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>)</p></li>
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>BaseAct</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter.fieldnames">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fieldnames</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter.fieldnames" title="Link to this definition">¶</a></dt>
+<dd><p>Get mapping between each scalar element of the action space of
+the controller block and the associated fieldname for logging.</p>
+<p>It is expected to return an object with the same structure than the
+action space, but having lists of string as leaves. Generic fieldnames
+are used by default.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/proportional_derivative_controller.html#PDAdapter.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.proportional_derivative_controller.PDAdapter.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the target motor accelerations from the desired value of
+some derivative of the target motor positions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>ndarray</em>) – Desired target motor acceleration.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Current motor torques that will be updated in-place.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Blocks" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="motor_safety_limit.html" class="btn btn-neutral float-right" title="Motor Safety Limit" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

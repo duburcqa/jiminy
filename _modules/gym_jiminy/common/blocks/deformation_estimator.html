@@ -1,0 +1,999 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.blocks.deformation_estimator &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.blocks.deformation_estimator</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.blocks.deformation_estimator</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implementation of a stateless kinematic deformation estimator block</span>
+<span class="sd">compatible with gym_jiminy reinforcement learning pipeline environment design.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Mapping</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">import</span> <span class="nn">jiminy_py.core</span> <span class="k">as</span> <span class="nn">jiminy</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">EncoderSensor</span><span class="p">,</span> <span class="n">ImuSensor</span><span class="p">,</span> <span class="n">get_frame_indices</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="n">BaseAct</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseObserverBlock</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span>
+<span class="kn">from</span> <span class="nn">..wrappers.observation_layout</span> <span class="kn">import</span> <span class="n">NestedData</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">DataNested</span><span class="p">,</span>
+                     <span class="n">quat_to_rpy</span><span class="p">,</span>
+                     <span class="n">matrices_to_quat</span><span class="p">,</span>
+                     <span class="n">quat_multiply</span><span class="p">,</span>
+                     <span class="n">compute_tilt_from_quat</span><span class="p">,</span>
+                     <span class="n">swing_from_vector</span><span class="p">)</span>
+
+
+<span class="c1"># FIXME: Enabling cache causes segfault on Apple Silicon</span>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_compute_orientation_error</span><span class="p">(</span><span class="n">obs_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                               <span class="n">obs_imu_indices</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                               <span class="n">obs_imu_quats_ordered</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                               <span class="n">kin_imu_rots</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                               <span class="n">kin_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                               <span class="n">dev_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                               <span class="n">ignore_twist</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute total deviation of observed IMU data wrt to theoretical model in</span>
+<span class="sd">    world frame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Re-order IMU data</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">imu_index</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">obs_imu_indices</span><span class="p">):</span>
+        <span class="n">obs_imu_quats_ordered</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">obs_imu_quats</span><span class="p">[:,</span> <span class="n">imu_index</span><span class="p">]</span>
+
+    <span class="c1"># Compute orientation error</span>
+    <span class="k">if</span> <span class="n">ignore_twist</span><span class="p">:</span>
+        <span class="c1"># Compute swing of deviation between observed and kinematic IMU data:</span>
+        <span class="c1"># 1. Extract observed IMU tilt</span>
+        <span class="c1"># 2. Apply kinematic IMU rotation on it</span>
+        <span class="c1"># 3. Reconstruct swing from tilt of deviation</span>
+        <span class="c1"># This approach is equivalent to removing the twist from the exact</span>
+        <span class="c1"># deviation directly, but much faster as it does not require computing</span>
+        <span class="c1"># the observed IMU quaternions nor to compose rotations.</span>
+
+        <span class="c1"># Extract observed tilt: w_tilt_obs = w_R_obs.T @ e_z</span>
+        <span class="n">dev_imu_tilts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="n">compute_tilt_from_quat</span><span class="p">(</span><span class="n">obs_imu_quats_ordered</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Apply theoretical kinematic IMU rotation on observed tilt.</span>
+        <span class="c1"># The result can be interpreted as the tilt error between observed</span>
+        <span class="c1"># and theoretical kinematic IMU orientation in world frame, ie:</span>
+        <span class="c1"># w_tilt_err = (w_R_obs @ w_R_kin.T).T @ e_z = w_R_kin @ w_tilt_obs</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">kin_imu_rot</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">kin_imu_rots</span><span class="p">):</span>
+            <span class="n">dev_imu_tilts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">kin_imu_rot</span> <span class="o">@</span> <span class="n">dev_imu_tilts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="c1"># Compute &quot;smallest&quot; rotation that can explain the tilt error.</span>
+        <span class="n">swing_from_vector</span><span class="p">(</span><span class="n">dev_imu_tilts</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">dev_imu_quats</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Convert kinematic IMU rotation matrices to quaternions</span>
+        <span class="n">matrices_to_quat</span><span class="p">(</span><span class="n">kin_imu_rots</span><span class="p">,</span> <span class="n">kin_imu_quats</span><span class="p">)</span>
+
+        <span class="c1"># Compute one-by-one difference between observed and theoretical</span>
+        <span class="c1"># kinematic IMU orientations, ie: w_err = w_R_obs @ w_R_kin.T</span>
+        <span class="n">quat_multiply</span><span class="p">(</span><span class="n">obs_imu_quats_ordered</span><span class="p">,</span>
+                      <span class="n">kin_imu_quats</span><span class="p">,</span>
+                      <span class="n">is_right_conjugate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">out</span><span class="o">=</span><span class="n">dev_imu_quats</span><span class="p">)</span>
+
+
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_compute_deformation_from_deviation</span><span class="p">(</span><span class="n">kin_flex_rots</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                                        <span class="n">kin_flex_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                        <span class="n">is_flex_flipped</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                        <span class="n">is_chain_orphan</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">bool</span><span class="p">],</span>
+                                        <span class="n">dev_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                        <span class="n">child_dev_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                        <span class="n">parent_dev_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                        <span class="n">deformation_flex_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+                                        <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cast observed IMU deviations in world frame into deformations at their</span>
+<span class="sd">    corresponding flexibility frame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Convert kinematic flexibility rotation matrices to quaternions</span>
+    <span class="n">matrices_to_quat</span><span class="p">(</span><span class="n">kin_flex_rots</span><span class="p">,</span> <span class="n">kin_flex_quats</span><span class="p">)</span>
+
+    <span class="c1"># Translate observed IMU deviation in world frame to their respective</span>
+    <span class="c1"># parent and child flex frames.</span>
+    <span class="n">is_flex_parent_orphan</span><span class="p">,</span> <span class="n">is_flex_child_orphan</span> <span class="o">=</span> <span class="n">is_chain_orphan</span>
+    <span class="k">if</span> <span class="n">is_flex_parent_orphan</span><span class="p">:</span>
+        <span class="n">quat_multiply</span><span class="p">(</span>
+            <span class="n">dev_imu_quats</span><span class="p">,</span> <span class="n">kin_flex_quats</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:],</span> <span class="n">parent_dev_imu_quats</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:])</span>
+        <span class="k">if</span> <span class="n">is_flex_child_orphan</span><span class="p">:</span>
+            <span class="n">quat_multiply</span><span class="p">(</span><span class="n">dev_imu_quats</span><span class="p">,</span>
+                          <span class="n">kin_flex_quats</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                          <span class="n">child_dev_imu_quats</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">quat_multiply</span><span class="p">(</span>
+                <span class="n">dev_imu_quats</span><span class="p">,</span> <span class="n">kin_flex_quats</span><span class="p">,</span> <span class="n">child_dev_imu_quats</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">nflexs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kin_flex_rots</span><span class="p">)</span>
+        <span class="n">quat_multiply</span><span class="p">(</span>
+            <span class="n">dev_imu_quats</span><span class="p">[:,</span> <span class="p">:</span><span class="n">nflexs</span><span class="p">],</span> <span class="n">kin_flex_quats</span><span class="p">,</span> <span class="n">parent_dev_imu_quats</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_flex_child_orphan</span><span class="p">:</span>
+            <span class="n">quat_multiply</span><span class="p">(</span><span class="n">dev_imu_quats</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:],</span>
+                          <span class="n">kin_flex_quats</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                          <span class="n">child_dev_imu_quats</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">quat_multiply</span><span class="p">(</span>
+                <span class="n">dev_imu_quats</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:],</span> <span class="n">kin_flex_quats</span><span class="p">,</span> <span class="n">child_dev_imu_quats</span><span class="p">)</span>
+
+    <span class="c1"># Deal with orphan flex frames</span>
+    <span class="k">if</span> <span class="n">is_flex_parent_orphan</span><span class="p">:</span>
+        <span class="n">parent_dev_imu_quats</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">kin_flex_quats</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">is_flex_child_orphan</span><span class="p">:</span>
+        <span class="n">child_dev_imu_quats</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">kin_flex_quats</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># Project observed total deformation on flexibility frames</span>
+    <span class="n">quat_multiply</span><span class="p">(</span><span class="n">parent_dev_imu_quats</span><span class="p">,</span>
+                  <span class="n">child_dev_imu_quats</span><span class="p">,</span>
+                  <span class="n">is_left_conjugate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                  <span class="n">out</span><span class="o">=</span><span class="n">deformation_flex_quats</span><span class="p">)</span>
+
+    <span class="c1"># Conjugate deformation quaternion if triplet (parent IMU, flex, child IMU)</span>
+    <span class="c1"># is reversed wrt to the standard joint ordering from URDF.</span>
+    <span class="n">deformation_flex_quats</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">is_flex_flipped</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+
+
+<span class="c1"># FIXME: Enabling cache causes segfault on Apple Silicon</span>
+<div class="viewcode-block" id="flexibility_estimator">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/deformation_estimator.html#gym_jiminy.common.blocks.deformation_estimator.flexibility_estimator">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">flexibility_estimator</span><span class="p">(</span><span class="n">obs_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">obs_imu_indices</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                          <span class="n">obs_imu_quats_ordered</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">kin_imu_rots</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                          <span class="n">kin_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">kin_flex_rots</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                          <span class="n">kin_flex_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">is_flex_flipped</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">is_chain_orphan</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">bool</span><span class="p">],</span>
+                          <span class="n">dev_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">child_dev_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">parent_dev_imu_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">deformation_flex_quats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                          <span class="n">ignore_twist</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the local deformation at an arbitrary set of flexibility points</span>
+<span class="sd">    that are presumably responsible for most of the whole deformation of the</span>
+<span class="sd">    mechanical structure.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        The local deformation at each flexibility frame must be observable, ie</span>
+<span class="sd">        the flexibility and IMU frames interleave with each others in a unique</span>
+<span class="sd">        and contiguous sub-chain in theoretical kinematic tree of the robot.</span>
+
+<span class="sd">    :param obs_imu_quats: Orientation estimates of an unordered arbitrary set</span>
+<span class="sd">                          of IMUs as a 2D array whose first dimension gathers</span>
+<span class="sd">                          the 4 quaternion coordinates [qx, qy, qz, qw] while</span>
+<span class="sd">                          the second corresponds to N independent IMU data.</span>
+<span class="sd">    :param obs_imu_indices: M-tuple of ordered IMU indices of interest for</span>
+<span class="sd">                            which the total deviation will be computed.</span>
+<span class="sd">    :param obs_imu_quats_ordered: Pre-allocated memory for storing the inverse</span>
+<span class="sd">                                  of the orientation estimates for an ordered</span>
+<span class="sd">                                  subset of the IMU data `obs_imu_quats`</span>
+<span class="sd">                                  according to `obs_imu_indices`.</span>
+<span class="sd">    :param kin_imu_rots: Tuple of M kinematic frame orientations corresponding</span>
+<span class="sd">                         to the ordered subset of IMUs `obs_imu_indices`, for</span>
+<span class="sd">                         the configuration of the theoretical robot model.</span>
+<span class="sd">    :param kin_imu_quats: Pre-allocated memory for storing the kinematic frame</span>
+<span class="sd">                          orientations of the ordered subset of IMUs of</span>
+<span class="sd">                          interest as a 2D array whose first dimension gathers</span>
+<span class="sd">                          the 4 quaternion coordinates while the second</span>
+<span class="sd">                          corresponds to the M independent IMUs.</span>
+<span class="sd">    :param kin_flex_rots: Tuple of K kinematic frame orientations for all the</span>
+<span class="sd">                          flexibility points that interleaves with the ordered</span>
+<span class="sd">                          subset of IMUs of interest in the kinematic tree.</span>
+<span class="sd">    :param kin_flex_quats: Pre-allocated memory for storing the kinematic frame</span>
+<span class="sd">                           orientations of the flexibility points that</span>
+<span class="sd">                           interleaves with the ordered subset of IMUs of</span>
+<span class="sd">                           interest as a 2D array whose first dimension gathers</span>
+<span class="sd">                           the 4 quaternion coordinates while the second</span>
+<span class="sd">                           corresponds to the K independent flexibility points.</span>
+<span class="sd">    :param is_flex_flipped: Whether local deformation estimates for each</span>
+<span class="sd">                            flexibility point must be inverted to be consistent</span>
+<span class="sd">                            with standard URDF convention as 1D boolean array.</span>
+<span class="sd">    :param is_chain_orphan: 2-Tuple stating whether first and last flexibility</span>
+<span class="sd">                            point is orphan respectively, ie only a single IMU</span>
+<span class="sd">                            is available for estimating its local deformation.</span>
+<span class="sd">    :param dev_imu_quats: Total deviation of th observed IMU data wrt to the</span>
+<span class="sd">                          theoretical model in world frame for the ordered</span>
+<span class="sd">                          subset of IMUs of interest, as a 2D array whose first</span>
+<span class="sd">                          dimension gathers the 4 quaternion coordinates while</span>
+<span class="sd">                          the second corresponds to the M independent IMUs.</span>
+<span class="sd">    :param child_dev_imu_quats:</span>
+<span class="sd">        Total deviation observed IMU data in child flexibility frame as a 2D</span>
+<span class="sd">        array whose first dimension gathers the 4 quaternion coordinates while</span>
+<span class="sd">        the second corresponds to the K independent flexibility frames.</span>
+<span class="sd">    :param parent_dev_imu_quats:</span>
+<span class="sd">        Total deviation observed IMU data in parent flexibility frame as a 2D</span>
+<span class="sd">        array whose first dimension gathers the 4 quaternion coordinates while</span>
+<span class="sd">        the second corresponds to the K independent flexibility frames.</span>
+<span class="sd">    :param deformation_flex_quats:</span>
+<span class="sd">        Pre-allocated memory for storing the local deformation estimates for</span>
+<span class="sd">        each flexibility point flexibility points as a 2D array whose first</span>
+<span class="sd">        dimension gathers the 4 quaternion coordinates while the second</span>
+<span class="sd">        corresponds to the K independent flexibility points.</span>
+<span class="sd">    :param ignore_twist: Whether to ignore the twist of the orientation</span>
+<span class="sd">                         estimates of the ordered subset of IMUs of interest,</span>
+<span class="sd">                         and incidentally the twist of deformation at the</span>
+<span class="sd">                         flexibility points.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Compute error between observed and theoretical kinematic IMU orientation</span>
+    <span class="n">_compute_orientation_error</span><span class="p">(</span><span class="n">obs_imu_quats</span><span class="p">,</span>
+                               <span class="n">obs_imu_indices</span><span class="p">,</span>
+                               <span class="n">obs_imu_quats_ordered</span><span class="p">,</span>
+                               <span class="n">kin_imu_rots</span><span class="p">,</span>
+                               <span class="n">kin_imu_quats</span><span class="p">,</span>
+                               <span class="n">dev_imu_quats</span><span class="p">,</span>
+                               <span class="n">ignore_twist</span><span class="p">)</span>
+
+    <span class="c1"># Project observed total deformation on flexibility frames</span>
+    <span class="n">_compute_deformation_from_deviation</span><span class="p">(</span><span class="n">kin_flex_rots</span><span class="p">,</span>
+                                        <span class="n">kin_flex_quats</span><span class="p">,</span>
+                                        <span class="n">is_flex_flipped</span><span class="p">,</span>
+                                        <span class="n">is_chain_orphan</span><span class="p">,</span>
+                                        <span class="n">dev_imu_quats</span><span class="p">,</span>
+                                        <span class="n">child_dev_imu_quats</span><span class="p">,</span>
+                                        <span class="n">parent_dev_imu_quats</span><span class="p">,</span>
+                                        <span class="n">deformation_flex_quats</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_flexibility_imu_frame_chains">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/deformation_estimator.html#gym_jiminy.common.blocks.deformation_estimator.get_flexibility_imu_frame_chains">[docs]</a>
+<span class="k">def</span> <span class="nf">get_flexibility_imu_frame_chains</span><span class="p">(</span>
+        <span class="n">pinocchio_model</span><span class="p">:</span> <span class="n">pin</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
+        <span class="n">flex_joint_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">imu_frame_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">bool</span><span class="p">]]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract the minimal set of contiguous sub-chains in kinematic tree of a</span>
+<span class="sd">    given model that goes through all the specified flexibility and IMU frames.</span>
+
+<span class="sd">    :param pinocchio_model: Model from which to extract sub-chains.</span>
+<span class="sd">    :param flex_joint_names: Unordered sequence of joint names that must be</span>
+<span class="sd">                             considered as associated with flexibility frames.</span>
+<span class="sd">    :param imu_frame_names: Unordered sequence of frame names that must be</span>
+<span class="sd">                             considered as associated with IMU frames.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Determine the leaf joints of the kinematic tree, ie all the joints that</span>
+    <span class="c1"># are not parent of any other joint.</span>
+    <span class="n">parents</span> <span class="o">=</span> <span class="n">pinocchio_model</span><span class="o">.</span><span class="n">parents</span>
+    <span class="n">leaf_joint_indices</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parents</span><span class="p">)))</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">parents</span><span class="p">)</span>
+
+    <span class="c1"># Compute the support of each leaf joint, ie the sub-chain going from each</span>
+    <span class="c1"># leaf to the root joint.</span>
+    <span class="n">supports</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">joint_index</span> <span class="ow">in</span> <span class="n">leaf_joint_indices</span><span class="p">:</span>
+        <span class="n">support</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">support</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_index</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">joint_index</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">joint_index</span> <span class="o">=</span> <span class="n">parents</span><span class="p">[</span><span class="n">joint_index</span><span class="p">]</span>
+        <span class="n">supports</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">support</span><span class="p">)</span>
+
+    <span class="c1"># Deduce all the kinematic chains.</span>
+    <span class="c1"># For each support, check if there is a match in any other chain.</span>
+    <span class="c1"># The first match (in order) must be the only one to be considered.</span>
+    <span class="c1"># It always exists, as a root joint is shared by all supports.</span>
+    <span class="n">chains</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">support_1</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">supports</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">support_2</span> <span class="ow">in</span> <span class="n">supports</span><span class="p">[(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):]:</span>
+            <span class="k">for</span> <span class="n">joint_index</span> <span class="ow">in</span> <span class="n">support_1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">joint_index</span> <span class="ow">in</span> <span class="n">support_2</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="n">support_left</span> <span class="o">=</span> <span class="n">support_1</span><span class="p">[:(</span><span class="n">support_1</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">joint_index</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+            <span class="n">support_right</span> <span class="o">=</span> <span class="n">support_2</span><span class="p">[:</span><span class="n">support_2</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">joint_index</span><span class="p">)]</span>
+            <span class="n">chains</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="o">*</span><span class="n">support_left</span><span class="p">,</span> <span class="o">*</span><span class="n">support_right</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+
+    <span class="c1"># Special case when there is a chain in the kinematic tree</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">chains</span><span class="p">:</span>
+        <span class="n">chains</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">supports</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># Determine the parent joint of all flexibility and IMU frames</span>
+    <span class="n">flex_joint_map</span><span class="p">,</span> <span class="n">imu_joint_map</span> <span class="o">=</span> <span class="p">({</span>
+        <span class="n">pinocchio_model</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">parent</span><span class="p">:</span> <span class="n">name</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="n">frame_names</span><span class="p">,</span> <span class="n">get_frame_indices</span><span class="p">(</span><span class="n">pinocchio_model</span><span class="p">,</span> <span class="n">frame_names</span><span class="p">))}</span>
+        <span class="k">for</span> <span class="n">frame_names</span> <span class="ow">in</span> <span class="p">(</span><span class="n">flex_joint_names</span><span class="p">,</span> <span class="n">imu_frame_names</span><span class="p">))</span>
+    <span class="n">flex_joint_indices</span><span class="p">,</span> <span class="n">imu_joint_indices</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">set</span><span class="p">(</span><span class="n">joint_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">joint_map</span> <span class="ow">in</span> <span class="p">(</span><span class="n">flex_joint_map</span><span class="p">,</span> <span class="n">imu_joint_map</span><span class="p">))</span>
+
+    <span class="c1"># Make sure that the robot has no IMU on its root joint if fixed-based</span>
+    <span class="n">root_type</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">get_joint_type</span><span class="p">(</span><span class="n">pinocchio_model</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">root_type</span> <span class="o">!=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">JointModelType</span><span class="o">.</span><span class="n">FREE</span><span class="p">:</span>
+        <span class="k">if</span> <span class="mi">1</span> <span class="ow">in</span> <span class="n">imu_joint_indices</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;There must not be an IMU frame attached to the root joint of &quot;</span>
+                <span class="s2">&quot;the robot if it has a fixed based (no freeflyer).&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">imu_joint_indices</span><span class="o">.</span><span class="n">issuperset</span><span class="p">(</span><span class="n">leaf_joint_indices</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;There must be an IMU frame attached to all the leaf joints &quot;</span>
+                <span class="s2">&quot;of the robot if it has a fixed based (no freeflyer).&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Remove all joints not being flex or having an IMU attached</span>
+    <span class="n">flex_imu_joint_chains_all</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">flex_or_imu_joint_indices</span> <span class="o">=</span> <span class="n">flex_joint_indices</span> <span class="o">|</span> <span class="n">imu_joint_indices</span>
+    <span class="k">for</span> <span class="n">chain</span> <span class="ow">in</span> <span class="n">chains</span><span class="p">:</span>
+        <span class="n">flex_imu_chain</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">chain</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">flex_or_imu_joint_indices</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">flex_imu_chain</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">flex_imu_joint_chains_all</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flex_imu_chain</span><span class="p">)</span>
+
+    <span class="c1"># Remove redundant chains, ie the subchains of some other</span>
+    <span class="n">flex_imu_joint_chains</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">chain_i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flex_imu_joint_chains_all</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">chain_j</span> <span class="ow">in</span> <span class="n">flex_imu_joint_chains_all</span><span class="p">:</span>
+            <span class="n">is_subchain</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">chain_j</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">chain_i</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">chain_i</span> <span class="o">==</span> <span class="n">chain_j</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">chain_i</span><span class="p">)]:</span>
+                    <span class="n">is_subchain</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">is_subchain</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">flex_imu_joint_chains</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chain_i</span><span class="p">)</span>
+
+    <span class="c1"># Duplicate flexibility and IMU frames sharing the same joint indices.</span>
+    <span class="c1"># Go through each chain and check that IMU and flex joints interleaves.</span>
+    <span class="n">duplicated_flex_imu_joint_chains</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">flex_and_imu_joint_indices</span> <span class="o">=</span> <span class="n">flex_joint_indices</span> <span class="o">&amp;</span> <span class="n">imu_joint_indices</span>
+    <span class="k">for</span> <span class="n">chain</span> <span class="ow">in</span> <span class="n">flex_imu_joint_chains_all</span><span class="p">:</span>
+        <span class="n">is_imu_joint</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">duplicated_chain</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">joint_index</span> <span class="ow">in</span> <span class="n">chain</span><span class="p">:</span>
+            <span class="n">duplicated_chain</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_index</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">joint_index</span> <span class="ow">in</span> <span class="n">flex_and_imu_joint_indices</span><span class="p">:</span>
+                <span class="n">duplicated_chain</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_index</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">is_imu_joint</span> <span class="ow">and</span> <span class="n">joint_index</span> <span class="ow">in</span> <span class="n">flex_joint_indices</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span>
+                        <span class="ow">not</span> <span class="n">is_imu_joint</span> <span class="ow">and</span> <span class="n">joint_index</span> <span class="ow">in</span> <span class="n">imu_joint_indices</span><span class="p">):</span>
+                    <span class="n">is_imu_joint</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">is_imu_joint</span>
+                    <span class="k">continue</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Flexibility and IMU frames must interleave.&quot;</span><span class="p">)</span>
+        <span class="n">duplicated_flex_imu_joint_chains</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">duplicated_chain</span><span class="p">)</span>
+
+    <span class="c1"># Extract triplets (parent IMU, flex, child IMU), where either the parent</span>
+    <span class="c1"># or child IMU is None for orphan flexibility frames.</span>
+    <span class="n">flex_imu_joint_triplets_all</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span>
+        <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">imu_and_not_flex_joint_indices</span> <span class="o">=</span> <span class="n">imu_joint_indices</span> <span class="o">-</span> <span class="n">flex_joint_indices</span>
+    <span class="k">for</span> <span class="n">chain</span> <span class="ow">in</span> <span class="n">duplicated_flex_imu_joint_chains</span><span class="p">:</span>
+        <span class="n">start_index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">chain</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">imu_and_not_flex_joint_indices</span><span class="p">:</span>
+            <span class="n">flex_imu_joint_triplets_all</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">chain</span><span class="p">[:</span><span class="mi">2</span><span class="p">]))</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start_index</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">chain</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">flex_imu_joint_triplets_all</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">chain</span><span class="p">[</span><span class="n">j</span><span class="p">:(</span><span class="n">j</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)])</span>  <span class="c1"># type: ignore[arg-type]</span>
+        <span class="k">if</span> <span class="n">chain</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">imu_and_not_flex_joint_indices</span><span class="p">:</span>
+            <span class="n">flex_imu_joint_triplets_all</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">(</span><span class="o">*</span><span class="n">chain</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:],</span> <span class="kc">None</span><span class="p">))</span>  <span class="c1"># type: ignore[arg-type]</span>
+
+    <span class="c1"># Remove redundant triplet, ie associated with the same flexibility frame.</span>
+    <span class="c1"># Complete triplet must be preferred over orphan triplet.</span>
+    <span class="n">flex_imu_joint_triplets</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">flex_joint_triplets</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">is_orphan_triplets</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">triplet</span> <span class="ow">in</span> <span class="n">flex_imu_joint_triplets_all</span><span class="p">:</span>
+        <span class="n">parent_imu_joint</span><span class="p">,</span> <span class="n">flex_joint</span><span class="p">,</span> <span class="n">child_imu_joint</span> <span class="o">=</span> <span class="n">triplet</span>
+        <span class="n">is_orphan</span> <span class="o">=</span> <span class="n">parent_imu_joint</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">child_imu_joint</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">flex_joint</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flex_joint_triplets</span><span class="p">:</span>
+            <span class="n">flex_imu_joint_triplets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">triplet</span><span class="p">)</span>
+            <span class="n">flex_joint_triplets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flex_joint</span><span class="p">)</span>
+            <span class="n">is_orphan_triplets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">is_orphan</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">is_orphan</span><span class="p">:</span>
+            <span class="n">triplet_index</span> <span class="o">=</span> <span class="n">flex_joint_triplets</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">flex_joint</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_orphan_triplets</span><span class="p">[</span><span class="n">triplet_index</span><span class="p">]:</span>
+                <span class="n">flex_imu_joint_triplets</span><span class="p">[</span><span class="n">triplet_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">triplet</span>
+                <span class="n">flex_joint_triplets</span><span class="p">[</span><span class="n">triplet_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex_joint</span>
+
+    <span class="c1"># Concatenate triplets back in frame chains.</span>
+    <span class="c1"># Note that computations can be vectorized for each independent chain.</span>
+    <span class="n">flex_imu_name_chains</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># [(flexs, imus, flipped), ...]</span>
+    <span class="n">imu_grp</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">child_joint_imu_prev</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">for</span> <span class="n">triplet</span> <span class="ow">in</span> <span class="n">flex_imu_joint_triplets</span><span class="p">:</span>
+        <span class="n">parent_imu_joint</span><span class="p">,</span> <span class="n">flex_joint</span><span class="p">,</span> <span class="n">child_imu_joint</span> <span class="o">=</span> <span class="n">triplet</span>
+        <span class="k">if</span> <span class="n">parent_imu_joint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">child_imu_joint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">is_flipped</span> <span class="o">=</span> <span class="n">flex_joint</span> <span class="o">&gt;=</span> <span class="n">child_imu_joint</span>
+        <span class="k">elif</span> <span class="n">child_imu_joint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">parent_imu_joint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">is_flipped</span> <span class="o">=</span> <span class="n">parent_imu_joint</span> <span class="o">&gt;=</span> <span class="n">flex_joint</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">is_flipped</span> <span class="o">=</span> <span class="n">triplet</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span>
+                <span class="n">triplet</span><span class="p">)</span>  <span class="c1"># type: ignore[type-var]</span>
+        <span class="k">if</span> <span class="n">child_joint_imu_prev</span> <span class="o">!=</span> <span class="n">parent_imu_joint</span><span class="p">:</span>
+            <span class="n">flex_grp</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">imu_grp</span> <span class="o">=</span> <span class="p">[</span><span class="n">imu_joint_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">parent_imu_joint</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
+            <span class="n">is_flipped_grp</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">flex_imu_name_chains</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">flex_grp</span><span class="p">,</span> <span class="n">imu_grp</span><span class="p">,</span> <span class="n">is_flipped_grp</span><span class="p">))</span>
+        <span class="n">child_joint_imu_prev</span> <span class="o">=</span> <span class="n">child_imu_joint</span>
+        <span class="n">flex_grp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flex_joint_map</span><span class="p">[</span><span class="n">flex_joint</span><span class="p">])</span>
+        <span class="n">imu_grp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">imu_joint_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">child_imu_joint</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="n">is_flipped_grp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">is_flipped</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">flex_imu_name_chains</span></div>
+
+
+
+<div class="viewcode-block" id="DeformationEstimator">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/deformation_estimator.html#gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator">[docs]</a>
+<span class="k">class</span> <span class="nc">DeformationEstimator</span><span class="p">(</span><span class="n">BaseObserverBlock</span><span class="p">[</span>
+        <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseAct</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the local deformation at an arbitrary set of flexibility points</span>
+<span class="sd">    that are presumably responsible for most of the whole deformation of the</span>
+<span class="sd">    mechanical structure.</span>
+
+<span class="sd">    The number of IMU sensors and flexibility frames must be consistent:</span>
+<span class="sd">        * If the robot has no freeflyer, there must be as many IMU sensors as</span>
+<span class="sd">          flexibility frames (0), ie</span>
+
+<span class="sd">            *---o---x---o---x---o---x</span>
+<span class="sd">                        |</span>
+<span class="sd">                        |</span>
+<span class="sd">                        x---o---x</span>
+
+<span class="sd">        * Otherwise, it can either have one more IMU than flexibility frames</span>
+<span class="sd">          (1), the same number (2), or up to one less IMU per branch in the</span>
+<span class="sd">          kinematic tree (3).</span>
+
+<span class="sd">            (1) x---o---x---o---x---o---x</span>
+<span class="sd">                            |</span>
+<span class="sd">                            |</span>
+<span class="sd">                            x---o---x</span>
+
+<span class="sd">            (2) +---o---x---o---x---o---x</span>
+<span class="sd">                            |</span>
+<span class="sd">                            |</span>
+<span class="sd">                            x---o---x</span>
+
+<span class="sd">            (3) +---o---x---o---x---o---+</span>
+<span class="sd">                            |</span>
+<span class="sd">                            |</span>
+<span class="sd">                            x---o---+</span>
+
+<span class="sd">    *: Fixed base, +: leaf frame, x: IMU frame, o: flexibility frame</span>
+
+<span class="sd">    (1): The pose of the freeflyer is ignored when estimating the deformation</span>
+<span class="sd">         at the flexibility frames in local frame. Mathematically, it is the</span>
+<span class="sd">         same as (0) when considering a virtual IMU with fixed orientation to</span>
+<span class="sd">         identity for the root joint.</span>
+
+<span class="sd">    (2): One has to compensate for the missing IMU by providing instead the</span>
+<span class="sd">         configuration of the freeflyer. More precisely, one should ensure that</span>
+<span class="sd">         the orientation of the parent frame of the orphan flexibility frame</span>
+<span class="sd">         matches the reality for the theoretical configuration. This usually</span>
+<span class="sd">         requires making some assumptions to guess to pose of the frame that is</span>
+<span class="sd">         not directly observable. Any discrepancy will be aggregated to the</span>
+<span class="sd">         estimated deformation for the orphan flexibility frame specifically</span>
+<span class="sd">         since both cannot be distinguished. This issue typically happens when</span>
+<span class="sd">         there is no IMUs in the feet of a legged robot. In such a case, there</span>
+<span class="sd">         is no better option than assuming that one of the active contact</span>
+<span class="sd">         bodies remains flat on the ground. If the twist of the IMUs are</span>
+<span class="sd">         ignored, then the twist of the contact body does not matter either,</span>
+<span class="sd">         otherwise it must be set appropriately by the user to get a</span>
+<span class="sd">         meaningless estimate for the twist of the deformation. If it cannot be</span>
+<span class="sd">         observed by some exteroceptive sensor such as vision, then the most</span>
+<span class="sd">         reasonable assumption is to suppose that it matches the twist of the</span>
+<span class="sd">         IMU coming right after in the kinematic tree. This way, they will</span>
+<span class="sd">         cancel out each other without adding bias to the twist of the orphan</span>
+<span class="sd">         flexibility frame.</span>
+
+<span class="sd">    (3): This case is basically the same as (2), with the addition that only</span>
+<span class="sd">         the deformation of one of the orphan flexibility frames can be</span>
+<span class="sd">         estimated at once, namely the one whose parent frame is declared as</span>
+<span class="sd">         having known orientation. The other ones will be set to identity. For</span>
+<span class="sd">         a legged robot, this corresponds to one of the contact bodies, usually</span>
+<span class="sd">         the one holding most of the total weight.</span>
+<span class="sd">    .. warning::</span>
+<span class="sd">        (2) and (3) are not supported for now, as it requires using one</span>
+<span class="sd">        additional observation layer responsible for estimating the theoretical</span>
+<span class="sd">        configuration of the robot including its freeflyer, along with the name</span>
+<span class="sd">        of the reference frame, ie the one having known orientation.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The feature space of this observer is the same as `MahonyFilter`. See</span>
+<span class="sd">        documentation for details.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        Matthieu Vigne, Antonio El Khoury, Marine Pétriaux, Florent Di Meglio,</span>
+<span class="sd">        and Nicolas Petit &quot;MOVIE: a Velocity-aided IMU Attitude Estimator for</span>
+<span class="sd">        Observing and Controlling Multiple Deformations on Legged Robots&quot; IEEE</span>
+<span class="sd">        Robotics and Automation Letters, Institute of Electrical and</span>
+<span class="sd">        Electronics Engineers, 2022, 7 (2):</span>
+<span class="sd">        https://hal.science/hal-03511198/document</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseAct</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">imu_frame_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                 <span class="n">flex_frame_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                 <span class="n">ignore_twist</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">nested_imu_key</span><span class="p">:</span> <span class="n">NestedData</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s2">&quot;features&quot;</span><span class="p">,</span> <span class="s2">&quot;mahony_filter&quot;</span><span class="p">,</span> <span class="s2">&quot;quat&quot;</span><span class="p">),</span>
+                 <span class="n">compute_rpy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">update_ratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            The user-specified ordering of the flexibility frames will not be</span>
+<span class="sd">            honored. Indeed, they are reordered to be consistent with the</span>
+<span class="sd">            kinematic tree according to URDF standard.</span>
+
+<span class="sd">        :param name: Name of the block.</span>
+<span class="sd">        :param env: Environment to connect with.</span>
+<span class="sd">        :param imu_frame_names: Unordered sequence of IMU frame names that must</span>
+<span class="sd">                                be used to estimate the local deformation at</span>
+<span class="sd">                                all flexibility frames.</span>
+<span class="sd">        :param flex_frame_names: Unordered sequence of flexibility frame names.</span>
+<span class="sd">                                 It does not have to match the flexibility</span>
+<span class="sd">                                 frames of the true dynamic model, which is</span>
+<span class="sd">                                 only known in simulation. It is up to the user</span>
+<span class="sd">                                 to choose them appropriately. Ideally, they</span>
+<span class="sd">                                 must be chosen so as to explain as much as</span>
+<span class="sd">                                 possible the effect of the deformation on</span>
+<span class="sd">                                 kinematic quantities, eg the vertical position</span>
+<span class="sd">                                 of the end effectors, considering the number</span>
+<span class="sd">                                 and placement of the IMUs at hand.</span>
+<span class="sd">        :param ignore_twist: Whether to ignore the twist of the IMU quaternion</span>
+<span class="sd">                             estimate. If so, then the twist of the deformation</span>
+<span class="sd">                             will not be estimated either.</span>
+<span class="sd">        :param nested_imu_key: Nested key from environment observation mapping</span>
+<span class="sd">                               to the IMU quaternion estimates. Their ordering</span>
+<span class="sd">                               must be consistent with the true IMU sensors of</span>
+<span class="sd">                               the robot.</span>
+<span class="sd">        :param compute_rpy: Whether to compute the Yaw-Pitch-Roll Euler angles</span>
+<span class="sd">                            representation for the 3D orientation of the IMU,</span>
+<span class="sd">                            in addition to the quaternion representation.</span>
+<span class="sd">                            Optional: False by default.</span>
+<span class="sd">        :param update_ratio: Ratio between the update period of the observer</span>
+<span class="sd">                             and the one of the subsequent observer. -1 to</span>
+<span class="sd">                             match the simulation timestep of the environment.</span>
+<span class="sd">                             Optional: `1` by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the list of IMU and flexibility frames are not empty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">imu_frame_names</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">flex_frame_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Please specify at least one IMU and one deformation point.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Sanitize user argument(s)</span>
+        <span class="n">imu_frame_names</span><span class="p">,</span> <span class="n">flex_frame_names</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span>
+            <span class="nb">list</span><span class="p">,</span> <span class="p">(</span><span class="n">imu_frame_names</span><span class="p">,</span> <span class="n">flex_frame_names</span><span class="p">))</span>
+
+        <span class="c1"># Backup some of the user-argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span> <span class="o">=</span> <span class="n">compute_rpy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ignore_twist</span> <span class="o">=</span> <span class="n">ignore_twist</span>
+
+        <span class="c1"># Create flexible dynamic model.</span>
+        <span class="c1"># Dummy physical parameters are specified as they have no effect on</span>
+        <span class="c1"># kinematic computations.</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">()</span>
+        <span class="n">pinocchio_model_th</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="k">if</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+            <span class="n">pinocchio_model_th</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">buildReducedModel</span><span class="p">(</span>
+                <span class="n">pinocchio_model_th</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">pin</span><span class="o">.</span><span class="n">neutral</span><span class="p">(</span><span class="n">pinocchio_model_th</span><span class="p">))</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">pinocchio_model_th</span><span class="p">)</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+        <span class="n">options</span><span class="p">[</span><span class="s2">&quot;dynamics&quot;</span><span class="p">][</span><span class="s2">&quot;enableFlexibility&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">frame_name</span> <span class="ow">in</span> <span class="n">flex_frame_names</span><span class="p">:</span>
+            <span class="n">options</span><span class="p">[</span><span class="s2">&quot;dynamics&quot;</span><span class="p">][</span><span class="s2">&quot;flexibilityConfig&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;frameName&quot;</span><span class="p">:</span> <span class="n">frame_name</span><span class="p">,</span>
+                    <span class="s2">&quot;stiffness&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span>
+                    <span class="s2">&quot;damping&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span>
+                    <span class="s2">&quot;inertia&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+        <span class="c1"># Backup theoretical pinocchio model without floating base</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data_th</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">pinocchio_data_th</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Extract contiguous chains of flexibility and IMU frames for which</span>
+        <span class="c1"># computations can be vectorized. It also stores the information of</span>
+        <span class="c1"># whether or not the sign of the deformation must be reversed to be</span>
+        <span class="c1"># consistent with standard convention.</span>
+        <span class="n">flexibility_joint_names</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">flexibility_joint_names</span>
+        <span class="n">flex_imu_frame_names_chains</span> <span class="o">=</span> <span class="n">get_flexibility_imu_frame_chains</span><span class="p">(</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="p">,</span> <span class="n">flexibility_joint_names</span><span class="p">,</span> <span class="n">imu_frame_names</span><span class="p">)</span>
+
+        <span class="c1"># Replace actual flex joint name by corresponding rigid frame</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">flex_frame_names_</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">,</span> <span class="n">is_flipped</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="n">flex_imu_frame_names_chains</span><span class="p">):</span>
+            <span class="n">flex_frame_names_</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">flex_frame_names</span><span class="p">[</span><span class="n">flexibility_joint_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)]</span>
+                <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">flex_frame_names_</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">flex_frame_names_</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">,</span> <span class="n">is_flipped</span><span class="p">))</span>
+
+        <span class="c1"># Check if a freeflyer estimator is required</span>
+        <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span><span class="p">:</span>
+                <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="n">imu_frame_names_</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                        <span class="s2">&quot;Freeflyer estimator is not supported for now.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Backup flexibility frame names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flexibility_frame_names</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">name</span> <span class="k">for</span> <span class="n">flex_frame_names</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">flex_frame_names</span><span class="p">]</span>
+
+        <span class="c1"># Define flexibility and IMU frame orientation proxies for fast access.</span>
+        <span class="c1"># Note that they will be initialized in `_setup` method.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kin_flex_rots</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kin_imu_rots</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Pre-allocate memory for intermediary computations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_chain_orphan</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_flex_flipped</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kin_flex_quats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_quats_ordered</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kin_imu_quats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dev_imu_quats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dev_parent_imu_quats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dev_child_imu_quats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">flex_frame_names_</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">,</span> <span class="n">is_flipped</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span><span class="p">):</span>
+            <span class="n">num_flexs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">flex_frame_names_</span><span class="p">)</span>
+            <span class="n">num_imus</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_kin_flex_quats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_flexs</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_kin_imu_quats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_imus</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_quats_ordered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_imus</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dev_imu_quats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_imus</span><span class="p">)))</span>
+            <span class="n">dev_parent_imu_quats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_flexs</span><span class="p">))</span>
+            <span class="n">is_parent_orphan</span> <span class="o">=</span> <span class="n">imu_frame_names_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="n">is_child_orphan</span> <span class="o">=</span> <span class="n">imu_frame_names_</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dev_parent_imu_quats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dev_parent_imu_quats</span><span class="p">)</span>
+            <span class="n">dev_child_imu_quats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_flexs</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dev_child_imu_quats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dev_child_imu_quats</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_flex_flipped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">is_flipped</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_chain_orphan</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">is_parent_orphan</span><span class="p">,</span> <span class="n">is_child_orphan</span><span class="p">))</span>
+
+        <span class="c1"># Define IMU observation proxy for fast access</span>
+        <span class="n">obs_imu_quats</span><span class="p">:</span> <span class="n">DataNested</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">observation</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">nested_imu_key</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_quats</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">)</span>
+                <span class="n">obs_imu_quats</span> <span class="o">=</span> <span class="n">obs_imu_quats</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_quats</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">)</span>
+                <span class="n">obs_imu_quats</span> <span class="o">=</span> <span class="n">obs_imu_quats</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_quats</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+                <span class="n">slices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">start_end</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">start_end</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                        <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">start_end</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="ow">not</span> <span class="n">start_end</span><span class="p">:</span>
+                        <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="o">*</span><span class="n">start_end</span><span class="p">))</span>
+                <span class="n">obs_imu_quats</span> <span class="o">=</span> <span class="n">obs_imu_quats</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">slices</span><span class="p">)]</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_quats</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_quats</span> <span class="o">=</span> <span class="n">obs_imu_quats</span>
+
+        <span class="c1"># Get mapping from IMU frame to index</span>
+        <span class="n">imu_frame_map</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span> <span class="n">ImuSensor</span><span class="p">)</span>
+            <span class="n">imu_frame_map</span><span class="p">[</span><span class="n">sensor</span><span class="o">.</span><span class="n">frame_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">sensor</span><span class="o">.</span><span class="n">index</span>
+
+        <span class="c1"># Make sure that the robot has one encoder per mechanical joint</span>
+        <span class="n">encoder_sensors</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">encoder_sensors</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">mechanical_joint_indices</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The robot must have one encoder per mechanical joints.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Extract mapping from encoders to theoretical configuration.</span>
+        <span class="c1"># Note that revolute unbounded joints are not supported for now.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_position_map</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,]</span> <span class="o">*</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">nmotors</span>
+        <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span> <span class="n">EncoderSensor</span><span class="p">)</span>
+            <span class="n">joint_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="o">.</span><span class="n">getJointId</span><span class="p">(</span><span class="n">sensor</span><span class="o">.</span><span class="n">joint_name</span><span class="p">)</span>
+            <span class="n">joint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="o">.</span><span class="n">joints</span><span class="p">[</span><span class="n">joint_index</span><span class="p">]</span>
+            <span class="n">joint_type</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">get_joint_type</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">joint_type</span> <span class="o">==</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">JointModelType</span><span class="o">.</span><span class="n">ROTARY_UNBOUNDED</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Revolute unbounded joints are not supported for now.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_position_map</span><span class="p">[</span><span class="n">sensor</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">joint</span><span class="o">.</span><span class="n">idx_q</span>
+
+        <span class="c1"># Extract measured motor / joint positions for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder_data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">measurement</span><span class="p">[</span><span class="s2">&quot;measurements&quot;</span><span class="p">][</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">])</span>
+
+        <span class="c1"># Ratio to translate encoder data to joint side</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_joint_ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+        <span class="c1"># Buffer storing the theoretical configuration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_q_th</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">neutral</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="p">)</span>
+
+        <span class="c1"># Whether the observer has been compiled already</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_compiled</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Initialize the observer</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">update_ratio</span><span class="p">)</span>
+
+        <span class="c1"># Define some proxies for fast access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">[</span><span class="s2">&quot;quat&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rpy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">[</span><span class="s2">&quot;rpy&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rpy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+        <span class="c1"># Define chunks associated with each independent flexibility-imu chain</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_deformation_flex_quats</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_indices</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="n">flex_start_index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">flex_frame_names_</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span><span class="p">):</span>
+            <span class="n">flex_last_index</span> <span class="o">=</span> <span class="n">flex_start_index</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">flex_frame_names_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_deformation_flex_quats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">[:,</span> <span class="n">flex_start_index</span><span class="p">:</span><span class="n">flex_last_index</span><span class="p">])</span>
+            <span class="n">flex_start_index</span> <span class="o">=</span> <span class="n">flex_last_index</span>
+            <span class="n">imu_frame_names_filtered</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">))</span>
+            <span class="n">imu_indices</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="n">imu_frame_map</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">imu_frame_names_filtered</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">imu_indices</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">nflex</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">flex_frame_names</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">flex_frame_names</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span><span class="p">)</span>
+        <span class="n">observation_space</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">observation_space</span><span class="p">[</span><span class="s2">&quot;quat&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">low</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">nflex</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1e-9</span><span class="p">),</span>
+            <span class="n">high</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">nflex</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="mf">1e-9</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">])</span> <span class="o">+</span> <span class="mf">1e-9</span>
+            <span class="n">observation_space</span><span class="p">[</span><span class="s2">&quot;rpy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+                <span class="n">low</span><span class="o">=-</span><span class="n">high</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">nflex</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">high</span><span class="o">=</span><span class="n">high</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">nflex</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Dict</span><span class="p">(</span>
+            <span class="o">**</span><span class="n">observation_space</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
+
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="c1"># Refresh the theoretical model of the robot.</span>
+        <span class="c1"># Even if the robot may change, the theoretical model of the robot is</span>
+        <span class="c1"># not supposed to change in a way that would break this observer.</span>
+        <span class="n">pinocchio_model_th</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+            <span class="n">pinocchio_model_th</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">buildReducedModel</span><span class="p">(</span>
+                <span class="n">pinocchio_model_th</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">pin</span><span class="o">.</span><span class="n">neutral</span><span class="p">(</span><span class="n">pinocchio_model_th</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span> <span class="o">=</span> <span class="n">pinocchio_model_th</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data_th</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="o">.</span><span class="n">createData</span><span class="p">()</span>
+
+        <span class="c1"># Fix initialization of the observation to be valid quaternions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="c1"># Refresh flexibility and IMU frame orientation proxies</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kin_flex_rots</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kin_imu_rots</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">pinocchio_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="n">flexibility_joint_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">flexibility_joint_names</span>
+        <span class="k">for</span> <span class="n">flex_frame_names</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">flex_imu_frame_names_chains</span><span class="p">):</span>
+            <span class="c1"># Determine the parent frame of the deformation points</span>
+            <span class="n">parent_flex_frame_names</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">flex_frame_names</span><span class="p">:</span>
+                <span class="n">frame_index</span> <span class="o">=</span> <span class="n">pinocchio_model</span><span class="o">.</span><span class="n">getFrameId</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">joint_index</span> <span class="o">=</span> <span class="n">pinocchio_model</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="n">frame_index</span><span class="p">]</span><span class="o">.</span><span class="n">parent</span>
+                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">joint_index</span> <span class="o">=</span> <span class="n">pinocchio_model</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="n">joint_index</span><span class="p">]</span>
+                    <span class="n">frame_name</span> <span class="o">=</span> <span class="n">pinocchio_model</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">joint_index</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">frame_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">frame_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flexibility_joint_names</span><span class="p">:</span>
+                        <span class="k">break</span>
+                <span class="n">parent_flex_frame_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame_name</span><span class="p">)</span>
+
+            <span class="c1"># Filter out missing parent and child IMU in the chain</span>
+            <span class="n">imu_frame_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">imu_frame_names_</span><span class="p">))</span>
+
+            <span class="c1"># Extract the rotation matrices of the IMU and flexibility frames</span>
+            <span class="n">kin_flex_rots</span><span class="p">,</span> <span class="n">kin_imu_rots</span> <span class="o">=</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data_th</span><span class="o">.</span><span class="n">oMf</span><span class="p">[</span><span class="n">frame_index</span><span class="p">]</span><span class="o">.</span><span class="n">rotation</span>
+                <span class="k">for</span> <span class="n">frame_index</span> <span class="ow">in</span> <span class="n">get_frame_indices</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="p">,</span> <span class="n">frame_names</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">frame_names</span> <span class="ow">in</span> <span class="p">(</span><span class="n">parent_flex_frame_names</span><span class="p">,</span> <span class="n">imu_frame_names</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_kin_flex_rots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kin_flex_rots</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_kin_imu_rots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kin_imu_rots</span><span class="p">)</span>
+
+        <span class="c1"># Refresh mechanical reduction ratio</span>
+        <span class="n">encoder_to_joint_ratio</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">motor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">[</span><span class="n">sensor</span><span class="o">.</span><span class="n">motor_index</span><span class="p">]</span>
+                <span class="n">motor_options</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+                <span class="n">mechanical_reduction</span> <span class="o">=</span> <span class="n">motor_options</span><span class="p">[</span><span class="s2">&quot;mechanicalReduction&quot;</span><span class="p">]</span>
+                <span class="n">encoder_to_joint_ratio</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">mechanical_reduction</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="n">encoder_to_joint_ratio</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_joint_ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">encoder_to_joint_ratio</span><span class="p">)</span>
+
+        <span class="c1"># Call `refresh_observation` manually to pre-compile it if necessary</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_compiled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refresh_observation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_compiled</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fieldnames</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]:</span>
+        <span class="n">fieldnames</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">fieldnames</span><span class="p">[</span><span class="s2">&quot;quat&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.Quat</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flexibility_frame_names</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="n">fieldnames</span><span class="p">[</span><span class="s2">&quot;rpy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flexibility_frame_names</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;Roll&quot;</span><span class="p">,</span> <span class="s2">&quot;Pitch&quot;</span><span class="p">,</span> <span class="s2">&quot;Yaw&quot;</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">fieldnames</span>
+
+<div class="viewcode-block" id="DeformationEstimator.refresh_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/deformation_estimator.html#gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator.refresh_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="n">BaseObs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Translate encoder data at joint level</span>
+        <span class="n">joint_positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_joint_ratio</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder_data</span>
+
+        <span class="c1"># Update the configuration of the theoretical model of the robot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_q_th</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder_to_position_map</span><span class="p">]</span> <span class="o">=</span> <span class="n">joint_positions</span>
+
+        <span class="c1"># Update kinematic quantities according to the estimated configuration.</span>
+        <span class="c1"># FIXME: Compute frame placement only for relevant IMUs.</span>
+        <span class="n">pin</span><span class="o">.</span><span class="n">framesForwardKinematics</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data_th</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_q_th</span><span class="p">)</span>
+
+        <span class="c1"># Estimate all the deformations in their local frame.</span>
+        <span class="c1"># It loops over each flexibility-imu chain independently.</span>
+        <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_indices</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_quats_ordered</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_kin_imu_rots</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_kin_imu_quats</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_kin_flex_rots</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_kin_flex_quats</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_is_flex_flipped</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_is_chain_orphan</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dev_imu_quats</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dev_child_imu_quats</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dev_parent_imu_quats</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_deformation_flex_quats</span><span class="p">):</span>
+            <span class="n">flexibility_estimator</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_quats</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ignore_twist</span><span class="p">)</span>
+
+        <span class="c1"># Compute the RPY representation if requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="n">quat_to_rpy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpy</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1426 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locomotion &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Compositions" href="../compositions/index.html" />
+    <link rel="prev" title="Transform" href="transform.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Quantities</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="generic.html">Generic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="manager.html">Manager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="transform.html">Transform</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Locomotion</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.sanitize_foot_frame_names"><code class="docutils literal notranslate"><span class="pre">sanitize_foot_frame_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.compute_height"><code class="docutils literal notranslate"><span class="pre">compute_height()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.BaseRelativeHeight"><code class="docutils literal notranslate"><span class="pre">BaseRelativeHeight</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryPose"><code class="docutils literal notranslate"><span class="pre">BaseOdometryPose</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.BaseSpatialAverageVelocity"><code class="docutils literal notranslate"><span class="pre">BaseSpatialAverageVelocity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryAverageVelocity"><code class="docutils literal notranslate"><span class="pre">BaseOdometryAverageVelocity</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.AverageBaseMomentum"><code class="docutils literal notranslate"><span class="pre">AverageBaseMomentum</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat"><code class="docutils literal notranslate"><span class="pre">MultiFootMeanXYZQuat</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose"><code class="docutils literal notranslate"><span class="pre">MultiFootMeanOdometryPose</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.ReferencePositionVector"><code class="docutils literal notranslate"><span class="pre">ReferencePositionVector</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.translate_positions"><code class="docutils literal notranslate"><span class="pre">translate_positions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat"><code class="docutils literal notranslate"><span class="pre">MultiFootRelativeXYZQuat</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.CenterOfMass"><code class="docutils literal notranslate"><span class="pre">CenterOfMass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.translate_position_odom"><code class="docutils literal notranslate"><span class="pre">translate_position_odom()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.ZeroMomentPoint"><code class="docutils literal notranslate"><span class="pre">ZeroMomentPoint</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.CapturePoint"><code class="docutils literal notranslate"><span class="pre">CapturePoint</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.normalize_spatial_forces"><code class="docutils literal notranslate"><span class="pre">normalize_spatial_forces()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.MultiContactNormalizedSpatialForce"><code class="docutils literal notranslate"><span class="pre">MultiContactNormalizedSpatialForce</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.normalize_vertical_forces"><code class="docutils literal notranslate"><span class="pre">normalize_vertical_forces()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical"><code class="docutils literal notranslate"><span class="pre">MultiFootNormalizedForceVertical</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.MultiFootCollisionDetection"><code class="docutils literal notranslate"><span class="pre">MultiFootCollisionDetection</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition"><code class="docutils literal notranslate"><span class="pre">DeltaBaseOdometryPosition</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.angle_difference"><code class="docutils literal notranslate"><span class="pre">angle_difference()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation"><code class="docutils literal notranslate"><span class="pre">DeltaBaseOdometryOrientation</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Quantities</a></li>
+      <li class="breadcrumb-item active">Locomotion</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/quantities/locomotion.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.quantities.locomotion">
+<span id="locomotion"></span><h1>Locomotion<a class="headerlink" href="#module-gym_jiminy.common.quantities.locomotion" title="Link to this heading">¶</a></h1>
+<p>Quantities mainly relevant for locomotion tasks on floating-base robots.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.sanitize_foot_frame_names">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">sanitize_foot_frame_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#sanitize_foot_frame_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.sanitize_foot_frame_names" title="Link to this definition">¶</a></dt>
+<dd><p>Try to detect automatically one frame name per foot of a given legged
+robot if ‘auto’ mode is enabled. Otherwise, make sure that the specified
+sequence of frame names is non-empty, and all of them corresponds to
+end-effectors, ie having one of the leaf joints of the kinematic tree of
+the robot as parent.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'auto'</em><em>]</em>) – Name of the frames corresponding to some feet of the
+robot. ‘auto’ to automatically detect them from the set
+of contact and force sensors of the robot.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.compute_height">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">compute_height</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base_pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contacts_pos</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#compute_height"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.compute_height" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the height of the robot, which is defined as the maximum
+vertical difference between the base of the robot and the contact points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>base_pos</strong> (<em>ndarray</em>) – Position of the base of the robot as a 1D array.</p></li>
+<li><p><strong>contacts_pos</strong> (<em>ndarray</em>) – Position of all the contact points of the robot as a
+2D array whose first dimension are the (X, Y, Z)
+components while the second gathers individual points.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseRelativeHeight">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">BaseRelativeHeight</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseRelativeHeight"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseRelativeHeight" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]</p>
+<p>Relative height of the floating base of the robot wrt lowest contact
+point or collision body in world frame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseRelativeHeight.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseRelativeHeight.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseRelativeHeight.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseRelativeHeight.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseRelativeHeight.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseOdometryPose">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">BaseOdometryPose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseOdometryPose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryPose" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity" title="gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Odometry pose of the floating base of the robot at the end of the agent
+step.</p>
+<p>The odometry pose fully specifies the position and heading of the robot in
+2D world plane. As such, it comprises the linear translation (X, Y) and
+the rotation around Z axis (namely rate of change of Yaw Euler angle).
+Mathematically, one is supposed to rely on se2 Lie Algebra for performing
+operations on odometry poses such as differentiation. In practice, the
+double geodesic metric space is used instead to prevent coupling between
+the linear and angular parts by considering them independently. Strictly
+speaking, it corresponds to the cartesian space (R^2 x SO(2)).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseOdometryPose.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseOdometryPose.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryPose.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseOdometryPose.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseOdometryPose.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryPose.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseSpatialAverageVelocity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">BaseSpatialAverageVelocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseSpatialAverageVelocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseSpatialAverageVelocity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Average base spatial velocity of the floating base of the robot in
+local odometry frame at the end of the agent step.</p>
+<p>The average spatial velocity is obtained by finite difference. See
+<cite>FrameSpatialAverageVelocity</cite> documentation for details.</p>
+<p>Roughly speaking, the local odometry reference frame is half-way between
+<cite>pinocchio.LOCAL</cite> and <cite>pinocchio.LOCAL_WORLD_ALIGNED</cite>. The z-axis is
+world-aligned while x and y axes are local, which corresponds to applying
+the Roll and Pitch from the Roll-Pitch-Yaw decomposition to the local
+velocity. See <cite>remove_yaw_from_quat</cite> for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseSpatialAverageVelocity.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseSpatialAverageVelocity.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseSpatialAverageVelocity.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseSpatialAverageVelocity.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseSpatialAverageVelocity.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseOdometryAverageVelocity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">BaseOdometryAverageVelocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseOdometryAverageVelocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryAverageVelocity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Average odometry velocity of the floating base of the robot in local
+odometry frame at the end of the agent step.</p>
+<p>The odometry velocity fully specifies the linear and angular velocity of
+the robot in 2D world plane. See <cite>BaseSpatialAverageVelocity</cite> and
+<cite>BaseOdometryPose</cite>, documentations for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseOdometryAverageVelocity.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryAverageVelocity.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.BaseOdometryAverageVelocity.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#BaseOdometryAverageVelocity.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.BaseOdometryAverageVelocity.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.AverageBaseMomentum">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">AverageBaseMomentum</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#AverageBaseMomentum"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.AverageBaseMomentum" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity" title="gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Angular momentum of the floating base of the robot in local odometry
+frame at the end of the agent step.</p>
+<p>The most sensible choice for the reference frame is the local odometry
+frame. The local-world-aligned frame makes no sense at all. The local frame
+is not ideal as a rotation around x- and y-axes would have an effect on
+z-axis in odometry frame, introducing an undesirable coupling between
+odometry tracking and angular momentum minimization. Indeed, it is likely
+undesirable to penalize the momentum around z-axis because it is firstly
+involved in navigation rather than stabilization.</p>
+<p>At this point, it is worth keeping track of the individual components of
+the angular momentum rather than aggregating them as a scalar directly by
+computing the resulting kinematic energy. This gives the opportunity to the
+practitioner to weight differently the angular momentum for going back and
+forth (y-axis) wrt the angular momentum for oscillating sideways (x-axis).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.AverageBaseMomentum.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#AverageBaseMomentum.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.AverageBaseMomentum.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.AverageBaseMomentum.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#AverageBaseMomentum.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.AverageBaseMomentum.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">MultiFootMeanXYZQuat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootMeanXYZQuat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Average position and orientation of the feet of a legged robot at the
+end of the agent step.</p>
+<p>The average foot pose may be more appropriate than the floating base pose
+to characterize the position and orientation the robot in the world,
+especially when it comes to assessing the tracking error of the foot
+trajectories. It has the advantage to make foot tracking independent from
+floating base tracking, giving the opportunity to the robot to locally
+recover stability by moving its upper body without impeding foot tracking.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>...</em><em>]</em>) – Name of the frames corresponding to some feet of
+the robot. ‘auto’ to automatically detect them from
+the set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat.frame_names">
+<span class="sig-name descname"><span class="pre">frame_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat.frame_names" title="Link to this definition">¶</a></dt>
+<dd><p>Name of the frames corresponding to some feet of the robot.</p>
+<p>These frames must be part of the end-effectors, ie being associated with a
+leaf joint in the kinematic tree of the robot.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootMeanXYZQuat.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanXYZQuat.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">MultiFootMeanOdometryPose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootMeanOdometryPose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Odometry pose of the average position and orientation of the feet of a
+legged robot at the end of the agent step.</p>
+<p>Using the average foot odometry pose may be more appropriate than the
+floating base odometry pose to characterize the position and heading the
+robot in the world plane. See <cite>MultiFootMeanXYZQuat</cite> documentation for
+details.</p>
+<p>The odometry pose fully specifies the position and orientation of the robot
+in 2D world plane. See <cite>BaseOdometryPose</cite> documentation for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>...</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose.frame_names">
+<span class="sig-name descname"><span class="pre">frame_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose.frame_names" title="Link to this definition">¶</a></dt>
+<dd><p>Name of the frames corresponding to the feet of the robot.</p>
+<p>These frames must be part of the end-effectors, ie being associated with a
+leaf joint in the kinematic tree of the robot.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootMeanOdometryPose.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootMeanOdometryPose.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.ReferencePositionVector">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">ReferencePositionVector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">odometry_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'foot'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#ReferencePositionVector"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.ReferencePositionVector" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Reference position vector (aka. configuration) of the robot, for which
+the odometry pose (X, Y, Yaw) has been overwritten with the true one.</p>
+<p>This quantity is useful to decouple tracking the odometry pose from the
+pose of the various body parts or actuated joint configurations.</p>
+<p>The odometry pose may be estimated directly from the pose of floating base
+of the robot directly, or from the average pose of the feet. The latter is
+recommanded. See <cite>MultiFootMeanXYZQuat</cite> documentation for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>odometry_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'base'</em><em>, </em><em>'foot'</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Para odometry_mode<span class="colon">:</span></dt>
+<dd class="field-even"><p>The modes ‘foot’ and ‘base’ estimate the odometry
+pose from the mean foot pose or the floating base
+pose respectively. <cite>None</cite> to keep the original
+odometry pose from the reference trajectory.
+Optional: ‘foot’ by default.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.ReferencePositionVector.odometry_mode">
+<span class="sig-name descname"><span class="pre">odometry_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'base'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'foot'</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.ReferencePositionVector.odometry_mode" title="Link to this definition">¶</a></dt>
+<dd><p>The modes ‘foot’ and ‘base’ estimate the odometry pose from the mean
+foot pose or the floating base pose respectively. <cite>None</cite> to keep the
+original odometry pose from the reference trajectory.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.ReferencePositionVector.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#ReferencePositionVector.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.ReferencePositionVector.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.translate_positions">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">translate_positions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotation_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#translate_positions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.translate_positions" title="Link to this definition">¶</a></dt>
+<dd><p>Translate a batch of 3D position vectors (X, Y, Z) from world to local
+frame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>position</strong> (<em>ndarray</em>) – Batch of positions vectors as a 2D array whose first
+dimension gathers the 3 spatial coordinates (X, Y, Z)
+while the second corresponds to the independent points.</p></li>
+<li><p><strong>position_ref</strong> (<em>ndarray</em>) – Position of the reference frame in world.</p></li>
+<li><p><strong>rotation_ref</strong> (<em>ndarray</em>) – Orientation of the reference frame in world as a
+rotation matrix.</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em>) – Pre-allocated array in which to store the result.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">MultiFootRelativeXYZQuat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootRelativeXYZQuat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Relative position and orientation of the feet of a legged robot wrt
+themselves at the end of the agent step.</p>
+<p>The reference frame used to compute the relative pose of the frames is the
+mean foot pose. See <cite>MultiFootMeanXYZQuat</cite> documentation for details.</p>
+<p>Note that there is always one of the relative frame pose that is redundant
+wrt the others. Notably, in particular case where there is only two frames,
+it is one is the opposite of the other. As a result, the last relative pose
+is always dropped from the returned value, based on the same ordering as
+‘self.frame_names’. As for <cite>MultiFrameXYZQuat</cite>, the data associated with
+each frame are returned as a 2D contiguous array. The first dimension
+gathers the 7 components (X, Y, Z, QuatX, QuatY, QuatZ, QuaW), while the
+last one corresponds to individual relative frames poses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>...</em><em>]</em>) – Name of the frames corresponding to the feet of the
+robot. ‘auto’ to automatically detect them from the
+set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat.frame_names">
+<span class="sig-name descname"><span class="pre">frame_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat.frame_names" title="Link to this definition">¶</a></dt>
+<dd><p>Name of the frames corresponding to the feet of the robot.</p>
+<p>These frames must be part of the end-effectors, ie being associated with a
+leaf joint in the kinematic tree of the robot.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootRelativeXYZQuat.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootRelativeXYZQuat.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CenterOfMass">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">CenterOfMass</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinematic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">pinocchio.pinocchio_pywrap.KinematicLevel.POSITION</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#CenterOfMass"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CenterOfMass" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity" title="gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Position, Velocity or Acceleration of the center of mass (CoM) of the
+robot as a whole in world frame.</p>
+<p>Considering that the CoM has no angular motion, the velocity and the
+acceleration is equally given in world or local-world-aligned frames.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>kinematic_level</strong> (<em>KinematicLevel</em>) – Desired kinematic level, ie position, velocity
+or acceleration.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CenterOfMass.kinematic_level">
+<span class="sig-name descname"><span class="pre">kinematic_level</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">KinematicLevel</span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CenterOfMass.kinematic_level" title="Link to this definition">¶</a></dt>
+<dd><p>Kinematic level to compute, ie position, velocity or acceleration.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CenterOfMass.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#CenterOfMass.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CenterOfMass.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CenterOfMass.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#CenterOfMass.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CenterOfMass.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.translate_position_odom">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">translate_position_odom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">odom_pose</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#translate_position_odom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.translate_position_odom" title="Link to this definition">¶</a></dt>
+<dd><p>Translate a single or batch of 2D position vector (X, Y) from world to
+local frame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>position</strong> (<em>ndarray</em>) – Batch of positions vectors as a 2D array whose first
+dimension gathers the 2 spatial coordinates (X, Y) while
+the second corresponds to the independent points.</p></li>
+<li><p><strong>odom_pose</strong> (<em>ndarray</em>) – Reference odometry pose as a 1D array gathering the 2
+position and 1 orientation coordinates in world plane
+(X, Y), (Yaw,) respectively.</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em>) – Pre-allocated array in which to store the result.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.ZeroMomentPoint">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">ZeroMomentPoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_frame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">pinocchio.pinocchio_pywrap.ReferenceFrame.LOCAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#ZeroMomentPoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.ZeroMomentPoint" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity" title="gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Zero-Tilting Moment Point (ZMP), also called Center of Pressure (CoP).</p>
+<p>This quantity only makes sense for legged robots. Such a robot will keep
+balance if the ZMP [1] is maintained inside the support polygon [2].</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>For academic reference about its relation with the notion of stability,
+see: [1] <a class="reference external" href="https://scaron.info/robotics/zero-tilting-moment-point.html">https://scaron.info/robotics/zero-tilting-moment-point.html</a></p>
+<blockquote>
+<div><p>[2] <a class="reference external" href="https://scaron.info/robotics/zmp-support-area.html">https://scaron.info/robotics/zmp-support-area.html</a></p>
+</div></blockquote>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>reference_frame</strong> (<em>ReferenceFrame</em>) – Whether to compute the ZMP in local odometry
+frame (aka ‘pin.LOCAL’) or aligned with world
+axes (aka ‘pin.LOCAL_WORLD_ALIGNED’).</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.ZeroMomentPoint.reference_frame">
+<span class="sig-name descname"><span class="pre">reference_frame</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ReferenceFrame</span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.ZeroMomentPoint.reference_frame" title="Link to this definition">¶</a></dt>
+<dd><p>Whether to compute the ZMP in local frame specified by the odometry pose
+of floating base of the robot or the frame located on the position of the
+floating base with axes kept aligned with world frame.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.ZeroMomentPoint.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#ZeroMomentPoint.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.ZeroMomentPoint.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.ZeroMomentPoint.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#ZeroMomentPoint.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.ZeroMomentPoint.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CapturePoint">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">CapturePoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_frame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">pinocchio.pinocchio_pywrap.ReferenceFrame.LOCAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#CapturePoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CapturePoint" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity" title="gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Divergent Component of Motion (DCM), also called Capture Point (CP).</p>
+<p>This quantity only makes sense for legged robots, and in particular bipedal
+robots for which the inverted pendulum is a relevant approximate dynamic
+model. It is involved in various dynamic stability metrics (usually only on
+flat ground), such as N-steps capturability. The capture point is defined
+as “where should a bipedal robot should step right now to eliminate linear
+momentum and come asymptotically to a stop” [1].</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>For academic reference about its relation with the notion of stability,
+see: [1] <a class="reference external" href="https://scaron.info/robotics/capture-point.html">https://scaron.info/robotics/capture-point.html</a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>reference_frame</strong> (<em>ReferenceFrame</em>) – Whether to compute the DCM in local odometry
+frame (aka ‘pin.LOCAL’) or aligned with world
+axes (aka ‘pin.LOCAL_WORLD_ALIGNED’).</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CapturePoint.reference_frame">
+<span class="sig-name descname"><span class="pre">reference_frame</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ReferenceFrame</span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CapturePoint.reference_frame" title="Link to this definition">¶</a></dt>
+<dd><p>Whether to compute the DCM in local frame specified by the odometry pose
+of floating base of the robot or the frame located on the position of the
+floating base with axes kept aligned with world frame.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CapturePoint.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#CapturePoint.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CapturePoint.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.CapturePoint.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#CapturePoint.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.CapturePoint.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.normalize_spatial_forces">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">normalize_spatial_forces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lambda_c</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot_weight</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#normalize_spatial_forces"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.normalize_spatial_forces" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the spatial forces of all the constraints associated with
+contact frames and collision bodies, normalized by the total weight of the
+robot.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lambda_c</strong> (<em>ndarray</em>) – Stacked lambda multipliers all the constraints.</p></li>
+<li><p><strong>index_start</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – First index of the constraints associated with contact
+frames and collisions bodies.</p></li>
+<li><p><strong>index_end</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – One-past-last index of the constraints associated with
+contact frames and collisions bodies.</p></li>
+<li><p><strong>robot_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Total weight of the robot which will be used to
+rescale the spatial forces.</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em>) – Pre-allocated array in which to store the result.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiContactNormalizedSpatialForce">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">MultiContactNormalizedSpatialForce</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiContactNormalizedSpatialForce"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiContactNormalizedSpatialForce" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity" title="gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Standardized spatial forces applied on all contact points and collision
+bodies in their respective local contact frame.</p>
+<p>The local contact frame is defined as the frame having the normal of the
+ground as vertical axis, and the vector orthogonal to the x-axis in world
+frame as y-axis.</p>
+<p>The spatial force is rescaled by the weight of the robot rather than the
+actual vertical force. It has the advantage to guarantee that the resulting
+quantity is never poorly conditioned, which would be the case otherwise.
+Moreover, the contribution of the vertical force is still present, which is
+interesting for deriving a reward, as it allows for indirectly penalize
+jerky contact states and violent impacts. The side effect is not being able
+to guarantee that this quantity is bounded. Indeed, only the ratio of the
+norm of the tangential force at every contact point (or the resulting one)
+is bounded by the product of the friction coefficient by the vertical
+force, not the tangential force itself. This issue is a minor inconvenience
+as all it requires is normalization using RBF kernel to make it finite.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiContactNormalizedSpatialForce.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiContactNormalizedSpatialForce.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiContactNormalizedSpatialForce.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiContactNormalizedSpatialForce.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiContactNormalizedSpatialForce.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiContactNormalizedSpatialForce.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.normalize_vertical_forces">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">normalize_vertical_forces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lambda_c</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">foot_slices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertical_transform_batches</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robot_weight</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#normalize_vertical_forces"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.normalize_vertical_forces" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the sum of the vertical forces in world frame of all the
+constraints associated with contact frames and collision bodies, normalized
+by the total weight of the robot.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lambda_c</strong> (<em>ndarray</em>) – Stacked lambda multipliers all the constraints.</p></li>
+<li><p><strong>foot_slices</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>]</em><em>, </em><em>...</em><em>]</em>) – Slices of lambda multiplier of the constraints
+associated with contact frames and collisions bodies
+acting each foot, as a sequence of pairs (index_start,
+index_end) corresponding to the first and one-past-last
+indices respectively.</p></li>
+<li><p><strong>vertical_transform_batches</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><em>ndarray</em><em>, </em><em>...</em><em>]</em>) – Last row of the rotation matrices from world to local contact frame
+associated with all contact and collision constraints acting on each
+foot, as a list of 2D arrays. The first dimension gathers the 3 spatial
+coordinates while the second corresponds to the N individual
+constraints on each foot.</p></li>
+<li><p><strong>robot_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Total weight  of the robot which will be used to
+rescale the vertical forces.</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em>) – Pre-allocated array in which to store the result.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">MultiFootNormalizedForceVertical</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootNormalizedForceVertical"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity" title="gym_jiminy.common.bases.quantities.AbstractQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</p>
+<p>Standardized total vertical forces apply on each foot in world frame.</p>
+<p>The lambda multipliers of the contact constraints are used to compute the
+total forces applied on each foot. Although relying on the total wrench
+acting on their respective parent joint seems enticing, it aggregates all
+external forces, not just the ground contact reaction forces. Most often,
+there is no difference, but not in the case of multiple robots interacting
+with each others, or if user-specified external forces are manually applied
+on the foot, eg to create disturbances. Relying on sensors to get the
+desired information is not an option either, because they do not give
+access to the ground truth.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Contact frames associated with identical parent body must be
+consecutive to be able to extract constraint data by reference.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>...</em><em>]</em>) – Name of the frames corresponding to some feet of
+the robot. ‘auto’ to automatically detect them from
+the set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical.frame_names">
+<span class="sig-name descname"><span class="pre">frame_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical.frame_names" title="Link to this definition">¶</a></dt>
+<dd><p>Name of the frames corresponding to some feet of the robot.</p>
+<p>These frames must be part of the end-effectors, ie being associated with a
+leaf joint in the kinematic tree of the robot.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootNormalizedForceVertical.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical.initialize" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers.</p>
+<p>This is typically useful to refresh shared memory proxies or to
+re-initialize pre-allocated buffers.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Intermediary quantities ‘requirements’ are NOT initialized
+automatically because they can be initialized lazily in most cases,
+or are optional depending on the most efficient computation path at
+run-time. It is up to the developer implementing quantities to take
+care of it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method must be called before starting a new episode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Lazy-initialization is used for efficiency, ie <cite>initialize</cite> will be
+called before the first time <cite>refresh</cite> has to be called, which may
+never be the case if cache is shared between multiple identical
+instances of the same quantity.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootNormalizedForceVertical.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootNormalizedForceVertical.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootCollisionDetection">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">MultiFootCollisionDetection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">security_margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootCollisionDetection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootCollisionDetection" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]</p>
+<p>Check if some of the feet of the robot are colliding with each other.</p>
+<p>It takes into account some safety margins by which their volume will be
+inflated / deflated. See <cite>MultiFrameCollisionDetection</cite> documentation for
+details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>...</em><em>]</em>) – Name of the frames corresponding to some feet of
+the robot. ‘auto’ to automatically detect them from
+the set of contact and force sensors of the robot.
+Optional: ‘auto’ by default.</p></li>
+<li><p><strong>security_margin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Signed distance below which a pair of geometry
+objects is stated in collision.
+Optional: 0.0 by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootCollisionDetection.frame_names">
+<span class="sig-name descname"><span class="pre">frame_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootCollisionDetection.frame_names" title="Link to this definition">¶</a></dt>
+<dd><p>Name of the frames corresponding to some feet of the robot.</p>
+<p>These frames must be part of the end-effectors, ie being associated with a
+leaf joint in the kinematic tree of the robot.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.MultiFootCollisionDetection.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#MultiFootCollisionDetection.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.MultiFootCollisionDetection.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">DeltaBaseOdometryPosition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#DeltaBaseOdometryPosition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code> | <code class="xref py py-class docutils literal notranslate"><span class="pre">number</span></code> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">complex</span></code></a>]</p>
+<p>Variation of the base odometry position (X, Y) over a given horizon.</p>
+<p>See <cite>BaseOdometryPose</cite> and <cite>DeltaQuantity</cite> documentations for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the drift.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition.max_stack">
+<span class="sig-name descname"><span class="pre">max_stack</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition.max_stack" title="Link to this definition">¶</a></dt>
+<dd><p>Time horizon over which to compute the variation.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#DeltaBaseOdometryPosition.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryPosition.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em> | <em>number</em> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.angle_difference">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">angle_difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">angle_left</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle_right</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#angle_difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.angle_difference" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the signed element-wise difference (aka. oriented angle) between
+two batches of angles.</p>
+<p>The oriented angle is defined as the smallest angle in absolute value
+between right and left angles (ignoring multi-turns), signed in accordance
+with the angle going from right to left angles.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is fully compliant with angles restricted between
+[-pi, pi], but it requires the “physical” distance between the two
+angles to be smaller than pi.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>This proposed implementation is the most efficient one for batch size
+of 1000. See this posts for reference about other implementations:
+<a class="reference external" href="https://stackoverflow.com/a/7869457/4820605">https://stackoverflow.com/a/7869457/4820605</a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angle_left</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a>) – Left-hand side angles.</p></li>
+<li><p><strong>angle_right</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a>) – Right-hand side angles.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em> | <em>number</em> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.quantities.locomotion.</span></span><span class="sig-name descname"><span class="pre">DeltaBaseOdometryOrientation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">QuantityEvalMode.TRUE</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#DeltaBaseOdometryOrientation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceQuantity</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code> | <code class="xref py py-class docutils literal notranslate"><span class="pre">number</span></code> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">complex</span></code></a>]</p>
+<p>Variation of the base odometry orientation (Yaw,) over a given horizon.</p>
+<p>See <cite>BaseOdometryPose</cite> and <cite>DeltaQuantity</cite> documentations for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>parent</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em> | </em><em>None</em>) – Higher-level quantity from which this quantity is a
+requirement if any, <cite>None</cite> otherwise.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Horizon over which values of the quantity will be
+stacked before computing the drift.</p></li>
+<li><p><strong>mode</strong> (<a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><em>QuantityEvalMode</em></a>) – Desired mode of evaluation for this quantity.
+Optional: ‘QuantityEvalMode.TRUE’ by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation.max_stack">
+<span class="sig-name descname"><span class="pre">max_stack</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation.max_stack" title="Link to this definition">¶</a></dt>
+<dd><p>Time horizon over which to compute the variation.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode" title="gym_jiminy.common.bases.quantities.QuantityEvalMode"><span class="pre">QuantityEvalMode</span></a></em><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation.mode" title="Link to this definition">¶</a></dt>
+<dd><p>Specify on which state to evaluate this quantity. See <cite>QuantityEvalMode</cite>
+documentation for details about each mode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mode <cite>REFERENCE</cite> requires a reference trajectory to be selected
+manually prior to evaluating this quantity for the first time.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/quantities/locomotion.html#DeltaBaseOdometryOrientation.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.quantities.locomotion.DeltaBaseOdometryOrientation.refresh" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate this quantity based on the agent state at the end of the
+current agent step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em> | <em>number</em> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="transform.html" class="btn btn-neutral float-left" title="Transform" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../compositions/index.html" class="btn btn-neutral float-right" title="Compositions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

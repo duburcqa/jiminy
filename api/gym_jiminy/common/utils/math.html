@@ -1,0 +1,876 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Helpers &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Helpers" href="misc.html" />
+    <link rel="prev" title="Spaces" href="spaces.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Utils</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="pipeline.html">Pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spaces.html">Spaces</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Helpers</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.mean"><code class="docutils literal notranslate"><span class="pre">mean()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.matrix_to_yaw"><code class="docutils literal notranslate"><span class="pre">matrix_to_yaw()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_to_yaw_cos_sin"><code class="docutils literal notranslate"><span class="pre">quat_to_yaw_cos_sin()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_to_yaw"><code class="docutils literal notranslate"><span class="pre">quat_to_yaw()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_to_rpy"><code class="docutils literal notranslate"><span class="pre">quat_to_rpy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_to_matrix"><code class="docutils literal notranslate"><span class="pre">quat_to_matrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.matrix_to_quat"><code class="docutils literal notranslate"><span class="pre">matrix_to_quat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.matrices_to_quat"><code class="docutils literal notranslate"><span class="pre">matrices_to_quat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.transforms_to_xyzquat"><code class="docutils literal notranslate"><span class="pre">transforms_to_xyzquat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.rpy_to_matrix"><code class="docutils literal notranslate"><span class="pre">rpy_to_matrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.matrix_to_rpy"><code class="docutils literal notranslate"><span class="pre">matrix_to_rpy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.rpy_to_quat"><code class="docutils literal notranslate"><span class="pre">rpy_to_quat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_multiply"><code class="docutils literal notranslate"><span class="pre">quat_multiply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_apply"><code class="docutils literal notranslate"><span class="pre">quat_apply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.log3"><code class="docutils literal notranslate"><span class="pre">log3()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_to_angle_axis"><code class="docutils literal notranslate"><span class="pre">quat_to_angle_axis()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.exp3"><code class="docutils literal notranslate"><span class="pre">exp3()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.angle_axis_to_quat"><code class="docutils literal notranslate"><span class="pre">angle_axis_to_quat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.log6"><code class="docutils literal notranslate"><span class="pre">log6()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.exp6"><code class="docutils literal notranslate"><span class="pre">exp6()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_difference"><code class="docutils literal notranslate"><span class="pre">quat_difference()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.xyzquat_difference"><code class="docutils literal notranslate"><span class="pre">xyzquat_difference()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.compute_tilt_from_quat"><code class="docutils literal notranslate"><span class="pre">compute_tilt_from_quat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.swing_from_vector"><code class="docutils literal notranslate"><span class="pre">swing_from_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.remove_yaw_from_quat"><code class="docutils literal notranslate"><span class="pre">remove_yaw_from_quat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.remove_twist_from_quat"><code class="docutils literal notranslate"><span class="pre">remove_twist_from_quat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_average"><code class="docutils literal notranslate"><span class="pre">quat_average()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.utils.math.quat_interpolate_middle"><code class="docutils literal notranslate"><span class="pre">quat_interpolate_middle()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="misc.html">Helpers</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Utils</a></li>
+      <li class="breadcrumb-item active">Helpers</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/utils/math.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.utils.math">
+<span id="helpers"></span><h1>Helpers<a class="headerlink" href="#module-gym_jiminy.common.utils.math" title="Link to this heading">¶</a></h1>
+<p>Mathematic utilities heavily optimized for speed.</p>
+<p>They combine batch-processing with Just-In-Time (JIT) compiling via Numba when
+possible for optimal performance. Most of them are dealing with rotations (SO3)
+to perform transformations or convert from one representation to another.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.mean">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">mean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">array</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#mean"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.mean" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">mean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">array</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></span></span></dt>
+<dd><p>Compute the arithmetic mean along the specified axis if specified, over
+the flattened array otherwise.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>array</strong> – Input array.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.matrix_to_yaw">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrix_to_yaw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#matrix_to_yaw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.matrix_to_yaw" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrix_to_yaw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
+rotation matrix in 3D Euclidean space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mat</strong> – N-dimensional array whose first and second dimensions gathers
+the 3-by-3 rotation matrix elements.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_to_yaw_cos_sin">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_yaw_cos_sin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_to_yaw_cos_sin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_to_yaw_cos_sin" title="Link to this definition">¶</a></dt>
+<dd><p>Compute cosine and sine of the yaw from Yaw-Pitch-Roll Euler angles
+representation of a single or a batch of quaternions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>quat</strong> (<em>ndarray</em>) – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<em>ndarray</em>, <em>ndarray</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_to_yaw">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_yaw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_to_yaw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_to_yaw" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_yaw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the yaw from Yaw-Pitch-Roll Euler angles representation of a
+single or a batch of quaternions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_to_rpy">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_rpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_to_rpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_to_rpy" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_rpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the Yaw-Pitch-Roll Euler angles representation of a single or a
+batch of quaternions.</p>
+<p>The Roll, Pitch and Yaw angles are guaranteed to be within range [-pi,pi],
+[-pi/2,pi/2], [-pi,pi], respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_to_matrix">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_to_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_to_matrix" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the Rotation Matrix representation of a single or a
+batch of quaternions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.matrix_to_quat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrix_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#matrix_to_quat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.matrix_to_quat" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrix_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the (qx, qy, qz, qw) Quaternion representation of a single or a
+batch of rotation matrices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mat</strong> – N-dimensional array whose first and second dimensions gathers
+the 3-by-3 rotation matrix elements.</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.matrices_to_quat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrices_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">np.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#matrices_to_quat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.matrices_to_quat" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrices_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">np.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the (qx, qy, qz, qw) Quaternion representation of multiple
+rotation matrices.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <a class="reference external" href="https://math.stackexchange.com/a/3183435">https://math.stackexchange.com/a/3183435</a>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mat</strong> – Tuple of N arrays corresponding to independent 3D rotation
+matrices.</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.transforms_to_xyzquat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">transforms_to_xyzquat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">transform_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">np.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">np.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#transforms_to_xyzquat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.transforms_to_xyzquat" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">transforms_to_xyzquat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">transform_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">np.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">np.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Stack the translation vector (x, y, z) and the quaternion representation
+(qx, qy, qz, qw) of the orientation of multiple transform tuples.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Internally, it copies the translation unaffected and convert rotation
+matrices to quaternions using <cite>matrices_to_quat</cite>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>transform_list</strong> – Tuple of N transforms, each of which represented as
+pairs gathering the translation as a vector and the
+orientation as a 3D rotation matrix.</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.rpy_to_matrix">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">rpy_to_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rpy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#rpy_to_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.rpy_to_matrix" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">rpy_to_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rpy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the Rotation Matrix representation of a single or a
+batch of Yaw-Pitch-Roll Euler angles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rpy</strong> – N-dimensional array whose first dimension gathers the 3
+Yaw-Pitch-Roll Euler angles [Roll, Pitch, Yaw].</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.matrix_to_rpy">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrix_to_rpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#matrix_to_rpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.matrix_to_rpy" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">matrix_to_rpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the Yaw-Pitch-Roll Euler angles representation of a single or a
+batch of rotation matrices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mat</strong> – N-dimensional array whose first and second dimensions gathers
+the 3-by-3 rotation matrix elements.</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.rpy_to_quat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">rpy_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rpy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#rpy_to_quat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.rpy_to_quat" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">rpy_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rpy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the (qx, qy, qz, qw) Quaternion representation of a single or a
+batch of Yaw-Pitch-Roll Euler angles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rpy</strong> – N-dimensional array whose first dimension gathers the 3
+Yaw-Pitch-Roll Euler angles [Roll, Pitch, Yaw].</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_multiply">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_multiply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat_left</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quat_right</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_left_conjugate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_right_conjugate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_multiply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_multiply" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_multiply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat_left</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quat_right</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_left_conjugate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_right_conjugate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span></dt>
+<dd><p>Compute the composition of rotations as pair-wise product of two single
+or batches of quaternions (qx, qy, qz, qw), ie <cite>quat_left * quat_right</cite>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Beware the argument order is important because the composition of
+rotations is not commutative.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation">https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation</a> for
+mathematical details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat_left</strong> – Left-hand side of the quaternion product, as a
+N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>quat_right</strong> – Right-hand side of the quaternion product, as a
+N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+<li><p><strong>is_left_conjugate</strong> – Whether to conjugate the left-hand side
+quaternion before computing the product.
+Optional: False by default.</p></li>
+<li><p><strong>is_right_conjugate</strong> – Whether to conjugate the right-hand side
+quaternion before computing the product.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_apply">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_conjugate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_apply" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_conjugate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span></dt>
+<dd><p>Apply rotations to position vectors as pair-wise transform of a single
+or batch of position vectors (x, y, z) by a single or batch of quaternions
+(qx, qy, qz, qw), ie <cite>quat * (vec, 0) * quat.conjugate()</cite>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation">https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation</a> for
+mathematical details.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Applying rotation to position vectors using quaternions is much slower
+than using rotation matrices. In case where the same rotation must be
+applied to a batch of position vectors, it is faster to first convert
+the quaternion to a rotation matrix and use batched matrix product.
+However, if a different rotation must be applied to each position
+vector, then it is faster to apply batched quaternion transformation
+directly, because the cost of converting all quaternions to rotation
+matrices exceeds its benefit overall. This holds true even for a single
+pair quaternion-position.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>vec</strong> – N-dimensional array whose first dimension gathers the 3
+position coordinates (x, y, z).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+<li><p><strong>is_conjugate</strong> – Whether to conjugate the quaternion before applying
+the rotation.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.log3">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">log3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#log3"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.log3" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">log3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the angle-axis representation theta * (ax, ay, az) of a single
+or a batch of quaternions (qx, qy, qz, qz).</p>
+<p>As a reminder, any element of the Lie Group of rotation group SO(3) can be
+mapped to an element of its Lie Algebra so(3) ⊂ R3 at identity, which
+identifies to its tangent space, through the pseudo-inverse of the
+exponential map. See <cite>pinocchio.log3</cite> documentation for technical details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+<li><p><strong>theta</strong> – Pre-allocated array into which to store the angle. This is
+useful to avoid redundant computations in some cases.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_to_angle_axis">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_to_angle_axis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_to_angle_axis" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the angle-axis representation theta * (ax, ay, az) of a single
+or a batch of quaternions (qx, qy, qz, qz).</p>
+<p>As a reminder, any element of the Lie Group of rotation group SO(3) can be
+mapped to an element of its Lie Algebra so(3) ⊂ R3 at identity, which
+identifies to its tangent space, through the pseudo-inverse of the
+exponential map. See <cite>pinocchio.log3</cite> documentation for technical details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> (<em>ndarray</em>) – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em><em> | </em><em>None</em>) – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+<li><p><strong>theta</strong> (<em>ndarray</em><em> | </em><em>None</em>) – Pre-allocated array into which to store the angle. This is
+useful to avoid redundant computations in some cases.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.exp3">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">exp3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">angle_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#exp3"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.exp3" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">exp3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">angle_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the quaternion representation (qx, qy, qz, qz) of a single
+or a batch of angle-axis vectors theta * (ax, ay, az).</p>
+<p>As a reminder, it also corresponds to the inverse exponential map from the
+rotation Lie Group SO3 to its Lie Algebra so3.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angle_axis</strong> – N-dimensional array whose first dimension gathers the 3
+angle-axis components theta * (ax, ay, az).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.angle_axis_to_quat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">angle_axis_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">angle_axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.utils.math.angle_axis_to_quat" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the quaternion representation (qx, qy, qz, qz) of a single
+or a batch of angle-axis vectors theta * (ax, ay, az).</p>
+<p>As a reminder, it also corresponds to the inverse exponential map from the
+rotation Lie Group SO3 to its Lie Algebra so3.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angle_axis</strong> (<em>ndarray</em>) – N-dimensional array whose first dimension gathers the 3
+angle-axis components theta * (ax, ay, az).</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em><em> | </em><em>None</em>) – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.log6">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">log6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xyzquat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#log6"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.log6" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">log6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xyzquat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Apply SE3 to se3 inverse exponential map on a single or a batch of
+transform vectors (x, y, z, qx, qy, qz, qw) defining the pose (position
+plus orientation) of a frame in 3D space.</p>
+<p>As a reminder, the resulting vector is homogeneous to a spatial velocity
+vector, aka. a motion vector.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xyzquat</strong> – N-dimensional array whose first dimension gathers the 7
+position and quaternion coordinates (x, y, z),
+(qx, qy, qz, qw) respectively.</p></li>
+<li><p><strong>out</strong> – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.exp6">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">exp6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v_spatial</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#exp6"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.exp6" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">exp6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v_spatial</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Apply se3 to SE3 exponential map on a single or a batch of spatial
+velocity vectors (vx, vy, vz, wx, wy, wz), also called motion vectors,
+using quaternions (qx, qy, qz, qw) to represent the rotation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>v_spatial</strong> – N-dimensional array whose first dimension gathers the 6
+linear and angular velocity components (vx, vy, vz),
+(wx, wy, wz) respectively.</p></li>
+<li><p><strong>out</strong> – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_difference">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat_left</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quat_right</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_difference" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat_left</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quat_right</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the pair-wise SO3 difference between two batches of quaternions
+(qx, qy, qz, qz). For each pairs, it returns a angular velocity vector
+(wx, wy, wz) in tangent space of SO3 Lie Group.</p>
+<p>First, it computes the residual rotation for all pairs, ie
+<cite>quat_diff = quat_left.conjugate() * quat_right</cite>. Then, it computes the
+angle-axis representation of the residual rotations, ie <cite>log3(quat_diff)</cite>.
+See <cite>pinocchio.liegroups.SO3.difference</cite> documentation for reference.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Calling this method is faster than <cite>pinocchio.liegroups.SO3.difference</cite>
+if at least 2 pairs of quaternions with pre-allocated output. This is
+not surprising since vectorization does not have any effect in this
+case. This expected speed up is about x5 and x15 for 10 and 100 pairs
+respectively with pre-allocated output.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat_left</strong> – Left-hand side of SO3 difference, as a N-dimensional
+array whose first dimension gathers the 4 quaternion
+coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>quat_right</strong> – Right-hand side of SO3 difference, as a N-dimensional
+array whose first dimension gathers the 4 quaternion
+coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.xyzquat_difference">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">xyzquat_difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xyzquat_left</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzquat_right</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#xyzquat_difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.xyzquat_difference" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the pair-wise SE3 difference between two batches of transform
+vectors (x, y, z, qx, qy, qz, qz). For each pairs, it returns a spatial
+velocity vector (vx, vy, vz, wx, wy, wz), also called motion vector, in
+tangent space of SE3 Lie Group.</p>
+<p>First, it computes the residual transform in local frame for all pairs.
+Then, it applies the inverse exponential map <cite>log6</cite> of it. See
+<cite>pinocchio.liegroups.SE3.difference</cite> documentation for reference.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xyzquat_left</strong> (<em>ndarray</em>) – Left-hand side of SE3 difference, as a N-dimensional
+array whose first dimension gathers the 7 position and
+quaternion coordinates (x, y, z), (qx, qy, qz, qw).</p></li>
+<li><p><strong>xyzquat_right</strong> (<em>ndarray</em>) – Right-hand side of SO3 difference, as a N-dimensional
+array whose first dimension gathers the 7 position and
+quaternion coordinates (x, y, z), (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em><em> | </em><em>None</em>) – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.compute_tilt_from_quat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">compute_tilt_from_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#compute_tilt_from_quat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.compute_tilt_from_quat" title="Link to this definition">¶</a></dt>
+<dd><p>Compute e_z in R(q) frame (Euler-Rodrigues Formula): R(q).T &#64; e_z.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>q</strong> (<em>ndarray</em>) – Array whose rows are the 4 components of quaternions (x, y, z, w)
+and columns are N independent orientations.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of arrays corresponding to the 3 individual components
+(a_x, a_y, a_z) of N independent tilt axes.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<em>ndarray</em>, <em>ndarray</em>, <em>ndarray</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.swing_from_vector">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">swing_from_vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v_a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#swing_from_vector"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.swing_from_vector" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the “smallest” rotation transforming vector ‘v_a’ in ‘e_z’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>v_a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a><em>, </em><em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a><em>, </em><em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a><em>]</em>) – Tuple of arrays corresponding to the 3 individual components
+(a_x, a_y, a_z) of N independent tilt axes.</p></li>
+<li><p><strong>q</strong> (<em>ndarray</em>) – Array where the result will be stored. The rows are the 4
+components of quaternions (x, y, z, w) and columns are the N
+independent orientations.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.remove_yaw_from_quat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">remove_yaw_from_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#remove_yaw_from_quat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.remove_yaw_from_quat" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">remove_yaw_from_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Remove the rotation around z-axis of a single or batch of quaternions.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that this decomposition is rarely used in practice, mainly because
+of singularity issues related to the Roll-Pitch-Yaw decomposition. It
+is usually preferable to remove the twist part of the Twist-after-Swing
+decomposition. Note that in both cases, the Roll and Pitch angles from
+their corresponding Yaw-Pitch-Roll Euler angles representation matches
+exactly. See <cite>remove_twist_from_quat</cite> documentation for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> – N-dimensional array whose first dimension gathers the 4
+quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>out</strong> – Pre-allocated array into which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.remove_twist_from_quat">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">remove_twist_from_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#remove_twist_from_quat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.remove_twist_from_quat" title="Link to this definition">¶</a></dt>
+<dd><p>Remove the twist part of the Twist-after-Swing decomposition of given
+orientations in quaternion representation.</p>
+<p>Any rotation R can be decomposed as:</p>
+<blockquote>
+<div><p>R = R_z * R_s</p>
+</div></blockquote>
+<p>where R_z (the twist) is a rotation around e_z and R_s (the swing) is
+the “smallest” rotation matrix (in terms of angle of its corresponding
+Axis-Angle representation) such that s(R_s) = s(R). Note that although the
+swing is not free of rotation around z-axis, the latter only depends on the
+rotation around e_x, e_y, which is the main motivation for using this
+decomposition. One must use <cite>remove_yaw_from_quat</cite> to completely cancel you
+the rotation around z-axis.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<ul class="simple">
+<li><p>See “Estimation and control of the deformations of an exoskeleton
+using inertial sensors”, PhD Thesis, M. Vigne, 2021, p. 130.</p></li>
+<li><p>See “Swing-twist decomposition in Clifford algebra”, P. Dobrowolski,
+2015 (<a class="reference external" href="https://arxiv.org/abs/1506.05481">https://arxiv.org/abs/1506.05481</a>)</p></li>
+</ul>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q</strong> – Array whose rows are the 4 components of quaternions (x, y, z, w)
+and columns are N independent orientations from which to remove
+the swing part.</p></li>
+<li><p><strong>out</strong> (<em>ndarray</em><em> | </em><em>None</em>) – Pre-allocated array into which to store the result. <cite>None</cite> to
+update the input quaternion in-place.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>quat</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_average">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_average</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_average"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_average" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the average of a batch of quaternions (qx, qy, qz, qw) over some
+or all axes.</p>
+<p>Here, the average is defined as a quaternion minimizing the mean error
+wrt every individual quaternion. The distance metric used as error is the
+dot product of quaternions <cite>p.dot(q)</cite>, which is directly related to the
+angle between them <cite>cos(angle(p.conjugate() * q) / 2)</cite>. This metric as the
+major advantage to yield a quadratic problem, which can be solved very
+efficiently, unlike the squared angle <cite>angle(p.conjugate() * q) ** 2</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat</strong> (<em>ndarray</em>) – N-dimensional (N &gt;= 2) array whose first dimension gathers the
+4 quaternion coordinates (qx, qy, qz, qw).</p></li>
+<li><p><strong>axes</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Batch dimensions to preserve without computing the average.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.utils.math.quat_interpolate_middle">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_interpolate_middle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quat2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/utils/math.html#quat_interpolate_middle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.utils.math.quat_interpolate_middle" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.utils.math.</span></span><span class="sig-name descname"><span class="pre">quat_interpolate_middle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quat2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">np.ndarray</span></span></span></dt>
+<dd><p>Compute the midpoint interpolation between two batches of quaternions
+(qx, qy, qz, qw).</p>
+<p>The midpoint interpolation of two quaternion is defined as the integration
+of half the difference between them, starting from the first one, ie
+<cite>q_mid = integrate(q1, 0.5 * difference(q1, d2))</cite>, which is a special case
+of the <cite>slerp</cite> method (spherical linear interpolation) for <cite>alpha=0.5</cite>.</p>
+<p>For the midpoint in particular, one can show that the middle quaternion is
+simply normalized sum of the previous and next quaternions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quat1</strong> – First batch of quaternions as a N-dimensional array whose
+first dimension gathers the 4 quaternion coordinates.</p></li>
+<li><p><strong>quat2</strong> – Second batch of quaternions as a N-dimensional array.</p></li>
+<li><p><strong>out</strong> – Pre-allocated array in which to store the result. If not
+provided, a new array is freshly-allocated and returned, which
+is slower.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="spaces.html" class="btn btn-neutral float-left" title="Spaces" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="misc.html" class="btn btn-neutral float-right" title="Helpers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

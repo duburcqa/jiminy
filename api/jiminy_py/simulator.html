@@ -1,0 +1,690 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simulator &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="viewer" href="viewer.html" />
+    <link rel="prev" title="robot" href="robot.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Jiminy Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="core/index.html">core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">simulator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy_py.simulator.Simulator"><code class="docutils literal notranslate"><span class="pre">Simulator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.build"><code class="docutils literal notranslate"><span class="pre">Simulator.build()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.add_robot"><code class="docutils literal notranslate"><span class="pre">Simulator.add_robot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.viewer"><code class="docutils literal notranslate"><span class="pre">Simulator.viewer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.viewers"><code class="docutils literal notranslate"><span class="pre">Simulator.viewers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.robot"><code class="docutils literal notranslate"><span class="pre">Simulator.robot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.robot_state"><code class="docutils literal notranslate"><span class="pre">Simulator.robot_state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.log_data"><code class="docutils literal notranslate"><span class="pre">Simulator.log_data</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.is_viewer_available"><code class="docutils literal notranslate"><span class="pre">Simulator.is_viewer_available</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.register_profile_force"><code class="docutils literal notranslate"><span class="pre">Simulator.register_profile_force()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.register_impulse_force"><code class="docutils literal notranslate"><span class="pre">Simulator.register_impulse_force()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.seed"><code class="docutils literal notranslate"><span class="pre">Simulator.seed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.reset"><code class="docutils literal notranslate"><span class="pre">Simulator.reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.start"><code class="docutils literal notranslate"><span class="pre">Simulator.start()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.simulate"><code class="docutils literal notranslate"><span class="pre">Simulator.simulate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.render"><code class="docutils literal notranslate"><span class="pre">Simulator.render()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.replay"><code class="docutils literal notranslate"><span class="pre">Simulator.replay()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.close"><code class="docutils literal notranslate"><span class="pre">Simulator.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.plot"><code class="docutils literal notranslate"><span class="pre">Simulator.plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.export_options"><code class="docutils literal notranslate"><span class="pre">Simulator.export_options()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.simulator.Simulator.import_options"><code class="docutils literal notranslate"><span class="pre">Simulator.import_options()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="log.html">log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot.html">plot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamics.html">dynamics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Jiminy Python API</a></li>
+      <li class="breadcrumb-item active">simulator</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/api/jiminy_py/simulator.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-jiminy_py.simulator">
+<span id="simulator"></span><h1>simulator<a class="headerlink" href="#module-jiminy_py.simulator" title="Link to this heading">¶</a></h1>
+<p>This module implements a basic wrapper on top of the lower-level Jiminy
+Engine that simplifies the user API for the very common single-robot scenario
+while extending its capability by integrating native support of 3D scene
+rendering and figure plotting of telemetry log data.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.simulator.</span></span><span class="sig-name descname"><span class="pre">Simulator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">robot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">viewer_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Simulation wrapper providing a unified user-API on top of the low-level
+jiminy C++ core library and Python-native modules for 3D rendering and log
+data visualization.</p>
+<p>The simulation can now be multi-robot but it has been design to remain as
+easy of use as possible for single-robot simulation which are just
+multi-robot simulations with only one robot.</p>
+<ul class="simple">
+<li><p>Single-robot simulations: The name of the robot is an empty string by</p></li>
+</ul>
+<p>default but can be specified. It will then appear in the log if specified.
+* Multi-robots simulations: The name of the first robot is an empty string
+by default but it is advised to specify one. You can add robots to the
+simulation with the method <cite>add_robot</cite>, robot names have to be specified.</p>
+<p>Some proxy and methods are not compatible with multi-robot simulations:</p>
+<blockquote>
+<div><p>Single-robot simulations     |    Multi-robot simulations</p>
+</div></blockquote>
+<blockquote>
+<div><p>Simulator.robot_state   —&gt;   Simulator.engine.robot_states</p>
+</div></blockquote>
+<p>Simulator.register_profile_force -&gt; Simulator.engine.register_profile_force
+Simulator.register_impulse_force -&gt; Simulator.engine.register_impulse_force</p>
+<p>The methods <cite>replay</cite> and <cite>plot</cite> are not supported for multi-robot
+simulations at the time being.</p>
+<p>In case of multi-robot simulations, single-robot proxies either return
+information associated with the first robot or raise an exception.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>robot</strong> (<a class="reference internal" href="core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><em>Robot</em></a>) – Jiminy robot already initialized.</p></li>
+<li><p><strong>viewer_kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><em>None</em>) – Keyword arguments to override default arguments
+whenever a viewer must be instantiated, eg when
+<cite>render</cite> method is first called. Specifically,
+<cite>backend</cite> is ignored if one is already available.
+Optional: None by default.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Used arguments to allow automatic pipeline wrapper
+generation.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.build">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">urdf_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hardware_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_dir_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_freeflyer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">avoid_instable_collisions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.build"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.build" title="Link to this definition">¶</a></dt>
+<dd><p>Create a new single-robot simulator instance from scratch based on
+configuration files only.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>urdf_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Path of the urdf model to be used for the simulation.</p></li>
+<li><p><strong>hardware_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Path of Jiminy hardware description toml file.
+Optional: Looking for ‘*_hardware.toml’ file in
+the same folder and with the same name.</p></li>
+<li><p><strong>mesh_dir_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Path to the folder containing all the meshes.
+Optional: Env variable ‘JIMINY_DATA_PATH’ will be
+used if available.</p></li>
+<li><p><strong>has_freeflyer</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the robot is fixed-based wrt its root
+link, or can move freely in the world.
+Optional: True by default.</p></li>
+<li><p><strong>config_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Configuration toml file to import. It will be
+imported AFTER loading the hardware description
+file. It can be automatically generated from an
+instance by calling <cite>export_config_file</cite> method.
+One can specify <cite>None</cite> for loading for the file
+having the same full path as the URDF file but
+suffix ‘_options.toml’ if any. Passing an empty
+string “” will force skipping import completely.
+Optional: Empty by default</p></li>
+<li><p><strong>avoid_instable_collisions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Prevent numerical instabilities by
+replacing collision mesh by vertices
+of associated minimal volume bounding
+box, and replacing primitive box by
+its vertices.</p></li>
+<li><p><strong>debug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the debug mode must be activated. Doing it
+enables temporary files automatic deletion.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the robot.
+Optional: Empty string by default.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Keyword arguments to forward to class constructor.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#jiminy_py.simulator.Simulator" title="jiminy_py.simulator.Simulator"><em>Simulator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.add_robot">
+<span class="sig-name descname"><span class="pre">add_robot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">urdf_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hardware_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_dir_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_freeflyer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">avoid_instable_collisions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.add_robot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.add_robot" title="Link to this definition">¶</a></dt>
+<dd><p>Create a new robot from scratch based on configuration files only
+and add it to the simulator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>urdf_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Path of the urdf model to be used for the simulation.</p></li>
+<li><p><strong>hardware_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Path of Jiminy hardware description toml file.
+Optional: Looking for ‘*_hardware.toml’ file in
+the same folder and with the same name.</p></li>
+<li><p><strong>mesh_dir_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Path to the folder containing all the meshes.
+Optional: Env variable ‘JIMINY_DATA_PATH’ will be
+used if available.</p></li>
+<li><p><strong>has_freeflyer</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the robot is fixed-based wrt its root
+link, or can move freely in the world.
+Optional: True by default.</p></li>
+<li><p><strong>avoid_instable_collisions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Prevent numerical instabilities by
+replacing collision mesh by vertices
+of associated minimal volume bounding
+box, and replacing primitive box by
+its vertices.</p></li>
+<li><p><strong>debug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the debug mode must be activated. Doing it
+enables temporary files automatic deletion.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.viewer">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">viewer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="viewer.html#jiminy_py.viewer.Viewer" title="jiminy_py.viewer.viewer.Viewer"><span class="pre">Viewer</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#jiminy_py.simulator.Simulator.viewer" title="Link to this definition">¶</a></dt>
+<dd><p>Convenience proxy to get the viewer associated with the robot that
+was first added if any.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.viewers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">viewers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><span class="pre">Sequence</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="viewer.html#jiminy_py.viewer.Viewer" title="jiminy_py.viewer.viewer.Viewer"><span class="pre">Viewer</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#jiminy_py.simulator.Simulator.viewers" title="Link to this definition">¶</a></dt>
+<dd><p>Convenience proxy to get all the viewers associated with the ongoing
+simulation.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.robot">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="core/robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><span class="pre">Robot</span></a></em><a class="headerlink" href="#jiminy_py.simulator.Simulator.robot" title="Link to this definition">¶</a></dt>
+<dd><p>Convenience proxy to get the robot in single-robot simulations.</p>
+<p>Internally, all it does is returning <cite>self.engine.robots[0]</cite> without
+any additional processing.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Method only supported for single-robot simulations. Call</p>
+</div>
+<p><cite>self.engine.robots</cite> in multi-robot simulations.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.robot_state">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot_state</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="core/engine.html#jiminy_py.core.RobotState" title="jiminy_py.core.RobotState"><span class="pre">RobotState</span></a></em><a class="headerlink" href="#jiminy_py.simulator.Simulator.robot_state" title="Link to this definition">¶</a></dt>
+<dd><p>Convenience proxy to get the state of the robot in single-robot
+simulations.</p>
+<p>Internally, all it does is returning <cite>self.engine.robot_states[0]</cite>
+without any additional processing.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Method only supported for single-robot simulations. Call
+<cite>self.engine.robot_states</cite> in multi-robot simulations.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.log_data">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">log_data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#jiminy_py.simulator.Simulator.log_data" title="Link to this definition">¶</a></dt>
+<dd><p>Get log data (constants and time-continuous variables) associated
+with the ongoing simulation if any, the previous one otherwise.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Quantities at acceleration-level and beyond are inherently
+time-discountinuous. More specifically, their value at time t- and
+t+ would be different, under the effect of discontinuous command
+update or impulse forces. Becaue of this, one has to decide whether
+to log either t-, t+ or both. If the telemetry option
+<cite>logInternalStepperSteps</cite> is enabled, then both would be logged.
+Otherwise, it was decided to only log t+ for efficiency, since it
+is actually these values that are ultimately involved in the
+integration scheme over time, while t- is nonetheless interesting
+for monitoring and debug. In practice, values at t+ are only known
+at the beginning of each simulation step. Because of this, the
+latest timestamp can only be logged at the beginning of every
+simulation step rather than at the end, as one would intuitively
+expect. As a side effect, a simulation must be <cite>stop</cite> explictly for
+the last timestamp to be logged, otherwise it will be missing.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Internally, log data are cached for efficiency. However, this cache
+must be cleared after each simulation step and after starting a new
+one.  This means that accessing log data multiple times throughput
+a simulation is not recommended beyond prototyping and debug.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.is_viewer_available">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_viewer_available</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#jiminy_py.simulator.Simulator.is_viewer_available" title="Link to this definition">¶</a></dt>
+<dd><p>Returns whether some viewer instances associated with the ongoing
+simulation is currently opened.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Method only supported for single-robot simulations.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.register_profile_force">
+<span class="sig-name descname"><span class="pre">register_profile_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.register_profile_force"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.register_profile_force" title="Link to this definition">¶</a></dt>
+<dd><p>Apply an external force profile on a given frame.</p>
+<p>The force can be time- and state-dependent, and may be time-continuous
+or updated periodically (Zero-Order Hold).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>frame_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the frame at which to apply the force.</p></li>
+<li><p><strong>force_func</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>, </em><em>ndarray</em><em>, </em><em>ndarray</em><em>, </em><em>ndarray</em><em>]</em><em>, </em><em>None</em><em>]</em>) – Force profile as a callable with signature:<div class="line-block">
+<div class="line">force_func(</div>
+<div class="line-block">
+<div class="line"><strong>t</strong>: float,</div>
+<div class="line"><strong>q</strong>: np.ndarray,</div>
+<div class="line"><strong>v</strong>: np.ndarray,</div>
+<div class="line"><strong>force</strong>: np.ndarray</div>
+<div class="line">) -&gt; None</div>
+</div>
+</div>
+<p>where <cite>force</cite> corresponds the spatial force in local world aligned
+frame, ie its origin is located at application frame but its basis
+is aligned with world frame. It is represented as a <cite>np.ndarray</cite>
+(Fx, Fy, Fz, Mx, My, Mz) that must be updated in-place.</p>
+</p></li>
+<li><p><strong>update_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Update period of the force. It must be set to 0.0
+for time-continuous. Discrete update is strongly
+recommended for native Python callables because
+evaluating them is so slow that it would slowdown
+the whole simulation. There is no issue for C++
+bindings such as <cite>jiminy.RandomPerlinProcess</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.register_impulse_force">
+<span class="sig-name descname"><span class="pre">register_impulse_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.register_impulse_force"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.register_impulse_force" title="Link to this definition">¶</a></dt>
+<dd><p>Apply an external impulse force on a given frame.</p>
+<p>The force starts at the fixed point in time and lasts a given duration.
+In the meantime, its profile is square-shaped, ie the force remains
+constant.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>frame_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the frame at which to apply the force.</p></li>
+<li><p><strong>t</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Time at which to start applying the external force.</p></li>
+<li><p><strong>dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Duration of the force.</p></li>
+<li><p><strong>force_func</strong> – Spatial force in local world aligned frame, ie its
+origin is located at application frame but its basis
+is aligned with world frame. It is represented as a
+<cite>np.ndarray</cite> (Fx, Fy, Fz, Mx, My, Mz).</p></li>
+<li><p><strong>force</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.seed">
+<span class="sig-name descname"><span class="pre">seed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.seed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.seed" title="Link to this definition">¶</a></dt>
+<dd><p>Set the seed of the simulation and reset the simulation.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It also resets the low-level jiminy Engine. Therefore one must call
+the <cite>reset</cite> method manually afterward.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>seed</strong> (<em>uint32</em><em> | </em><em>ndarray</em>) – Desired seed as a sequence of unsigned integers 32 bits.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">remove_all_forces</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Reset the simulator.</p>
+<p>It resets the simulation time to zero, and generate a new random model
+of the robot. If one wants to get exactly the same result as before,
+either set the randomness of the model and sensors to zero, or set the
+seed once again to reinitialize the random number generator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>remove_all_forces</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to remove already registered external forces. Note that it
+can also be done separately by calling <cite>remove_all_forces</cite> method.
+Optional: Do not remove by default.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.start">
+<span class="sig-name descname"><span class="pre">start</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_init</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_init</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_state_theoretical</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.start"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.start" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize a simulation, starting from (q_init, v_init) at t=0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>q_init</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>]</em>) – Initial configuration (by robot if it is a dictionary).</p></li>
+<li><p><strong>v_init</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>]</em>) – Initial velocity (by robot if it is a dictionary).</p></li>
+<li><p><strong>a_init</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>] </em><em>| </em><em>None</em>) – Initial acceleration (by robot if it is a dictionary).
+It is only used by acceleration dependent sensors and
+controllers, such as IMU and force sensors.</p></li>
+<li><p><strong>is_state_theoretical</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether the initial state is associated
+with the actual or theoretical model of
+the robot. This option is only supported
+when passing <cite>np.ndarray</cite> for starting a
+single-robot simulation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.simulate">
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_init</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_init</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_state_theoretical</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_progress_bar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.simulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.simulate" title="Link to this definition">¶</a></dt>
+<dd><p>Run a simulation, starting from x0=(q0,v0) at t=0 up to tf.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Optionally, log the result of the simulation.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t_end</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Simulation duration.</p></li>
+<li><p><strong>q_init</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>]</em>) – Initial configuration (by robot if it is a dictionnary).</p></li>
+<li><p><strong>v_init</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>]</em>) – Initial velocity (by robot if it is a dictionnary).</p></li>
+<li><p><strong>a_init</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>ndarray</em><em>] </em><em>| </em><em>None</em>) – Initial acceleration (by robot if it is a dictionnary).
+It is only used by acceleration dependent sensors and
+controllers, such as IMU and force sensors.</p></li>
+<li><p><strong>is_state_theoretical</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – In single robot simulations, whether the
+initial state is associated with the
+actual or theoretical model of the robot.</p></li>
+<li><p><strong>callback</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>] </em><em>| </em><em>None</em>) – Callable that can be specified to abort simulation. It
+will be evaluated after every simulation step. Abort
+if false is returned.
+Optional: None by default.</p></li>
+<li><p><strong>log_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Save log data to this location. Disable if None.
+Note that the format extension ‘.data’ is enforced.
+Optional, disable by default.</p></li>
+<li><p><strong>show_progress_bar</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to display a progress bar during the
+simulation. None to enable only if available.
+Optional: None by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.render">
+<span class="sig-name descname"><span class="pre">render</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">return_rgb_array</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_pose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_ground_profile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.render"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.render" title="Link to this definition">¶</a></dt>
+<dd><p>Render the current state of the simulation. One can display it or
+return an RGB array instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>return_rgb_array</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to return the current frame as an rgb
+array or render it directly.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Width of the returned RGB frame, if enabled.</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Height of the returned RGB frame, if enabled.</p></li>
+<li><p><strong>camera_pose</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>] </em><em>| </em><em>ndarray</em><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>] </em><em>| </em><em>ndarray</em><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em><em>] </em><em>| </em><em>None</em>) – Tuple position [X, Y, Z], rotation [Roll, Pitch,
+Yaw], frame name/index specifying the absolute or
+relative pose of the camera. <cite>None</cite> to disable.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>update_ground_profile</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether to update the ground profile. It
+must be called manually only if necessary
+because it is costly.
+Optional: True by default if no viewer
+available, False otherwise.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward at <cite>Viewer</cite>
+initialization.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rendering as an RGB array (3D numpy array), if enabled, None
+otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.replay">
+<span class="sig-name descname"><span class="pre">replay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">extra_logs_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_trajectories</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.replay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.replay" title="Link to this definition">¶</a></dt>
+<dd><p>Replay the current episode until now.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Method only supported for single-robot simulations.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments for delegation to
+<cite>replay.play_trajectories</cite> method.</p></li>
+<li><p><strong>extra_logs_files</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>extra_trajectories</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference internal" href="dynamics.html#jiminy_py.dynamics.Trajectory" title="jiminy_py.dynamics.Trajectory"><em>Trajectory</em></a><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.close" title="Link to this definition">¶</a></dt>
+<dd><p>Close the connection with the renderer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable_flexiblity_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.plot" title="Link to this definition">¶</a></dt>
+<dd><p>Display common simulation data over time.</p>
+<p>The figure features several tabs:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Subplots with robot configuration</p></li>
+<li><p>Subplots with robot velocity</p></li>
+<li><p>Subplots with robot acceleration</p></li>
+<li><p>Subplots with motors torques</p></li>
+<li><p>Subplots with raw sensor data (one tab for each type of sensor)</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>enable_flexiblity_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Enable display of flexibility joints in robot’s configuration,
+velocity and acceleration subplots.
+Optional: False by default.</p></li>
+<li><p><strong>block</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether to wait for the figure to be closed before
+returning.
+Optional: False in interactive mode, True otherwise.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward to <cite>TabbedFigure</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="plot.html#jiminy_py.plot.TabbedFigure" title="jiminy_py.plot.TabbedFigure"><em>TabbedFigure</em></a> | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference internal" href="plot.html#jiminy_py.plot.TabbedFigure" title="jiminy_py.plot.TabbedFigure"><em>TabbedFigure</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.export_options">
+<span class="sig-name descname"><span class="pre">export_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.export_options"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.export_options" title="Link to this definition">¶</a></dt>
+<dd><p>Export in a single configuration file all the options of the
+simulator, ie the engine and all the robots.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The generated configuration file can be imported thereafter using
+<cite>import_options</cite> method.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/os.html#os.PathLike" title="(in Python v3.13)"><em>PathLike</em></a>) – Full path of the location where to store the
+generated file. The extension ‘.toml’ will be
+enforced.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.simulator.Simulator.import_options">
+<span class="sig-name descname"><span class="pre">import_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/jiminy_py/simulator.html#Simulator.import_options"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#jiminy_py.simulator.Simulator.import_options" title="Link to this definition">¶</a></dt>
+<dd><p>Import all the options of the simulator at once, ie the engine
+and all the robots.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A full configuration file can be exported beforehand using
+<cite>export_options</cite> method.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/os.html#os.PathLike" title="(in Python v3.13)"><em>PathLike</em></a>) – Full path of the configuration file to load.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="robot.html" class="btn btn-neutral float-left" title="robot" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="viewer.html" class="btn btn-neutral float-right" title="viewer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

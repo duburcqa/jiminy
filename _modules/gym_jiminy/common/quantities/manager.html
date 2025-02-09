@@ -1,0 +1,424 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.quantities.manager &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.quantities.manager</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.quantities.manager</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module provides a dedicated quantity manager. Although not necessary</span>
+<span class="sd">for computing quantities, its usage is strongly recommended for optimal</span>
+<span class="sd">performance.</span>
+
+<span class="sd">It is responsible for optimizing the computation path, which is expected to</span>
+<span class="sd">significantly increase the step collection throughput. This speedup is achieved</span>
+<span class="sd">by caching already computed that did not changed since then, computing</span>
+<span class="sd">redundant intermediary quantities only once per step, and gathering similar</span>
+<span class="sd">quantities in a large batch to leverage vectorization of math instructions.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">QuantityCreator</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">,</span> <span class="n">SharedCache</span><span class="p">,</span>
+    <span class="n">DatasetTrajectoryQuantity</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="QuantityManager">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/manager.html#gym_jiminy.common.quantities.manager.QuantityManager">[docs]</a>
+<span class="k">class</span> <span class="nc">QuantityManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;This class centralizes the evaluation of all quantities involved in</span>
+<span class="sd">    reward components or termination conditions evaluation to redundant and</span>
+<span class="sd">    unnecessary computations.</span>
+
+<span class="sd">    It is responsible for making sure all quantities are evaluated on the same</span>
+<span class="sd">    environment, and internal buffers are re-initialized whenever necessary. It</span>
+<span class="sd">    also manages a dataset of trajectories synchronized between all managed</span>
+<span class="sd">    quantities. These trajectories are involves in computation of quantities</span>
+<span class="sd">    deriving from `AbstractQuantity` for which the mode of evaluation is set to</span>
+<span class="sd">    `QuantityEvalMode.REFERENCE`. This dataset is initially empty. Trying to</span>
+<span class="sd">    evaluate quantities involving a reference trajectory without adding and</span>
+<span class="sd">    selecting one beforehand would raise an exception.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        There is no way to select a different reference trajectory for</span>
+<span class="sd">        individual quantities at the time being.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Individual quantities can be accessed either as instance properties or</span>
+<span class="sd">        items of a dictionary. Choosing one or the other is only a matter of</span>
+<span class="sd">        taste since both options have been heavily optimized to  minimize</span>
+<span class="sd">        overhead and should be equally efficient.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">trajectory_dataset</span><span class="p">:</span> <span class="n">DatasetTrajectoryQuantity</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Database of reference trajectories synchronized between all managed</span>
+<span class="sd">    quantities.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
+
+        <span class="c1"># List of managed top-level quantities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Initialize shared caches for all managed quantities.</span>
+        <span class="c1"># Note that keys are not quantities directly but pairs (class, hash).</span>
+        <span class="c1"># This is necessary because using a quantity as key directly would</span>
+        <span class="c1"># prevent its garbage collection, hence breaking automatic reset of</span>
+        <span class="c1"># computation tracking for all quantities sharing its cache.</span>
+        <span class="c1"># In case of dataclasses, their hash is the same as if it was obtained</span>
+        <span class="c1"># using `hash(dataclasses.astuple(quantity))`. This is clearly not</span>
+        <span class="c1"># unique, as all it requires to be the same is being built from the</span>
+        <span class="c1"># same nested ordered arguments. To get around this issue, we need to</span>
+        <span class="c1"># store keys in a list.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache_keys</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_caches</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SharedCache</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Instantiate trajectory database.</span>
+        <span class="c1"># Note that this quantity is not added to the global registry to avoid</span>
+        <span class="c1"># exposing it directly to the user. This way, it cannot be deleted.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trajectory_dataset</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+            <span class="n">DatasetTrajectoryQuantity</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_quantity</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">DatasetTrajectoryQuantity</span><span class="p">,</span> <span class="p">{})))</span>
+
+        <span class="c1"># Ordered list of all managed quantities including dependencies.</span>
+        <span class="c1"># Note that quantities are ordered from highest to lowest-level</span>
+        <span class="c1"># depencency. This way, intermediate quantities are guaranteed to be</span>
+        <span class="c1"># reset before their parent without having to resort on downsteream</span>
+        <span class="c1"># reset propagation at quantity-level. This avoids resetting the same</span>
+        <span class="c1"># quantity multiple times if it is a dependency of multiple quantities</span>
+        <span class="c1"># for which auto-refresh is enabled.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quantity_chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_managed_quantities</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_managed_quantities</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the list of all managed quantities including dependencies.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method is not meant to be called manually. It is used</span>
+<span class="sd">            internally to determine in which order quantities should be reset</span>
+<span class="sd">            for optimal efficiency.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get all dependency branches, sorted from highest to lowest level</span>
+        <span class="n">quantity_paths</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">quantity_stack</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">quantity</span><span class="p">,)</span> <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trajectory_dataset</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">values</span><span class="p">())]</span>
+        <span class="k">while</span> <span class="n">quantity_stack</span><span class="p">:</span>
+            <span class="n">quantity_path</span> <span class="o">=</span> <span class="n">quantity_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="n">quantities</span> <span class="o">=</span> <span class="n">quantity_path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">requirements</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">quantities</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">:</span>
+                    <span class="n">quantity_stack</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="o">*</span><span class="n">quantity_path</span><span class="p">,</span> <span class="n">quantity</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">quantity_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">quantity_path</span><span class="p">)</span>
+
+        <span class="c1"># Merge each ordered dependencies list in a single ordered chain</span>
+        <span class="n">quantities_sorted</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">quantity_path</span> <span class="ow">in</span> <span class="n">quantity_paths</span><span class="p">:</span>
+            <span class="n">parent_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">quantities_sorted</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">quantity_path</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">quantity_</span> <span class="ow">in</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span>
+                        <span class="n">quantities_sorted</span><span class="p">))[:</span><span class="n">parent_index</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">quantity</span> <span class="o">==</span> <span class="n">quantity_</span><span class="p">:</span>
+                        <span class="n">parent_index</span> <span class="o">=</span> <span class="n">i</span>
+                        <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">quantity</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">quantities_sorted</span><span class="p">[</span><span class="n">parent_index</span><span class="p">:]</span>
+                    <span class="n">quantities_sorted</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">parent_index</span><span class="p">,</span> <span class="n">quantity</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">quantities_sorted</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_build_quantity</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">quantity_creator</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">InterfaceQuantity</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate a quantity sharing caching with all identical quantities</span>
+<span class="sd">        that has been instantiated previously.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method is not meant to be called manually. It is used</span>
+<span class="sd">            internally for instantiating new quantities sharing cache with all</span>
+<span class="sd">            identical instances that has been instantiated previously by this</span>
+<span class="sd">            manager in particular. This method is not responsible for keeping</span>
+<span class="sd">            track of the new quantity and exposing it to the user by adding it</span>
+<span class="sd">            to the global registry of the manager afterward.</span>
+
+<span class="sd">        :param name: Desired name of the quantity after instantiation. It will</span>
+<span class="sd">                     raise an exception if another quantity with the exact same</span>
+<span class="sd">                     name exists.</span>
+<span class="sd">        :param quantity_creator: Tuple gathering the class of the new quantity</span>
+<span class="sd">                                 to manage plus any keyword-arguments of its</span>
+<span class="sd">                                 constructor as a dictionary except &#39;env&#39; and</span>
+<span class="sd">                                 &#39;parent&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Instantiate the new quantity</span>
+        <span class="n">quantity_cls</span><span class="p">,</span> <span class="n">quantity_kwargs</span> <span class="o">=</span> <span class="n">quantity_creator</span>
+        <span class="n">top_quantity</span> <span class="o">=</span> <span class="n">quantity_cls</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="p">(</span><span class="n">quantity_kwargs</span> <span class="ow">or</span> <span class="p">{}))</span>
+
+        <span class="c1"># Get the list of all quantities involved in computations of the top</span>
+        <span class="c1"># level quantity, sorted from highest to lowest level.</span>
+        <span class="n">quantities_all</span><span class="p">,</span> <span class="n">quantity_path</span> <span class="o">=</span> <span class="p">[</span><span class="n">top_quantity</span><span class="p">],</span> <span class="p">[</span><span class="n">top_quantity</span><span class="p">]</span>
+        <span class="k">while</span> <span class="n">quantities_all</span><span class="p">:</span>
+            <span class="n">quantities</span> <span class="o">=</span> <span class="n">quantities_all</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span><span class="o">.</span><span class="n">requirements</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="n">quantities_all</span> <span class="o">+=</span> <span class="n">quantities</span>
+            <span class="n">quantity_path</span> <span class="o">+=</span> <span class="n">quantities</span>
+
+        <span class="c1"># Set a shared cache entry for all quantities involved in computations.</span>
+        <span class="c1"># Make sure that the cache associated with requirements precedes their</span>
+        <span class="c1"># parents in global cache registry. This is essential for automatic</span>
+        <span class="c1"># refresh, to ensure that cached values of all the intermediary</span>
+        <span class="c1"># quantities have been cleared before refresh.</span>
+        <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">quantity_path</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="c1"># Get already available cache entry if any, otherwise create it</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">quantity</span><span class="p">),</span> <span class="nb">hash</span><span class="p">(</span><span class="n">quantity</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">cache_key</span><span class="p">,</span> <span class="n">cache</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_keys</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caches</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="n">cache_key</span><span class="p">:</span>
+                    <span class="n">owner</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">owners</span>
+                    <span class="k">if</span> <span class="n">quantity</span> <span class="o">==</span> <span class="n">owner</span><span class="p">:</span>
+                        <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Create new cache entry</span>
+                <span class="n">cache</span> <span class="o">=</span> <span class="n">SharedCache</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cache_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_caches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span>
+
+            <span class="c1"># Set shared cache of the quantity</span>
+            <span class="n">quantity</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">cache</span>
+
+        <span class="k">return</span> <span class="n">top_quantity</span>
+
+<div class="viewcode-block" id="QuantityManager.add">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/manager.html#gym_jiminy.common.quantities.manager.QuantityManager.add">[docs]</a>
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">quantity_creator</span><span class="p">:</span> <span class="n">QuantityCreator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">InterfaceQuantity</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate new top-level quantity that will be managed for now on.</span>
+
+<span class="sd">        :param name: Desired name of the quantity after instantiation. It will</span>
+<span class="sd">                     raise an exception if another quantity with the exact same</span>
+<span class="sd">                     name exists.</span>
+<span class="sd">        :param quantity_creator: Tuple gathering the class of the new quantity</span>
+<span class="sd">                                 to manage plus any keyword-arguments of its</span>
+<span class="sd">                                 constructor as a dictionary except &#39;env&#39; and</span>
+<span class="sd">                                 &#39;parent&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that no quantity with the same name is already managed to</span>
+        <span class="c1"># avoid silently overriding quantities being managed in user&#39;s back.</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                <span class="s2">&quot;A quantity with the exact same name already exists. Please &quot;</span>
+                <span class="s2">&quot;delete it first before adding a new one.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate new quantity</span>
+        <span class="n">quantity</span><span class="p">:</span> <span class="n">InterfaceQuantity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_quantity</span><span class="p">(</span><span class="n">quantity_creator</span><span class="p">)</span>
+
+        <span class="c1"># Add it to the global registry of already managed quantities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">quantity</span>
+
+        <span class="c1"># Backup the updated sequence of managed quantities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quantity_chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_managed_quantities</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">quantity</span></div>
+
+
+<div class="viewcode-block" id="QuantityManager.discard">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/manager.html#gym_jiminy.common.quantities.manager.QuantityManager.discard">[docs]</a>
+    <span class="k">def</span> <span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stop managing a quantity that is no longer relevant.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Deleting managed quantities modifies the computation graph, which</span>
+<span class="sd">            would affect quantities that detect the optimal computation path</span>
+<span class="sd">            dynamically. Computation tracking of all owners of a shared cache</span>
+<span class="sd">            will be reset at garbage collection by the cache itself to get the</span>
+<span class="sd">            opportunity to recover optimality.</span>
+
+<span class="sd">        :param name: Name of the managed quantity to be discarded. It will</span>
+<span class="sd">                     raise an exception if the specified name does not exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Remove shared cache entries for the quantity and its requirements.</span>
+        <span class="c1"># Note that done top-down rather than bottom-up, otherwise reset of</span>
+        <span class="c1"># required quantities no longer having shared cache will be triggered</span>
+        <span class="c1"># automatically by parent quantities following computation graph</span>
+        <span class="c1"># tracking reset whenever a shared cache co-owner is removed.</span>
+        <span class="n">quantities_all</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">name</span><span class="p">)]</span>
+        <span class="k">while</span> <span class="n">quantities_all</span><span class="p">:</span>
+            <span class="n">quantity</span> <span class="o">=</span> <span class="n">quantities_all</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">cache</span> <span class="o">=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">cache</span>
+            <span class="n">quantity</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore[assignment]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">owners</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">_cache</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_caches</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">cache</span> <span class="ow">is</span> <span class="n">_cache</span><span class="p">:</span>
+                        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_keys</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caches</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                        <span class="k">break</span>
+            <span class="n">quantities_all</span> <span class="o">+=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">requirements</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+
+        <span class="c1"># Update global quantity chain</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quantity_chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_managed_quantities</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="QuantityManager.reset">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/manager.html#gym_jiminy.common.quantities.manager.QuantityManager.reset">[docs]</a>
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reset_tracking</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Consider that all managed quantity must be re-initialized before</span>
+<span class="sd">        being able to evaluate them once again.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            The cache is cleared automatically by the quantities themselves.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method is supposed to be called before starting a simulation.</span>
+
+<span class="sd">        :param reset_tracking: Do not consider any quantity as active anymore.</span>
+<span class="sd">                               Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_quantity_chain</span><span class="p">:</span>
+            <span class="n">quantity</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset_tracking</span><span class="p">,</span> <span class="n">ignore_requirements</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="QuantityManager.clear">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/manager.html#gym_jiminy.common.quantities.manager.QuantityManager.clear">[docs]</a>
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear internal cache of quantities to force re-evaluating them the</span>
+<span class="sd">        next time their value is fetched.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method is supposed to be called every time the state of the</span>
+<span class="sd">            environment has changed (ie either the agent or world itself),</span>
+<span class="sd">            thereby invalidating the value currently stored in cache if any.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ignore_auto_refresh</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">is_simulation_running</span>
+        <span class="k">for</span> <span class="n">cache</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caches</span><span class="p">:</span>
+            <span class="n">cache</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">ignore_auto_refresh</span><span class="o">=</span><span class="n">ignore_auto_refresh</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="QuantityManager.get">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/quantities/manager.html#gym_jiminy.common.quantities.manager.QuantityManager.get">[docs]</a>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch the value of a given quantity.</span>
+
+<span class="sd">        The quantity will evaluate if its value is not already cached.</span>
+
+<span class="sd">        :param name: Name of the quantity for which to fetch the current value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

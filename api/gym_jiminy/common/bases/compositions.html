@@ -1,0 +1,627 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compositions &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Pipeline" href="pipeline.html" />
+    <link rel="prev" title="Quantities" href="quantities.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Bases</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="interfaces.html">Interfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="blocks.html">Blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantities.html">Quantities</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Compositions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.compositions.partial_hashable"><code class="docutils literal notranslate"><span class="pre">partial_hashable</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.compositions.AbstractReward"><code class="docutils literal notranslate"><span class="pre">AbstractReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.compositions.QuantityReward"><code class="docutils literal notranslate"><span class="pre">QuantityReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.compositions.MixtureReward"><code class="docutils literal notranslate"><span class="pre">MixtureReward</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.compositions.EpisodeState"><code class="docutils literal notranslate"><span class="pre">EpisodeState</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.compositions.AbstractTerminationCondition"><code class="docutils literal notranslate"><span class="pre">AbstractTerminationCondition</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.compositions.QuantityTermination"><code class="docutils literal notranslate"><span class="pre">QuantityTermination</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="pipeline.html">Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Bases</a></li>
+      <li class="breadcrumb-item active">Compositions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/bases/compositions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.bases.compositions">
+<span id="compositions"></span><h1>Compositions<a class="headerlink" href="#module-gym_jiminy.common.bases.compositions" title="Link to this heading">¶</a></h1>
+<p>This module promotes reward components and termination conditions as
+first-class objects. Those building blocks that can be plugged onto an existing
+pipeline by composition to keep everything modular, from the task definition to
+the low-level observers and controllers.</p>
+<p>This modular approach allows for standardization of usual metrics. Overall, it
+greatly reduces code duplication and bugs.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.partial_hashable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.compositions.</span></span><span class="sig-name descname"><span class="pre">partial_hashable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#partial_hashable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.partial_hashable" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">partial</span></code></p>
+<p>Extends standard <cite>functools.Partial</cite> class with hash and equality
+operator.</p>
+<p>Two partial instances are equal if they are wrapping the exact same
+function (i.e. pointing to the same memory address as per <cite>id</cite> build-in
+function), and bindings the same arguments (i.e. all arguments are equal
+as per <cite>==</cite> operator). Note that it does not matter if the constructor
+arguments of <cite>Partial</cite> itself are positional or keyword-based. Internally,
+they will be stored in an ordered list of keyword-only arguments for
+equality check.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Try to instantiate this class with invalid arguments for the method
+being wrapped (e.g. specifying multiple values for the same argument)
+would raise a <cite>TypeError</cite> exception, unlike <cite>functools.partial</cite> that
+would only fail when calling the resulting callable object.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a>)</p></li>
+<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>)</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#gym_jiminy.common.bases.compositions.partial_hashable" title="gym_jiminy.common.bases.compositions.partial_hashable"><em>partial_hashable</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.compositions.</span></span><span class="sig-name descname"><span class="pre">AbstractReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#AbstractReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Abstract class from which all reward component must derived.</p>
+<p>This goal of the agent is to maximize the expectation of the cumulative sum
+of discounted reward over complete episodes. This holds true no matter if
+its sign is always negative (aka. reward), always positive (aka. cost) or
+indefinite (aka. objective).</p>
+<p>Defining cost is allowed by not recommended. Although it encourages the
+agent to achieve the task at hand as quickly as possible if success is the
+only termination condition, it has the side-effect to give the opportunity
+to the agent to maximize the return by killing itself whenever this is an
+option, which is rarely the desired behavior. No restriction is enforced as
+it may be limiting in some relevant cases, so it is up to the user to make
+sure that its design makes sense overall.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the reward.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractReward.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractReward.name" title="Link to this definition">¶</a></dt>
+<dd><p>Name uniquely identifying every reward.</p>
+<p>It will be used as key not only for storing reward-specific monitoring
+and debugging information in ‘info’, but also for adding the underlying
+quantity to the ones already managed by the environment.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractReward.is_terminal">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_terminal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractReward.is_terminal" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is terminal, non-terminal, or indefinite.</p>
+<p>A reward is said to be “terminal” if only evaluated for the terminal
+state of the MDP, “non-terminal” if evaluated for all states except the
+terminal one, or indefinite if systematically evaluated no matter what.</p>
+<p>All rewards are supposed to be indefinite unless stated otherwise by
+overloading this method. The responsibility of evaluating the reward
+only when necessary is delegated to <cite>compute</cite>. This allows for complex
+evaluation logics beyond terminal or non-terminal without restriction.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Truncation is not consider the same as termination. The reward to
+not be evaluated in such a case, which means that it will never be
+for such episodes.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractReward.is_normalized">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_normalized</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractReward.is_normalized" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is guaranteed to be normalized, ie it is in range
+[0.0, 1.0].</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractReward.compute">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#AbstractReward.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractReward.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the reward.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Return value can be set to <cite>None</cite> to indicate that evaluation was
+skipped for some reason, and therefore the reward must not be taken
+into account when computing the total reward. This is useful when
+the reward is undefined or simply inappropriate in the current
+state of the environment.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is the responsibility of the practitioner overloading this
+method to honor flags ‘is_terminated’ (if not indefinite) and
+‘is_normalized’. Failing this, an exception will be raised.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode has reached a terminal state of
+the MDP at the current step.</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring. It will be
+updated in-place for storing current value of the reward
+in ‘info’ if it was truly evaluated.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Scalar value if the reward was evaluated, <cite>None</cite> otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.QuantityReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.compositions.</span></span><span class="sig-name descname"><span class="pre">QuantityReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_normalized</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_terminal</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#QuantityReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.QuantityReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.compositions.AbstractReward" title="gym_jiminy.common.bases.compositions.AbstractReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractReward</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueT</span></code>]</p>
+<p>Convenience class making it easy to derive reward components from
+generic quantities.</p>
+<p>All this class does is applying some user-specified post-processing to the
+value of a given multi-variate quantity to return a floating-point scalar
+value, eventually normalized between 0.0 and 1.0 if desired.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the reward. This name will be used as key
+for storing current value of the reward in ‘info’, and to
+add the underlying quantity to the set of already managed
+quantities by the environment. As a result, it must be
+unique otherwise an exception will be raised.</p></li>
+<li><p><strong>quantity</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Type" title="(in Python v3.13)"><em>Type</em></a><em>[</em><a class="reference internal" href="quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>[</em><em>ValueT</em><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>]</em>) – Tuple gathering the class of the underlying quantity
+to use as reward after some post-processing, plus any
+keyword-arguments of its constructor except ‘env’,
+and ‘parent’.</p></li>
+<li><p><strong>transform_fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>ValueT</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>] </em><em>| </em><em>None</em>) – Transform function responsible for aggregating a
+multi-variate quantity as floating-point scalar
+value to maximize. Typical examples are <cite>np.min</cite>,
+<cite>np.max</cite>, <cite>lambda x: np.linalg.norm(x, order=N)</cite>.
+This function is also responsible for rescaling
+the transformed quantity in range [0.0, 1.0] if
+the reward is advertised as normalized. The Radial
+Basis Function (RBF) kernel is the most common
+choice to derive a reward to maximize from errors
+based on distance metrics (See
+<cite>radial_basis_function</cite> for details.). <cite>None</cite> to
+skip transform entirely if not necessary.</p></li>
+<li><p><strong>is_normalized</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the reward is guaranteed to be normalized
+after applying transform function <cite>transform_fn</cite>.</p></li>
+<li><p><strong>is_terminal</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether the reward is terminal, non-terminal or
+indefinite. A terminal reward will be evaluated at
+most once, at the end of each episode for which a
+termination condition has been triggered. On the
+contrary, a non-terminal reward will be evaluated
+systematically except at the end of the episode.
+Finally, a indefinite reward will be evaluated
+systematically. The value 0.0 is returned and no
+‘info’ will be stored when reward evaluation is
+skipped.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.QuantityReward.is_terminal">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_terminal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.QuantityReward.is_terminal" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is terminal, non-terminal, or indefinite.</p>
+<p>A reward is said to be “terminal” if only evaluated for the terminal
+state of the MDP, “non-terminal” if evaluated for all states except the
+terminal one, or indefinite if systematically evaluated no matter what.</p>
+<p>All rewards are supposed to be indefinite unless stated otherwise by
+overloading this method. The responsibility of evaluating the reward
+only when necessary is delegated to <cite>compute</cite>. This allows for complex
+evaluation logics beyond terminal or non-terminal without restriction.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Truncation is not consider the same as termination. The reward to
+not be evaluated in such a case, which means that it will never be
+for such episodes.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.QuantityReward.is_normalized">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_normalized</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.QuantityReward.is_normalized" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is guaranteed to be normalized, ie it is in range
+[0.0, 1.0].</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.QuantityReward.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#QuantityReward.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.QuantityReward.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the reward if necessary depending on whether the reward and
+state are terminal. If so, then first evaluate the underlying quantity,
+next apply post-processing if requested.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not meant to be overloaded.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Scalar value if the reward was evaluated, <cite>None</cite> otherwise.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.MixtureReward">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.compositions.</span></span><span class="sig-name descname"><span class="pre">MixtureReward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_normalized</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#MixtureReward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.MixtureReward" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.compositions.AbstractReward" title="gym_jiminy.common.bases.compositions.AbstractReward"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractReward</span></code></a></p>
+<p>Base class for aggregating multiple independent reward components as a
+single one.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the total reward.</p></li>
+<li><p><strong>components</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference internal" href="#gym_jiminy.common.bases.compositions.AbstractReward" title="gym_jiminy.common.bases.compositions.AbstractReward"><em>AbstractReward</em></a><em>, </em><em>...</em><em>]</em>) – Sequence of reward components to aggregate.</p></li>
+<li><p><strong>reduce_fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><em>None</em><em>, </em><em>...</em><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><em>None</em><em>]</em>) – Transform function responsible for aggregating all
+the reward components that were evaluated. Typical
+examples are cumulative product and weighted sum.</p></li>
+<li><p><strong>is_normalized</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the reward is guaranteed to be normalized
+after applying reduction function <cite>reduce_fn</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.MixtureReward.components">
+<span class="sig-name descname"><span class="pre">components</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#gym_jiminy.common.bases.compositions.AbstractReward" title="gym_jiminy.common.bases.compositions.AbstractReward"><span class="pre">AbstractReward</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.MixtureReward.components" title="Link to this definition">¶</a></dt>
+<dd><p>List of all the reward components that must be aggregated together.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.MixtureReward.is_terminal">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_terminal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.MixtureReward.is_terminal" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is terminal, ie only evaluated at the end of an
+episode if a termination condition has been triggered.</p>
+<p>The cumulative reward is considered terminal if and only if all its
+individual reward components are terminal.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.MixtureReward.is_normalized">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_normalized</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.MixtureReward.is_normalized" title="Link to this definition">¶</a></dt>
+<dd><p>Whether the reward is guaranteed to be normalized, ie it is in range
+[0.0, 1.0].</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.MixtureReward.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#MixtureReward.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.MixtureReward.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate each individual reward component for the current state of
+the environment, then aggregate them in one.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.EpisodeState">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.compositions.</span></span><span class="sig-name descname"><span class="pre">EpisodeState</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names=&lt;not</span> <span class="pre">given&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#EpisodeState"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.EpisodeState" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.IntEnum" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntEnum</span></code></a></p>
+<p>Specify the current state of the ongoing episode.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.EpisodeState.CONTINUED">
+<span class="sig-name descname"><span class="pre">CONTINUED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.EpisodeState.CONTINUED" title="Link to this definition">¶</a></dt>
+<dd><p>No termination condition has been triggered this step.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.EpisodeState.TERMINATED">
+<span class="sig-name descname"><span class="pre">TERMINATED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.EpisodeState.TERMINATED" title="Link to this definition">¶</a></dt>
+<dd><p>The terminal state has been reached.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.EpisodeState.TRUNCATED">
+<span class="sig-name descname"><span class="pre">TRUNCATED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.EpisodeState.TRUNCATED" title="Link to this definition">¶</a></dt>
+<dd><p>A truncation condition has been triggered.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractTerminationCondition">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.compositions.</span></span><span class="sig-name descname"><span class="pre">AbstractTerminationCondition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_truncation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#AbstractTerminationCondition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractTerminationCondition" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Abstract class from which all termination conditions must derived.</p>
+<p>Request the ongoing episode to stop immediately as soon as a termination
+condition is triggered.</p>
+<p>There are two cases: truncating the episode or reaching the terminal state.
+In the former case, the agent is instructed to stop collecting samples from
+the ongoing episode and move to the next one, without considering this as a
+failure. As such, the reward-to-go that has not been observed will be
+estimated via a value function estimator. This is  already what happens
+when collecting sample batches in the infinite horizon RL framework, except
+that the episode is not resumed to collect the rest of the episode in the
+following sample batched. In the case of a termination condition, the agent
+is just as much instructed to move to the next  episode, but also to
+consider that it was an actual failure. This means that, unlike truncation
+conditions, the reward-to-go is known to be exactly zero. This is usually
+dramatic for the agent in the perspective of an infinite horizon reward,
+even more as the maximum discounted reward grows larger as the discount
+factor gets closer to one. As a result, the agent will avoid at all cost
+triggering terminal conditions, to the point of becoming risk averse by
+taking extra security margins lowering the average reward if necessary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the termination condition. This name will
+be used as key for storing the current episode state from
+the perspective of this specific condition in ‘info’, and
+to add the underlying quantity to the set of already
+managed quantities by the environment. As a result, it
+must be unique otherwise an exception will be raised.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>is_truncation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode should be considered
+terminated or truncated whenever the termination
+condition is triggered.
+Optional: False by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractTerminationCondition.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractTerminationCondition.name" title="Link to this definition">¶</a></dt>
+<dd><p>Name uniquely identifying every termination condition.</p>
+<p>It will be used as key not only for storing termination condition-specific
+monitoring and debugging information in ‘info’, but also for adding the
+underlying quantity to the ones already managed by the environment.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.AbstractTerminationCondition.compute">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#AbstractTerminationCondition.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.AbstractTerminationCondition.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate the termination condition at hand.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring. It will be
+updated in-place for storing terminated and truncated
+flags in ‘info’ as a tri-states <cite>EpisodeState</cite> value.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.QuantityTermination">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.compositions.</span></span><span class="sig-name descname"><span class="pre">QuantityTermination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grace_period</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_truncation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#QuantityTermination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.QuantityTermination" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.compositions.AbstractTerminationCondition" title="gym_jiminy.common.bases.compositions.AbstractTerminationCondition"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractTerminationCondition</span></code></a></p>
+<p>Convenience class making it easy to derive termination conditions from
+generic quantities.</p>
+<p>All this class does is checking that, all elements of a given quantity are
+within bounds. If so, then the episode continues, otherwise it is either
+truncated or terminated according to ‘is_truncation’ constructor argument.
+This only applies after the end of a grace period. Before that, the
+episode continues no matter what.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a>) – Base or wrapped jiminy environment.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Desired name of the termination condition. This name will
+be used as key for storing the current episode state from
+the perspective of this specific condition in ‘info’, and
+to add the underlying quantity to the set of already
+managed quantities by the environment. As a result, it
+must be unique otherwise an exception will be raised.</p></li>
+<li><p><strong>quantity</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Type" title="(in Python v3.13)"><em>Type</em></a><em>[</em><a class="reference internal" href="quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity" title="gym_jiminy.common.bases.quantities.InterfaceQuantity"><em>InterfaceQuantity</em></a><em>[</em><em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><em>None</em><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>]</em>) – Tuple gathering the class of the underlying quantity
+to use as termination condition, plus any
+keyword-arguments of its constructor except ‘env’,
+and ‘parent’.</p></li>
+<li><p><strong>low</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><em>number</em><em>] </em><em>| </em><em>None</em>) – Lower bound below which termination is triggered.</p></li>
+<li><p><strong>high</strong> (<em>ndarray</em><em> | </em><em>number</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#complex" title="(in Python v3.13)"><em>complex</em></a><em> | </em><em>number</em><em>] </em><em>| </em><em>None</em>) – Upper bound above which termination is triggered.</p></li>
+<li><p><strong>grace_period</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Grace period effective only at the very beginning
+of the episode, during which the latter is bound
+to continue whatever happens.
+Optional: 0.0 by default.</p></li>
+<li><p><strong>is_truncation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode should be considered
+terminated or truncated whenever the termination
+condition is triggered.
+Optional: False by default.</p></li>
+<li><p><strong>training_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the termination condition should be
+completely by-passed if the environment is in
+evaluation mode.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.compositions.QuantityTermination.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/compositions.html#QuantityTermination.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.compositions.QuantityTermination.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate the termination condition.</p>
+<p>The underlying quantity is first evaluated. The episode continues if
+all the elements of its value are within bounds, otherwise the episode
+is either truncated or terminated according to ‘is_truncation’.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not meant to be overloaded.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="quantities.html" class="btn btn-neutral float-left" title="Quantities" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="pipeline.html" class="btn btn-neutral float-right" title="Pipeline" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

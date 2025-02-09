@@ -1,0 +1,304 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.wrappers.flatten &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.wrappers.flatten</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.wrappers.flatten</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module implements a block transformation for flattening observation</span>
+<span class="sd">space of the environment.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TypeAlias</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">typing</span> <span class="k">as</span> <span class="n">npt</span>
+
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">from</span> <span class="nn">jiminy_py</span> <span class="kn">import</span> <span class="n">tree</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Obs</span><span class="p">,</span>
+                     <span class="n">Act</span><span class="p">,</span>
+                     <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">BaseTransformObservation</span><span class="p">,</span>
+                     <span class="n">BaseTransformAction</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">get_bounds</span><span class="p">,</span> <span class="n">build_flatten</span>
+
+
+<span class="n">FlattenedObs</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+<span class="n">FlattenedAct</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="FlattenObservation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/flatten.html#gym_jiminy.common.wrappers.flatten.FlattenObservation">[docs]</a>
+<span class="k">class</span> <span class="nc">FlattenObservation</span><span class="p">(</span><span class="n">BaseTransformObservation</span><span class="p">[</span><span class="n">FlattenedObs</span><span class="p">,</span> <span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                         <span class="n">Generic</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flatten the observation space of a pipeline environment. It will appear</span>
+<span class="sd">    as a simple one-dimension vector.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Following the general (but unusual) convention in Gym-Jiminy, the</span>
+<span class="sd">        batching dimensions appears last when aggregating homogeneous data to</span>
+<span class="sd">        vectorize computations. This design choice is motivated by efficiency</span>
+<span class="sd">        for the default memory layout of Numpy, i.e. row-major (C-style order).</span>
+<span class="sd">        Because of this, flattening a multi-dimensional array while pack</span>
+<span class="sd">        together components rather than batched element. This is undesirable</span>
+<span class="sd">        because values while be spread apart the whole vector after flattening</span>
+<span class="sd">        when adding new batch element, which makes it very difficult to compare</span>
+<span class="sd">        flattened vectors at first glance. It is also more challenging and</span>
+<span class="sd">        computationally expensive to perform operations directly on the</span>
+<span class="sd">        flattened vector representation such as mirroring. To get around this</span>
+<span class="sd">        issue, all multi-dimensional arrays are transposed before flattening,</span>
+<span class="sd">        which is sementically equivalent to `data.ravel(order=&#39;F&#39;)`.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All leaves of the observation space must have type `gym.spaces.Box`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                 <span class="n">dtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">DTypeLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Environment to wrap.</span>
+<span class="sd">        :param dtype: Numpy dtype of the flattened observation. If `None`, the</span>
+<span class="sd">                      most appropriate dtype to avoid lost of information if</span>
+<span class="sd">                      possible will be picked, following standard coercion</span>
+<span class="sd">                      rules. See `np.promote_types` for details.</span>
+<span class="sd">                      Optional: `None` by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Find most appropriate dtype if not specified</span>
+        <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">observation_flat</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">observation_flat</span><span class="p">:</span>
+                <span class="n">dtype_all</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span><span class="o">.</span><span class="n">dtype</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">observation_flat</span><span class="p">]</span>
+                <span class="n">dtype</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">promote_types</span><span class="p">,</span> <span class="n">dtype_all</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span>
+
+        <span class="c1"># Make sure that `gym.space.Box` support the prescribed dtype</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">):</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">dtype</span><span class="o">.</span><span class="n">type</span>
+
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Define specialized operator(s) for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_observation</span> <span class="o">=</span> <span class="n">build_flatten</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;F&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the observation space.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Compute bounds of flattened observation space</span>
+        <span class="n">min_max_bounds_leaves</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">Iterable</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span> <span class="p">(</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">,</span> <span class="n">get_bounds</span><span class="p">(</span><span class="n">space</span><span class="p">)))</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="k">for</span> <span class="n">space</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">)))</span>
+        <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>  <span class="c1"># pylint: disable=unexpected-keyword-arg</span>
+                <span class="n">bound_leaves</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">bound_leaves</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">min_max_bounds_leaves</span><span class="p">))</span>
+
+        <span class="c1"># Initialize the observation space with proper dtype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FlattenObservation.transform_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/flatten.html#gym_jiminy.common.wrappers.flatten.FlattenObservation.transform_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">transform_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update in-place pre-allocated transformed observation buffer with</span>
+<span class="sd">        the flattened observation of the wrapped environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flatten_observation</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FlattenAction">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/flatten.html#gym_jiminy.common.wrappers.flatten.FlattenAction">[docs]</a>
+<span class="k">class</span> <span class="nc">FlattenAction</span><span class="p">(</span><span class="n">BaseTransformAction</span><span class="p">[</span><span class="n">FlattenedAct</span><span class="p">,</span> <span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                    <span class="n">Generic</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flatten the action space of a pipeline environment. It will appear as a</span>
+<span class="sd">    simple one-dimension vector.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Fortran-Style order is used when flattening multi-dimensional arrays.</span>
+<span class="sd">        See `FlattenObservation` documentation for details.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All leaves of the action space must have type `gym.spaces.Box`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                 <span class="n">dtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">DTypeLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Environment to wrap.</span>
+<span class="sd">        :param dtype: Numpy dtype of the flattened action. If `None`, the most</span>
+<span class="sd">                      appropriate dtype to avoid lost of information if</span>
+<span class="sd">                      possible will be picked, following standard coercion</span>
+<span class="sd">                      rules. See `np.promote_types` for details.</span>
+<span class="sd">                      Optional: `None` by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Find most appropriate dtype if not specified</span>
+        <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">action_flat</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">map_structure</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">tree</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">action</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">action_flat</span><span class="p">:</span>
+                <span class="n">dtype</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">promote_types</span><span class="p">,</span> <span class="n">action_flat</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span>
+
+        <span class="c1"># Make sure that `gym.space.Box` support the prescribed dtype</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">):</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">dtype</span><span class="o">.</span><span class="n">type</span>
+
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Define specialized operator(s) for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unflatten_to_env_action</span> <span class="o">=</span> <span class="n">build_flatten</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;F&#39;</span><span class="p">,</span> <span class="n">is_reversed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the action space.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Compute bounds of flattened action space</span>
+        <span class="n">min_max_bounds_leaves</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">Iterable</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span> <span class="p">(</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">,</span> <span class="n">get_bounds</span><span class="p">(</span><span class="n">space</span><span class="p">)))</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="k">for</span> <span class="n">space</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="p">)))</span>
+        <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>  <span class="c1"># pylint: disable=unexpected-keyword-arg</span>
+                <span class="n">bound_leaves</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">bound_leaves</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">min_max_bounds_leaves</span><span class="p">))</span>
+
+        <span class="c1"># Initialize the action space with proper dtype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FlattenAction.transform_action">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/flatten.html#gym_jiminy.common.wrappers.flatten.FlattenAction.transform_action">[docs]</a>
+    <span class="k">def</span> <span class="nf">transform_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">FlattenedAct</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update in-place the pre-allocated action buffer of the wrapped</span>
+<span class="sd">        environment with the un-flattened action.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unflatten_to_env_action</span><span class="p">(</span><span class="n">action</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

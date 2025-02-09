@@ -1,0 +1,331 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Easy-install on Ubuntu 18+ &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/documentation_options.js?v=32cf9813"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="An introduction to Jiminy" href="tutorial.html" />
+    <link rel="prev" title="Key features" href="README.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            jiminy
+              <img src="_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Easy-install on Ubuntu 18+</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#jiminy">Jiminy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#dependencies-installation">Dependencies installation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#install-jiminy-python-package">Install Jiminy Python package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gym-jiminy">Gym Jiminy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Dependencies installation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pytorch-1-13-with-gpu-support-dependencies">Pytorch&gt;=1.13 with GPU support dependencies</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#optional-stable-baselines3">(optional) stable_baselines3</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#optional-tianshou">(optional) tianshou</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#install-gym-jiminy-learning-python-package">Install Gym Jiminy learning Python package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#building-from-source">Building from source</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#excluding-dependencies-on-ubuntu-18">Excluding dependencies on Ubuntu 18+</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#including-dependencies-on-unix-based-os">Including dependencies on Unix-based OS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites-must-be-adapted-to-package-managers-other-than-apt">Prerequisites (must be adapted to package managers other than <code class="docutils literal notranslate"><span class="pre">apt</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jiminy-dependencies-build-and-install">Jiminy dependencies build and install</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#build-procedure">Build Procedure</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#including-dependencies-on-windows-10">Including dependencies on Windows 10+</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Jiminy dependencies build and install</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Build Procedure</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Easy-install on Ubuntu 18+</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/INSTALL.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="easy-install-on-ubuntu-18">
+<h1>Easy-install on Ubuntu 18+<a class="headerlink" href="#easy-install-on-ubuntu-18" title="Link to this heading">¶</a></h1>
+<section id="jiminy">
+<h2>Jiminy<a class="headerlink" href="#jiminy" title="Link to this heading">¶</a></h2>
+<section id="dependencies-installation">
+<h3>Dependencies installation<a class="headerlink" href="#dependencies-installation" title="Link to this heading">¶</a></h3>
+<p>There is no requirement to install <code class="docutils literal notranslate"><span class="pre">jiminy_py</span></code> on linux if one does not want to build it.</p>
+</section>
+<section id="install-jiminy-python-package">
+<h3>Install Jiminy Python package<a class="headerlink" href="#install-jiminy-python-package" title="Link to this heading">¶</a></h3>
+<p>The project is available on PyPi and therefore can be install easily using <code class="docutils literal notranslate"><span class="pre">pip&gt;=20.3</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--prefer-binary<span class="w"> </span>jiminy-py<span class="o">[</span>meshcat,plot<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="gym-jiminy">
+<h2>Gym Jiminy<a class="headerlink" href="#gym-jiminy" title="Link to this heading">¶</a></h2>
+<section id="id1">
+<h3>Dependencies installation<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<section id="pytorch-1-13-with-gpu-support-dependencies">
+<h4>Pytorch&gt;=1.13 with GPU support dependencies<a class="headerlink" href="#pytorch-1-13-with-gpu-support-dependencies" title="Link to this heading">¶</a></h4>
+<p>Nowadays, it is straightforward to install CUDA. You are responsible for doing so since it depends on the OS.</p>
+<p>Once done, <code class="docutils literal notranslate"><span class="pre">Pytorch</span></code> can be installed following the official “getting started” instructions: <a class="reference external" href="https://pytorch.org/get-started/locally/">https://pytorch.org/get-started/locally/</a></p>
+</section>
+<section id="optional-stable-baselines3">
+<h4>(optional) stable_baselines3<a class="headerlink" href="#optional-stable-baselines3" title="Link to this heading">¶</a></h4>
+<p>Installing the Python packages <code class="docutils literal notranslate"><span class="pre">stable_baselines3==2.0</span></code> is required to run some of the provided examples, though it is not required to use gym_jiminy.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>stable-baselines3<span class="o">==</span><span class="m">2</span>.0
+</pre></div>
+</div>
+</section>
+<section id="optional-tianshou">
+<h4>(optional) tianshou<a class="headerlink" href="#optional-tianshou" title="Link to this heading">¶</a></h4>
+<p>Installing the Python packages <code class="docutils literal notranslate"><span class="pre">tianshou==0.3.0</span></code> is required to run some of the provided examples, though it is not required to use gym_jiminy.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">tianshou</span><span class="o">==</span><span class="m">0</span>.3.0
+</pre></div>
+</div>
+</section>
+</section>
+<section id="install-gym-jiminy-learning-python-package">
+<h3>Install Gym Jiminy learning Python package<a class="headerlink" href="#install-gym-jiminy-learning-python-package" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--prefer-binary<span class="w"> </span>gym-jiminy<span class="o">[</span>all<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="building-from-source">
+<h1>Building from source<a class="headerlink" href="#building-from-source" title="Link to this heading">¶</a></h1>
+<section id="excluding-dependencies-on-ubuntu-18">
+<h2>Excluding dependencies on Ubuntu 18+<a class="headerlink" href="#excluding-dependencies-on-ubuntu-18" title="Link to this heading">¶</a></h2>
+<p>First, one must install the pre-compiled libraries of the dependencies. Most of them are available on <code class="docutils literal notranslate"><span class="pre">robotpkg</span></code> APT repository. Just run the bash script to install them automatically for Ubuntu 18 and upward. It should be straightforward to adapt it to any other distribution for which <code class="docutils literal notranslate"><span class="pre">robotpkg</span></code> is available. Note that if you plan to use a virtual environment (<code class="docutils literal notranslate"><span class="pre">venv</span></code>, <code class="docutils literal notranslate"><span class="pre">pyenv</span></code>, …), you must install the Python dependencies manually using <code class="docutils literal notranslate"><span class="pre">pip</span></code>, i.e. <code class="docutils literal notranslate"><span class="pre">&quot;wheel&quot;,</span> <span class="pre">&quot;numpy&gt;=1.24&quot;</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>env<span class="w"> </span><span class="s2">&quot;PATH=</span><span class="nv">$PATH</span><span class="s2">&quot;</span><span class="w"> </span>./build_tools/easy_install_deps_ubuntu.sh
+</pre></div>
+</div>
+<p>You are now ready to build and install Jiminy itself.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">RootDir</span><span class="o">=</span><span class="s2">&quot;.... The location of jiminy repository ....&quot;</span>
+
+<span class="nv">BUILD_TYPE</span><span class="o">=</span><span class="s2">&quot;Release&quot;</span>
+<span class="nv">InstallDir</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">/install&quot;</span>
+
+mkdir<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">/build&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$InstallDir</span><span class="s2">&quot;</span>
+<span class="nb">cd</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">/build&quot;</span>
+cmake<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">&quot;</span><span class="w"> </span>-DCMAKE_INSTALL_PREFIX<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$InstallDir</span><span class="s2">&quot;</span><span class="w"> </span>-DCMAKE_PREFIX_PATH<span class="o">=</span><span class="s2">&quot;/opt/openrobots/&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DPYTHON_EXECUTABLE<span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;import sys; sys.stdout.write(sys.executable)&#39;</span><span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DBUILD_TESTING<span class="o">=</span>ON<span class="w"> </span>-DBUILD_EXAMPLES<span class="o">=</span>ON<span class="w"> </span>-DBUILD_PYTHON_INTERFACE<span class="o">=</span>ON<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DCMAKE_BUILD_TYPE<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$BUILD_TYPE</span><span class="s2">&quot;</span>
+make<span class="w"> </span>install<span class="w"> </span>-j4
+</pre></div>
+</div>
+</section>
+<section id="including-dependencies-on-unix-based-os">
+<h2>Including dependencies on Unix-based OS<a class="headerlink" href="#including-dependencies-on-unix-based-os" title="Link to this heading">¶</a></h2>
+<section id="prerequisites-must-be-adapted-to-package-managers-other-than-apt">
+<h3>Prerequisites (must be adapted to package managers other than <code class="docutils literal notranslate"><span class="pre">apt</span></code>)<a class="headerlink" href="#prerequisites-must-be-adapted-to-package-managers-other-than-apt" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>gnupg<span class="w"> </span>curl<span class="w"> </span>wget<span class="w"> </span>build-essential<span class="w"> </span>cmake<span class="w"> </span>doxygen<span class="w"> </span>graphviz
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;wheel&quot;</span>,<span class="w"> </span><span class="s2">&quot;numpy&gt;=1.24&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="jiminy-dependencies-build-and-install">
+<h3>Jiminy dependencies build and install<a class="headerlink" href="#jiminy-dependencies-build-and-install" title="Link to this heading">¶</a></h3>
+<p>Just run the bash script already available.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">BUILD_TYPE</span><span class="o">=</span><span class="s2">&quot;Release&quot;</span><span class="w"> </span>./build_tools/build_install_deps_unix.sh
+</pre></div>
+</div>
+</section>
+<section id="build-procedure">
+<h3>Build Procedure<a class="headerlink" href="#build-procedure" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">RootDir</span><span class="o">=</span><span class="s2">&quot;.... The location of jiminy repository ....&quot;</span>
+<span class="nv">PythonExe</span><span class="o">=</span><span class="s2">&quot;.... Your Python executable, for instance </span><span class="k">$(</span>which<span class="w"> </span>python3<span class="k">)</span><span class="s2"> ....&quot;</span>
+
+<span class="nv">BuildType</span><span class="o">=</span><span class="s2">&quot;Release&quot;</span>
+<span class="nv">InstallDir</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">/install&quot;</span>
+
+<span class="nb">unset</span><span class="w"> </span>Boost_ROOT
+
+mkdir<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">/build&quot;</span>
+<span class="nb">cd</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">/build&quot;</span>
+cmake<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RootDir</span><span class="s2">&quot;</span><span class="w"> </span>-DCMAKE_INSTALL_PREFIX<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$InstallDir</span><span class="s2">&quot;</span><span class="w"> </span>-DCMAKE_PREFIX_PATH<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$InstallDir</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DBOOST_ROOT<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$InstallDir</span><span class="s2">&quot;</span><span class="w"> </span>-DBoost_INCLUDE_DIR<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$InstallDir</span><span class="s2">/include&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DBoost_NO_SYSTEM_PATHS<span class="o">=</span>TRUE<span class="w"> </span>-DBoost_NO_BOOST_CMAKE<span class="o">=</span>TRUE<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DBoost_USE_STATIC_LIBS<span class="o">=</span>OFF<span class="w"> </span>-DPYTHON_EXECUTABLE<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PythonExe</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DBUILD_TESTING<span class="o">=</span>ON<span class="w"> </span>-DBUILD_EXAMPLES<span class="o">=</span>ON<span class="w"> </span>-DBUILD_PYTHON_INTERFACE<span class="o">=</span>ON<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-DCMAKE_BUILD_TYPE<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$BuildType</span><span class="s2">&quot;</span>
+make<span class="w"> </span>install<span class="w"> </span>-j4
+</pre></div>
+</div>
+</section>
+</section>
+<section id="including-dependencies-on-windows-10">
+<h2>Including dependencies on Windows 10+<a class="headerlink" href="#including-dependencies-on-windows-10" title="Link to this heading">¶</a></h2>
+<section id="prerequisites">
+<h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">¶</a></h3>
+<p>You have to preinstall by yourself the (free) MSVC 2019+ toolchain.</p>
+<p>Then, install <code class="docutils literal notranslate"><span class="pre">setuptools</span></code>, <code class="docutils literal notranslate"><span class="pre">wheel</span></code> and <code class="docutils literal notranslate"><span class="pre">numpy</span></code>.</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">-m</span> <span class="n">pip</span> <span class="n">install</span> <span class="n">setuptools</span> <span class="n">wheel</span> <span class="s2">&quot;numpy&gt;=1.24&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>Jiminy dependencies build and install<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<p>Now you can simply run the powershell script already available.</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nv">$env:BUILD_TYPE</span> <span class="p">=</span> <span class="s2">&quot;Release&quot;</span>
+<span class="p">&amp;</span> <span class="s1">&#39;./build_tools/build_install_deps_windows.ps1&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h3>Build Procedure<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<p>You are finally ready to build Jiminy itself.</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nv">$RootDir</span> <span class="p">=</span> <span class="s2">&quot;.... The location of jiminy repository ....&quot;</span>
+
+<span class="nv">$env:BUILD_TYPE</span> <span class="p">=</span> <span class="s2">&quot;Release&quot;</span>
+<span class="nv">$RootDir</span> <span class="p">=</span> <span class="nv">$RootDir</span> <span class="o">-replace</span> <span class="s1">&#39;\\&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span>
+<span class="nv">$InstallDir</span> <span class="p">=</span> <span class="s2">&quot;$RootDir/install&quot;</span>
+
+<span class="k">if</span> <span class="p">(</span><span class="nb">Test-Path</span> <span class="n">env</span><span class="p">:</span><span class="n">Boost_ROOT</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nb">Remove-Item</span> <span class="n">env</span><span class="p">:</span><span class="n">Boost_ROOT</span>
+<span class="p">}</span>
+
+<span class="k">if</span> <span class="p">(</span><span class="o">-not</span> <span class="p">(</span><span class="nb">Test-Path</span> <span class="n">-PathType</span> <span class="n">Container</span> <span class="nv">$RootDir</span><span class="p">/</span><span class="n">build</span><span class="p">))</span> <span class="p">{</span>
+  <span class="nb">New-Item</span> <span class="n">-ItemType</span> <span class="s2">&quot;directory&quot;</span> <span class="n">-Force</span> <span class="n">-Path</span> <span class="s2">&quot;$RootDir/build&quot;</span>
+<span class="p">}</span>
+<span class="nb">Set-Location</span> <span class="n">-Path</span> <span class="nv">$RootDir</span><span class="p">/</span><span class="n">build</span>
+<span class="n">cmake</span> <span class="s2">&quot;$RootDir&quot;</span> <span class="n">-G</span> <span class="s2">&quot;Visual Studio 17 2022&quot;</span> <span class="n">-DCMAKE_GENERATOR_PLATFORM</span><span class="p">=</span><span class="n">x64</span> <span class="p">`</span>
+      <span class="n">-DCMAKE_MSVC_RUNTIME_LIBRARY</span><span class="p">=</span><span class="s2">&quot;MultiThreaded$&lt;$&lt;CONFIG:Debug&gt;:Debug&gt;DLL&quot;</span> <span class="p">`</span>
+      <span class="n">-DCMAKE_INSTALL_PREFIX</span><span class="p">=</span><span class="s2">&quot;$InstallDir&quot;</span> <span class="n">-DCMAKE_PREFIX_PATH</span><span class="p">=</span><span class="s2">&quot;$InstallDir&quot;</span> <span class="p">`</span>
+      <span class="n">-DCMAKE_INTERPROCEDURAL_OPTIMIZATION</span><span class="p">=</span><span class="n">ON</span> <span class="n">-DCMAKE_VERBOSE_MAKEFILE</span><span class="p">=</span><span class="n">ON</span> <span class="p">`</span>
+      <span class="n">-DBOOST_ROOT</span><span class="p">=</span><span class="s2">&quot;$InstallDir&quot;</span> <span class="n">-DBoost_INCLUDE_DIR</span><span class="p">=</span><span class="s2">&quot;$InstallDir/include&quot;</span> <span class="p">`</span>
+      <span class="n">-DBoost_NO_SYSTEM_PATHS</span><span class="p">=</span><span class="n">TRUE</span> <span class="n">-DBoost_NO_BOOST_CMAKE</span><span class="p">=</span><span class="n">TRUE</span> <span class="n">-DBoost_USE_STATIC_LIBS</span><span class="p">=</span><span class="n">ON</span> <span class="p">`</span>
+      <span class="n">-DBUILD_TESTING</span><span class="p">=</span><span class="n">ON</span> <span class="n">-DBUILD_EXAMPLES</span><span class="p">=</span><span class="n">ON</span> <span class="n">-DBUILD_PYTHON_INTERFACE</span><span class="p">=</span><span class="n">ON</span> <span class="p">``</span>
+      <span class="n">-DCMAKE_CXX_FLAGS</span><span class="p">=</span><span class="s2">&quot; </span><span class="p">$(</span>
+      <span class="p">)</span><span class="s2"> -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DBOOST_CORE_USE_GENERIC_CMATH </span><span class="p">$(</span>
+      <span class="p">)</span><span class="s2"> -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC&quot;</span>
+<span class="n">cmake</span> <span class="p">-</span><span class="n">-build</span> <span class="p">.</span> <span class="p">-</span><span class="n">-target</span> <span class="n">ALL_BUILD</span> <span class="p">-</span><span class="n">-config</span> <span class="s2">&quot;${env:BUILD_TYPE}&quot;</span> <span class="p">-</span><span class="n">-parallel</span> <span class="n">4</span>
+
+<span class="k">if</span> <span class="p">(</span><span class="o">-not</span> <span class="p">(</span><span class="nb">Test-Path</span> <span class="n">-PathType</span> <span class="n">Container</span> <span class="s2">&quot;$RootDir/build/pypi/jiminy_py/src/jiminy_py&quot;</span><span class="p">))</span> <span class="p">{</span>
+  <span class="nb">New-Item</span> <span class="n">-ItemType</span> <span class="s2">&quot;directory&quot;</span> <span class="n">-Force</span> <span class="n">-Path</span> <span class="s2">&quot;$RootDir/build/pypi/jiminy_py/src/jiminy_py/core&quot;</span>
+<span class="p">}</span>
+<span class="nb">Copy-Item</span> <span class="n">-Force</span> <span class="n">-Recurse</span> <span class="n">-Path</span> <span class="s2">&quot;$InstallDir/lib/site-packages/*&quot;</span> <span class="p">`</span>
+          <span class="n">-Destination</span> <span class="s2">&quot;$RootDir/build/pypi/jiminy_py/src/jiminy_py/core&quot;</span>
+
+<span class="n">cmake</span> <span class="p">-</span><span class="n">-build</span> <span class="p">.</span> <span class="p">-</span><span class="n">-target</span> <span class="n">INSTALL</span> <span class="p">-</span><span class="n">-config</span> <span class="s2">&quot;${env:BUILD_TYPE}&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="README.html" class="btn btn-neutral float-left" title="Key features" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorial.html" class="btn btn-neutral float-right" title="An introduction to Jiminy" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

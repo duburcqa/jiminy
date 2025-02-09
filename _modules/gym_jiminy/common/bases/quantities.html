@@ -1,0 +1,1739 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.bases.quantities &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.bases.quantities</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.bases.quantities</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module promotes quantities as first-class objects.</span>
+
+<span class="sd">Defining quantities this way allows for standardization of common intermediary</span>
+<span class="sd">metrics for computation of reward components and and termination conditions, eg</span>
+<span class="sd">the center of pressure or the average spatial velocity of a frame. Overall, it</span>
+<span class="sd">greatly reduces code duplication and bugs.</span>
+
+<span class="sd">Apart from that, it offers a dedicated quantity manager that is responsible for</span>
+<span class="sd">optimizing the computation path, which is expected to significantly increase</span>
+<span class="sd">the step collection throughput. This speedup is achieved by caching already</span>
+<span class="sd">computed that did not changed since then, computing redundant intermediary</span>
+<span class="sd">quantities only once per step, and gathering similar quantities in a large</span>
+<span class="sd">batch to leverage vectorization of math instructions.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">weakref</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">IntEnum</span>
+<span class="kn">from</span> <span class="nn">weakref</span> <span class="kn">import</span> <span class="n">ReferenceType</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span><span class="p">,</span> <span class="n">ABCMeta</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">MutableSet</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">replace</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span>
+    <span class="n">Collection</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">jiminy_py.core</span> <span class="k">as</span> <span class="nn">jiminy</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">array_copyto</span><span class="p">,</span> <span class="n">multi_array_copyto</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.dynamics</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">TrajectoryTimeMode</span><span class="p">,</span> <span class="n">State</span><span class="p">,</span> <span class="n">Trajectory</span><span class="p">,</span> <span class="n">update_quantities</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+
+<span class="kn">from</span> <span class="nn">.interfaces</span> <span class="kn">import</span> <span class="n">InterfaceJiminyEnv</span>
+
+
+<span class="n">ValueT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;ValueT&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="WeakMutableCollection">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.WeakMutableCollection">[docs]</a>
+<span class="k">class</span> <span class="nc">WeakMutableCollection</span><span class="p">(</span><span class="n">MutableSet</span><span class="p">,</span> <span class="n">Generic</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mutable unordered list container storing weak reference to objects.</span>
+<span class="sd">    Elements will be discarded when no strong reference to the value exists</span>
+<span class="sd">    anymore, and a user-specified callback will be triggered if any.</span>
+
+<span class="sd">    Internally, it is implemented as a set for which uniqueness is</span>
+<span class="sd">    characterized by identity instead of equality operator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;_callback&quot;</span><span class="p">,</span> <span class="s2">&quot;_weakrefs&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span>
+            <span class="s2">&quot;WeakMutableCollection[ValueT]&quot;</span><span class="p">,</span> <span class="n">ReferenceType</span>
+            <span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param callback: Callback that will be triggered every time an element</span>
+<span class="sd">                         is discarded from the container.</span>
+<span class="sd">                         Optional: None by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span> <span class="o">=</span> <span class="n">callback</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ReferenceType</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__callback__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ref</span><span class="p">:</span> <span class="n">ReferenceType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Internal method that will be called every time an element must be</span>
+<span class="sd">        discarded from the containers, either because it was requested by the</span>
+<span class="sd">        user or because no strong reference to the value exists anymore.</span>
+
+<span class="sd">        If a callback has been specified by the user, it will be triggered</span>
+<span class="sd">        after removing the weak reference from the container.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Even though a temporary weak reference is provided for removal, the</span>
+        <span class="c1"># identity check is performed on the object being stored. If the latter</span>
+        <span class="c1"># has already been deleted, then one of the object in the list that</span>
+        <span class="c1"># has been deleted while be removed. It is not a big deal if it was</span>
+        <span class="c1"># actually the right weak reference since all of them will be removed</span>
+        <span class="c1"># in the end, so it is not a big deal.</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">ref</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ref_i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="n">ref_i</span><span class="p">():</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ref</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dunder method to check if a weak reference to a given object is</span>
+<span class="sd">        already stored in the container, which is characterized by identity</span>
+<span class="sd">        instead of equality operator.</span>
+
+<span class="sd">        :param obj: Object to look for in the container.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">ref</span><span class="p">()</span> <span class="ow">is</span> <span class="n">obj</span> <span class="k">for</span> <span class="n">ref</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dunder method that returns an iterator over the objects of the</span>
+<span class="sd">        container for which a reference still exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">ref</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">ref</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">obj</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dunder method that returns the length of the container.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WeakMutableCollection.add">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.WeakMutableCollection.add">[docs]</a>
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ValueT</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a new element to the container if not already contained.</span>
+
+<span class="sd">        This has no effect if the element is already present.</span>
+
+<span class="sd">        :param obj: Object to add to the container.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__callback__</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="WeakMutableCollection.discard">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.WeakMutableCollection.discard">[docs]</a>
+    <span class="k">def</span> <span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ValueT</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove an element from the container if stored in it.</span>
+
+<span class="sd">        This method does not raise an exception when the element is missing.</span>
+
+<span class="sd">        :param obj: Object to remove from the container.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__callback__</span><span class="p">(</span><span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="QuantityStateMachine">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityStateMachine">[docs]</a>
+<span class="k">class</span> <span class="nc">QuantityStateMachine</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specify the current state of a given (unique) quantity, which determines</span>
+<span class="sd">    the steps to perform for retrieving its current value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">IS_RESET</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The quantity at hand has just been reset. The quantity must first be</span>
+<span class="sd">    initialized, then refreshed and finally stored in cached before to retrieve</span>
+<span class="sd">    its value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">IS_INITIALIZED</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The quantity at hand has been initialized but never evaluated for the</span>
+<span class="sd">    current robot state. Its value must still be refreshed and stored in cache</span>
+<span class="sd">    before to retrieve it.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">IS_CACHED</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The quantity at hand has been evaluated and its value stored in cache.</span>
+<span class="sd">    As such, its value can be retrieve from cache directly.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<span class="c1"># Define proxies for fast lookup</span>
+<span class="n">_IS_RESET</span><span class="p">,</span> <span class="n">_IS_INITIALIZED</span><span class="p">,</span> <span class="n">_IS_CACHED</span> <span class="o">=</span> <span class="p">(</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="n">QuantityStateMachine</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SharedCache">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.SharedCache">[docs]</a>
+<span class="k">class</span> <span class="nc">SharedCache</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Basic thread local shared cache.</span>
+
+<span class="sd">    Its API mimics `std::optional` from the Standard C++ library. All it does</span>
+<span class="sd">    is encapsulating any Python object as a mutable variable, plus exposing a</span>
+<span class="sd">    simple mechanism for keeping track of all &quot;owners&quot; of the cache.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This implementation is not thread safe.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;_value&quot;</span><span class="p">,</span> <span class="s2">&quot;_weakrefs&quot;</span><span class="p">,</span> <span class="s2">&quot;_owner&quot;</span><span class="p">,</span> <span class="s2">&quot;_auto_refresh&quot;</span><span class="p">,</span> <span class="s2">&quot;sm_state&quot;</span><span class="p">,</span> <span class="s2">&quot;owners&quot;</span><span class="p">)</span>
+
+    <span class="n">owners</span><span class="p">:</span> <span class="n">Collection</span><span class="p">[</span><span class="s2">&quot;InterfaceQuantity[ValueT]&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Owners of the shared buffer, ie quantities relying on it to store the</span>
+<span class="sd">    result of their evaluation. This information may be useful for determining</span>
+<span class="sd">    the most efficient computation path overall.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Quantities must add themselves to this list when passing them a shared</span>
+<span class="sd">        cache instance.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Internally, it stores weak references to avoid holding alive quantities</span>
+<span class="sd">        that could be garbage collected otherwise. `WeakSet` cannot be used</span>
+<span class="sd">        because owners are objects all having the same hash, eg &quot;identical&quot;</span>
+<span class="sd">        quantities.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Cached value if any</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Whether auto-refresh is requested</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_refresh</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Basic state machine management</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span><span class="p">:</span> <span class="n">QuantityStateMachine</span> <span class="o">=</span> <span class="n">QuantityStateMachine</span><span class="o">.</span><span class="n">IS_RESET</span>
+
+        <span class="c1"># Initialize &quot;owners&quot; of the shared buffer.</span>
+        <span class="c1"># Define callback to reset part of the computation graph whenever a</span>
+        <span class="c1"># quantity owning the cache gets garbage collected, namely all</span>
+        <span class="c1"># quantities that may assume at some point the existence of this</span>
+        <span class="c1"># deleted owner to adjust their computation path.</span>
+        <span class="k">def</span> <span class="nf">_callback</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">:</span> <span class="n">WeakMutableCollection</span><span class="p">[</span><span class="s2">&quot;InterfaceQuantity[ValueT]&quot;</span><span class="p">],</span>
+                <span class="n">ref</span><span class="p">:</span> <span class="n">ReferenceType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pylint: disable=unused-argument</span>
+            <span class="n">owner</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;InterfaceQuantity[ValueT]&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">owner</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+                <span class="c1"># Stop going up in parent chain if dynamic computation graph</span>
+                <span class="c1"># update is disable for efficiency.</span>
+                <span class="k">while</span> <span class="p">(</span><span class="n">owner</span><span class="o">.</span><span class="n">allow_update_graph</span> <span class="ow">and</span>
+                        <span class="n">owner</span><span class="o">.</span><span class="n">parent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">owner</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">has_cache</span><span class="p">):</span>
+                    <span class="n">owner</span> <span class="o">=</span> <span class="n">owner</span><span class="o">.</span><span class="n">parent</span>
+                <span class="n">owner</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset_tracking</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Initialize weak reference to owning quantities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span> <span class="o">=</span> <span class="n">WeakMutableCollection</span><span class="p">(</span><span class="n">_callback</span><span class="p">)</span>
+
+        <span class="c1"># Maintain alive owning quantities upon reset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">owners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;InterfaceQuantity[ValueT]&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="SharedCache.add">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.SharedCache.add">[docs]</a>
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="s2">&quot;InterfaceQuantity[ValueT]&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a given quantity instance to the set of co-owners associated</span>
+<span class="sd">        with the shared cache at hand.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            All shared cache co-owners must be instances of the same unique</span>
+<span class="sd">            quantity. An exception will be thrown if an attempt is made to add</span>
+<span class="sd">            a quantity instance that does not satisfy this condition.</span>
+
+<span class="sd">        :param owner: Quantity instance to add to the set of co-owners.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the quantity is not already part of the co-owners</span>
+        <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">owner</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">map</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">owners</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The specified quantity instance is already an owner of this &quot;</span>
+                <span class="s2">&quot;shared cache.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that the new owner is consistent with the others if any</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">owner</span> <span class="o">!=</span> <span class="n">_owner</span> <span class="k">for</span> <span class="n">_owner</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Quantity instance inconsistent with already existing shared &quot;</span>
+                <span class="s2">&quot;cache owners.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Add quantity instance to shared cache owners</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">owner</span><span class="p">)</span>
+
+        <span class="c1"># Refresh owners</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">QuantityStateMachine</span><span class="o">.</span><span class="n">IS_RESET</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">owners</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SharedCache.discard">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.SharedCache.discard">[docs]</a>
+    <span class="k">def</span> <span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="s2">&quot;InterfaceQuantity[ValueT]&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove a given quantity instance from the set of co-owners</span>
+<span class="sd">        associated with the shared cache at hand.</span>
+
+<span class="sd">        :param owner: Quantity instance to remove from the set of co-owners.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the quantity is part of the co-owners</span>
+        <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">owner</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">map</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">owners</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The specified quantity instance is not an owner of this &quot;</span>
+                <span class="s2">&quot;shared cache.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Restore &quot;dynamic&quot; owner list as it may be involved in quantity reset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">owners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span>
+
+        <span class="c1"># Remove quantity instance from shared cache owners</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">owner</span><span class="p">)</span>
+
+        <span class="c1"># Refresh owners.</span>
+        <span class="c1"># Note that one must keep tracking the quantity instance being used in</span>
+        <span class="c1"># computations, aka &#39;self._owner&#39;, even if it is no longer an actual</span>
+        <span class="c1"># shared cache owner. This is necessary because updating it would</span>
+        <span class="c1"># require resetting the state machine, which is not an option as it</span>
+        <span class="c1"># would mess up with quantities storing history since initialization.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">QuantityStateMachine</span><span class="o">.</span><span class="n">IS_RESET</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">owners</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SharedCache.reset">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.SharedCache.reset">[docs]</a>
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">ignore_auto_refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+              <span class="n">reset_state_machine</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear value stored in cache if any.</span>
+
+<span class="sd">        :param ignore_auto_refresh: Whether to skip automatic refresh of all</span>
+<span class="sd">                                    co-owner quantities of this shared cache.</span>
+<span class="sd">                                    Optional: False by default.</span>
+<span class="sd">        :param reset_state_machine: Whether to reset completely the state</span>
+<span class="sd">                                    machine of the underlying quantity, ie not</span>
+<span class="sd">                                    considering it initialized anymore.</span>
+<span class="sd">                                    Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Clear cache</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="o">==</span> <span class="n">_IS_CACHED</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="o">=</span> <span class="n">_IS_INITIALIZED</span>
+
+        <span class="c1"># Special branch if case quantities must be reset on the way</span>
+        <span class="k">if</span> <span class="n">reset_state_machine</span><span class="p">:</span>
+            <span class="c1"># Reset the state machine completely</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="o">=</span> <span class="n">_IS_RESET</span>
+
+            <span class="c1"># Update list of owning quantities</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">owners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># Reset auto-refresh buffer</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_auto_refresh</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Refresh automatically if not already proven useless and not ignored</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_auto_refresh</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_refresh</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">owner</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">owners</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">owner</span><span class="o">.</span><span class="n">auto_refresh</span><span class="p">:</span>
+                    <span class="n">owner</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_auto_refresh</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="SharedCache.get">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.SharedCache.get">[docs]</a>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValueT</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return cached value if any, otherwise evaluate it and store it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get value already cached if any</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="o">==</span> <span class="n">_IS_CACHED</span><span class="p">:</span>
+            <span class="c1"># return cast(ValueT, self._value)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>  <span class="c1"># type: ignore[return-value]</span>
+
+        <span class="c1"># Evaluate quantity</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="o">==</span> <span class="n">_IS_RESET</span><span class="p">:</span>
+                <span class="c1"># Cache the list of owning quantities</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">owners</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_weakrefs</span><span class="p">)</span>
+
+                <span class="c1"># Stick to the first owning quantity systematically</span>
+                <span class="n">owner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">owners</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span> <span class="o">=</span> <span class="n">owner</span>
+
+                <span class="c1"># Initialize quantity if not already done manually</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">owner</span><span class="o">.</span><span class="n">_is_initialized</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">owner</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                        <span class="c1"># Revert initialization of this quantity as it failed</span>
+                        <span class="n">owner</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset_tracking</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                    <span class="n">ignore_requirements</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                    <span class="n">ignore_others</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="k">raise</span>
+                <span class="k">assert</span> <span class="n">owner</span><span class="o">.</span><span class="n">_is_initialized</span>
+
+            <span class="c1"># Get first owning quantity systematically</span>
+            <span class="c1"># assert self._owner is not None</span>
+            <span class="n">owner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span>  <span class="c1"># type: ignore[assignment]</span>
+
+            <span class="c1"># Make sure that the state has been refreshed.</span>
+            <span class="c1"># This is necessary because it would update the internal state of</span>
+            <span class="c1"># the associated &#39;pinocchio_data&#39;. Note that auto-refresh is not</span>
+            <span class="c1"># enabled for StateQuantity in TRAJECTORY mode as it is costly to</span>
+            <span class="c1"># evaluate. Instead, it is postponed here, right before updating</span>
+            <span class="c1"># any quantity that may rely on it.</span>
+            <span class="k">if</span> <span class="n">owner</span><span class="o">.</span><span class="n">_force_update_state</span><span class="p">:</span>
+                <span class="n">owner</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+            <span class="c1"># Refresh quantity</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">owner</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">RecursionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">LookupError</span><span class="p">(</span>
+                <span class="s2">&quot;Mutual dependency between quantities is forbidden.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="c1"># Cache the value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sm_state</span> <span class="o">=</span> <span class="n">_IS_CACHED</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">return</span> <span class="n">value</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InterfaceQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity">[docs]</a>
+<span class="k">class</span> <span class="nc">InterfaceQuantity</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">ValueT</span><span class="p">],</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">ABCMeta</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Interface for generic quantities involved observer-controller blocks,</span>
+<span class="sd">    reward components or termination conditions.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Quantities are meant to be managed automatically via `QuantityManager`.</span>
+<span class="sd">        Dealing with quantities manually is error-prone, and as such, is</span>
+<span class="sd">        strongly discourage. Nonetheless, power-user that understand the risks</span>
+<span class="sd">        are allowed to do it.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Mutual dependency between quantities is disallowed.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        The user is responsible for implementing the dunder methods `__eq__`</span>
+<span class="sd">        and `__hash__` that characterize identical quantities. This property is</span>
+<span class="sd">        used internally by `QuantityManager` to synchronize cache between them.</span>
+<span class="sd">        It is advised to use decorator `@dataclass(unsafe_hash=True)` for</span>
+<span class="sd">        convenience, but it can also be done manually.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">requirements</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;InterfaceQuantity&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Intermediary quantities on which this quantity may rely on for its</span>
+<span class="sd">    evaluation at some point, depending on the optimal computation path at</span>
+<span class="sd">    runtime. They will be exposed to the user as usual attributes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">allow_update_graph</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whether dynamic computation graph update is allowed. This implies that</span>
+<span class="sd">    the quantity can be reset at any point in time to re-compute the optimal</span>
+<span class="sd">    computation path, typically after deletion or addition of some other node</span>
+<span class="sd">    to its dependent sub-graph. When this happens, the quantity gets reset on</span>
+<span class="sd">    the spot, even if a simulation is already running. This is not always</span>
+<span class="sd">    acceptable, hence the capability to disable this feature at class-level.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;InterfaceQuantity&quot;</span><span class="p">],</span>
+                 <span class="n">requirements</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;QuantityCreator&quot;</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">auto_refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param requirements: Intermediary quantities on which this quantity</span>
+<span class="sd">                             depends for its evaluation, as a dictionary</span>
+<span class="sd">                             whose keys are tuple gathering their respective</span>
+<span class="sd">                             class plus any keyword-arguments of its</span>
+<span class="sd">                             constructor except &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param auto_refresh: Whether this quantity must be refreshed</span>
+<span class="sd">                             automatically as soon as its shared cache has been</span>
+<span class="sd">                             cleared if specified.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some of user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_refresh</span> <span class="o">=</span> <span class="n">auto_refresh</span>
+
+        <span class="c1"># Make sure that all requirement names would be valid as property</span>
+        <span class="n">requirement_names</span> <span class="o">=</span> <span class="n">requirements</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;[^A-Za-z0-9_]&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">requirement_names</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The name of all quantity requirements should be &quot;</span>
+                             <span class="s2">&quot;ASCII alphanumeric characters plus underscore.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Instantiate intermediary quantities if any</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">requirements</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">name</span><span class="p">:</span> <span class="bp">cls</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span> <span class="ow">in</span> <span class="n">requirements</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># Define proxies for user-specified intermediary quantities.</span>
+        <span class="c1"># This approach is much faster than hiding quantities behind value</span>
+        <span class="c1"># getters. In particular, dynamically adding properties, which is hacky</span>
+        <span class="c1"># but the fastest alternative option, still adds 35% overhead on Python</span>
+        <span class="c1"># 3.11 compared to calling `get` directly. The &quot;official&quot; approaches</span>
+        <span class="c1"># are even slower, ie implementing custom `__getattribute__` method or</span>
+        <span class="c1"># worst custom `__getattr__` method.</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">requirements</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">quantity</span><span class="p">)</span>
+
+        <span class="c1"># Update the state explicitly if available but auto-refresh not enabled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_force_update_state</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AbstractQuantity</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_force_update_state</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">auto_refresh</span>
+
+        <span class="c1"># Shared cache handling</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SharedCache</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Track whether the quantity has been called since previous reset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_active</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Whether the quantity must be re-initialized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_initialized</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+        <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Get access to intermediary quantities as first-class properties,</span>
+<span class="sd">            without having to do it through `requirements`.</span>
+
+<span class="sd">            .. warning::</span>
+<span class="sd">                Accessing quantities this way is convenient, but unfortunately</span>
+<span class="sd">                much slower than do it through dynamically added properties. As</span>
+<span class="sd">                a result, this approach is only used to fix typing issues.</span>
+
+<span class="sd">            :param name: Name of the requested quantity.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="s1">&#39;requirements&#39;</span><span class="p">)[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39; object has no attribute &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedCache</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get shared cache if available, otherwise raises an exception.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is not meant to be overloaded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;No shared cache has been set for this quantity. Make sure it &quot;</span>
+                <span class="s2">&quot;is managed by some `QuantityManager` instance.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span>  <span class="c1"># type: ignore[return-value]</span>
+
+    <span class="nd">@cache</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SharedCache</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set optional cache variable. When specified, it is used to store</span>
+<span class="sd">        evaluated quantity and retrieve its value later one.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Value is stored by reference for efficiency. It is up to the user</span>
+<span class="sd">            to the copy to retain its current value for later use if necessary.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            One may overload this method to encapsulate the cache in a custom</span>
+<span class="sd">            wrapper with specialized &#39;get&#39; and &#39;set&#39; methods before passing it</span>
+<span class="sd">            to the base implementation. For instance, to enforce copy of the</span>
+<span class="sd">            cached value before returning it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Withdraw this quantity from the owners of its current cache if any</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># This may fail if the quantity is already being garbage</span>
+                <span class="c1"># collected when clearing cache.</span>
+                <span class="k">pass</span>
+
+        <span class="c1"># Declare this quantity as owner of the cache if specified</span>
+        <span class="k">if</span> <span class="n">cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># Update internal cache attribute</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="n">cache</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span> <span class="o">=</span> <span class="n">cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="InterfaceQuantity.is_active">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity.is_active">[docs]</a>
+    <span class="k">def</span> <span class="nf">is_active</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">any_cache_owner</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether this quantity is considered active, namely `initialize` has</span>
+<span class="sd">        been called at least once since previous tracking reset.</span>
+
+<span class="sd">        :param any_owner: False to check only if this exact instance is active,</span>
+<span class="sd">                          True if any of the identical quantities (sharing the</span>
+<span class="sd">                          same cache) is considered sufficient.</span>
+<span class="sd">                          Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">any_cache_owner</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_active</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">owner</span><span class="o">.</span><span class="n">_is_active</span> <span class="k">for</span> <span class="n">owner</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">owners</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InterfaceQuantity.get">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity.get">[docs]</a>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValueT</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get cached value of requested quantity if available, otherwise</span>
+<span class="sd">        evaluate it and store it in cache.</span>
+
+<span class="sd">        This quantity is considered active as soon as this method has been</span>
+<span class="sd">        called at least once since previous tracking reset. The method</span>
+<span class="sd">        `is_active` will be return true even before calling `initialize`.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is not meant to be overloaded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Delegate getting value to shared cache if available</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Get value</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+            <span class="c1"># This instance is not forceably considered active at this point.</span>
+            <span class="c1"># Note that it must be done AFTER getting the value, otherwise it</span>
+            <span class="c1"># would mess up with computation graph tracking at initialization.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_active</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="c1"># Return cached value</span>
+            <span class="k">return</span> <span class="n">value</span>
+
+        <span class="c1"># Evaluate quantity</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Initialize quantity</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_initialized</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+                <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_initialized</span>
+
+            <span class="c1"># Refresh quantity</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">RecursionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">LookupError</span><span class="p">(</span>
+                <span class="s2">&quot;Mutual dependency between quantities is disallowed.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span></div>
+
+
+<div class="viewcode-block" id="InterfaceQuantity.reset">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity.reset">[docs]</a>
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">reset_tracking</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+              <span class="o">*</span><span class="p">,</span>
+              <span class="n">ignore_requirements</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+              <span class="n">ignore_others</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Consider that the quantity must be re-initialized before being</span>
+<span class="sd">        evaluated once again.</span>
+
+<span class="sd">        If shared cache is available, then it will be cleared first then all</span>
+<span class="sd">        identical quantities will be jointly reset.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method must be called right before performing any agent step,</span>
+<span class="sd">            otherwise this quantity will not be refreshed if it was evaluated</span>
+<span class="sd">            previously.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is not meant to be overloaded.</span>
+
+<span class="sd">        :param reset_tracking: Do not consider this quantity as active anymore</span>
+<span class="sd">                               until the `get` method gets called once again.</span>
+<span class="sd">                               Optional: False by default.</span>
+<span class="sd">        :param ignore_requirements:</span>
+<span class="sd">            Whether to skip reset reset of intermediary quantities.</span>
+<span class="sd">            Optional: False by default.</span>
+<span class="sd">        :param ignore_others:</span>
+<span class="sd">            Whether to ignore any shared cache co-owner quantity instances.</span>
+<span class="sd">            Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that auto-refresh can be honored</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_refresh</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Automatic refresh enabled but no shared cache is available. &quot;</span>
+                <span class="s2">&quot;Please add one before calling this method.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Reset all requirements first.</span>
+        <span class="c1"># This is necessary to avoid auto-refreshing quantities with deprecated</span>
+        <span class="c1"># cache if enabled.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_requirements</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">requirements</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">quantity</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset_tracking</span><span class="p">,</span>
+                               <span class="n">ignore_requirements</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                               <span class="n">ignore_others</span><span class="o">=</span><span class="n">ignore_others</span><span class="p">)</span>
+
+        <span class="c1"># No longer consider this exact instance as initialized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Skip reset if dynamic computation graph update is not allowed</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">is_simulation_running</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">allow_update_graph</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># No longer consider this exact instance as active if requested</span>
+        <span class="k">if</span> <span class="n">reset_tracking</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_active</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># More work must to be done if this quantity has a shared cache that</span>
+        <span class="c1"># has not been completely reset yet.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">sm_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_IS_RESET</span><span class="p">:</span>
+            <span class="c1"># Reset shared cache state machine first, to avoid triggering reset</span>
+            <span class="c1"># propagation to all identical quantities.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">ignore_auto_refresh</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                             <span class="n">reset_state_machine</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1"># Reset all identical quantities except itself since already done</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_others</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">owner</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">owners</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">owner</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">:</span>
+                        <span class="n">owner</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset_tracking</span><span class="o">=</span><span class="n">reset_tracking</span><span class="p">,</span>
+                                    <span class="n">ignore_requirements</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                    <span class="n">ignore_others</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1"># Reset shared cache afterward with auto-refresh enabled if needed</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">is_simulation_running</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">ignore_auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                 <span class="n">reset_state_machine</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InterfaceQuantity.initialize">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize internal buffers.</span>
+
+<span class="sd">        This is typically useful to refresh shared memory proxies or to</span>
+<span class="sd">        re-initialize pre-allocated buffers.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Intermediary quantities &#39;requirements&#39; are NOT initialized</span>
+<span class="sd">            automatically because they can be initialized lazily in most cases,</span>
+<span class="sd">            or are optional depending on the most efficient computation path at</span>
+<span class="sd">            run-time. It is up to the developer implementing quantities to take</span>
+<span class="sd">            care of it.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method must be called before starting a new episode.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            Lazy-initialization is used for efficiency, ie `initialize` will be</span>
+<span class="sd">            called before the first time `refresh` has to be called, which may</span>
+<span class="sd">            never be the case if cache is shared between multiple identical</span>
+<span class="sd">            instances of the same quantity.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># The quantity is now considered initialized and active unconditionally</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_initialized</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_active</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="InterfaceQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.InterfaceQuantity.refresh">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValueT</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate this quantity based on the agent state at the end of the</span>
+<span class="sd">        current agent step.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+</div>
+
+
+
+<span class="n">QuantityValueT_co</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;QuantityValueT_co&#39;</span><span class="p">,</span> <span class="n">covariant</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">QuantityCreator</span> <span class="o">=</span> <span class="n">Tuple</span><span class="p">[</span>
+    <span class="n">Type</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">QuantityValueT_co</span><span class="p">]],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span>
+
+
+<div class="viewcode-block" id="QuantityEvalMode">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.QuantityEvalMode">[docs]</a>
+<span class="k">class</span> <span class="nc">QuantityEvalMode</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specify on which state to evaluate a given quantity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">TRUE</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Current state of the environment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">REFERENCE</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;State of the reference trajectory at the current simulation time.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<span class="c1"># Define proxies for fast lookup</span>
+<span class="n">_TRUE</span><span class="p">,</span> <span class="n">_REFERENCE</span> <span class="o">=</span> <span class="n">QuantityEvalMode</span>
+
+
+<div class="viewcode-block" id="AbstractQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">AbstractQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">,</span> <span class="n">Generic</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for generic quantities involved observer-controller blocks,</span>
+<span class="sd">    reward components or termination conditions.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        A dataset of trajectories made available through `self.trajectories`.</span>
+<span class="sd">        The latter is synchronized because all quantities as long as shared</span>
+<span class="sd">        cached is available. At least one trajectory must be added to the</span>
+<span class="sd">        dataset and selected prior to using `QuantityEvalMode.REFERENCE`</span>
+<span class="sd">        evaluation mode since the dataset is initially empty by default.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `InterfaceQuantity` documentation for details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">mode</span><span class="p">:</span> <span class="n">QuantityEvalMode</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specify on which state to evaluate this quantity. See `QuantityEvalMode`</span>
+<span class="sd">    documentation for details about each mode.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Mode `REFERENCE` requires a reference trajectory to be selected</span>
+<span class="sd">        manually prior to evaluating this quantity for the first time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="n">requirements</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;QuantityCreator&quot;</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">mode</span><span class="p">:</span> <span class="n">QuantityEvalMode</span> <span class="o">=</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">,</span>
+                 <span class="n">auto_refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param requirements: Intermediary quantities on which this quantity</span>
+<span class="sd">                             depends for its evaluation, as a dictionary</span>
+<span class="sd">                             whose keys are tuple gathering their respective</span>
+<span class="sd">                             class plus any keyword-arguments of its</span>
+<span class="sd">                             constructor except &#39;env&#39; and &#39;parent&#39;.</span>
+<span class="sd">        :param mode: Desired mode of evaluation for this quantity. If mode is</span>
+<span class="sd">                     set to `QuantityEvalMode.TRUE`, then current simulation</span>
+<span class="sd">                     state will be used in dynamics computations. If mode is</span>
+<span class="sd">                     set to `QuantityEvalMode.REFERENCE`, then the state at the</span>
+<span class="sd">                     current simulation time of the selected reference</span>
+<span class="sd">                     trajectory will be used instead.</span>
+<span class="sd">        :param auto_refresh: Whether this quantity must be refreshed</span>
+<span class="sd">                             automatically as soon as its shared cache has been</span>
+<span class="sd">                             cleared if specified.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+
+        <span class="c1"># Make sure that no user-specified requirement is named &#39;trajectory&#39;</span>
+        <span class="n">requirement_names</span> <span class="o">=</span> <span class="n">requirements</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;trajectory&quot;</span> <span class="ow">in</span> <span class="n">requirement_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Key &#39;trajectory&#39; is reserved and cannot be used for &quot;</span>
+                <span class="s2">&quot;user-specified requirements.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that state requirement is valid if any or use default</span>
+        <span class="n">quantity</span> <span class="o">=</span> <span class="n">requirements</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;state&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">quantity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="n">quantity</span>
+            <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">StateQuantity</span><span class="p">)</span> <span class="ow">or</span>
+                    <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span> <span class="o">!=</span> <span class="n">mode</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Key &#39;state&#39; is reserved and can only be used to specify &quot;</span>
+                    <span class="s2">&quot;a `StateQuantity` requirement, as a way to give the &quot;</span>
+                    <span class="s2">&quot;opportunity to overwrite &#39;update_*&#39; default arguments.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">requirements</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">StateQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">))</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">requirements</span><span class="p">,</span> <span class="n">auto_refresh</span><span class="o">=</span><span class="n">auto_refresh</span><span class="p">)</span>
+
+        <span class="c1"># Add trajectory quantity proxy</span>
+        <span class="n">trajectory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">trajectory</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">DatasetTrajectoryQuantity</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trajectory</span> <span class="o">=</span> <span class="n">trajectory</span>
+
+        <span class="c1"># Robot for which the quantity must be evaluated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">robot</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">Model</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">createData</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AbstractQuantity.initialize">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.AbstractQuantity.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+        <span class="c1"># Try forcing initialization of state quantity if not already done</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">_is_initialized</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+                <span class="c1"># Revert state initialization</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset_tracking</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                 <span class="n">ignore_requirements</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                 <span class="n">ignore_others</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+                <span class="c1"># It may have failed because no simulation running, which may</span>
+                <span class="c1"># be problematic but not blocking at this point. Just checking</span>
+                <span class="c1"># that the pinocchio model has been properly initialized.</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">nq</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span>
+
+        <span class="c1"># Refresh robot proxy</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="n">StateQuantity</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">robot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">robot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pinocchio_data</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="sync">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.sync">[docs]</a>
+<span class="k">def</span> <span class="nf">sync</span><span class="p">(</span><span class="n">fun</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap any `InterfaceQuantity` instance method to forward call to all</span>
+<span class="sd">    co-owners of the same shared cache.</span>
+
+<span class="sd">    This wrapper is useful to keep all identical instances of the same quantity</span>
+<span class="sd">    in sync.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">fun</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">fun_safe</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">InterfaceQuantity</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Hijack instance for adding private an attribute tracking whether its</span>
+        <span class="c1"># internal state went out-of-sync between identical instances.</span>
+        <span class="c1"># Note that a local variable cannot be used because all synched methods</span>
+        <span class="c1"># must shared the same tracking state variable. Otherwise, one method</span>
+        <span class="c1"># may be flagged out-of-sync but not the others.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;__is_synched__&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__is_synched__</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span>  <span class="c1"># type: ignore[attr-defined]</span>
+
+        <span class="c1"># Check if quantity has cache but is already out-of-sync.</span>
+        <span class="c1"># Raise exception if it now has cache while it was not the case before.</span>
+        <span class="n">must_sync</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">owners</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__is_synched__</span> <span class="ow">and</span> <span class="n">must_sync</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;This quantity went out-of-sync. Make sure that no synched &quot;</span>
+                <span class="s2">&quot;method is called prior to setting shared cache.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__is_synched__</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span>  <span class="c1"># type: ignore[attr-defined]</span>
+
+        <span class="c1"># Call instance method on all co-owners of shared cache</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">owner</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">owners</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span> <span class="k">else</span> <span class="p">(</span><span class="bp">self</span><span class="p">,)):</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">owner</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">fun</span><span class="p">(</span>  <span class="c1"># type: ignore[func-returns-value]</span>
+                <span class="n">owner</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="s2">&quot;Only instance methods that returns `None` are supported.&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fun_safe</span></div>
+
+
+
+<div class="viewcode-block" id="DatasetTrajectoryQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">DatasetTrajectoryQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">State</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;This class manages a dataset of trajectories.</span>
+
+<span class="sd">    The dataset is empty by default. Trajectories must be added or discarded</span>
+<span class="sd">    manually. Only one trajectory can be selected at once. Once a trajectory</span>
+<span class="sd">    has been selecting, its state at the current simulation can be easily</span>
+<span class="sd">    retrieved.</span>
+
+<span class="sd">    This class supports trajectories for which only part of the attributes of</span>
+<span class="sd">    the underlying state sequence have been specified. Obviously, missing</span>
+<span class="sd">    attributes of a trajectory will also be missing from the retrieved state.</span>
+<span class="sd">    It is the responsibility of the practitioner to make sure that all the</span>
+<span class="sd">    information that is necessary for its own application is available.</span>
+
+<span class="sd">    All instances of this quantity sharing the same cache are synchronized,</span>
+<span class="sd">    which means that adding, discarding, or selecting a trajectory on any of</span>
+<span class="sd">    them would propagate on all the others.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">requirements</span><span class="o">=</span><span class="p">{},</span> <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Ordered set of named tuples (trajectory, mode) as a dictionary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span> <span class="n">OrderedDict</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Trajectory</span><span class="p">,</span> <span class="n">TrajectoryTimeMode</span><span class="p">]]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+        <span class="c1"># Whether the dataset is locked, ie no traj can be added/discarded</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Name of the trajectory that is currently selected</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="c1"># Selected trajectory and accompagnying mode if any</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
+            <span class="n">Tuple</span><span class="p">[</span><span class="n">Trajectory</span><span class="p">,</span> <span class="n">TrajectoryTimeMode</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Time offset between selected trajectory and simulation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset_ratio</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether a given trajectory name is part of the dataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate over the names of all the trajectories in the dataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Trajectory</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the desired trajectory in the dataset if available, raises an</span>
+<span class="sd">        exception otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">trajectory</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">trajectory</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Number of trajectory in the dataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the dataset of trajectory is currently empty.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_locked</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether this dataset is locked, which means that no additional</span>
+<span class="sd">        trajectories can be added nor discarded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Name of the trajectory that is currently selected.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">trajectory</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Trajectory</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Trajectory that is currently selected if any, raises an exception</span>
+<span class="sd">        otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that a trajectory has been selected</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No trajectory has been selected.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Return selected trajectory</span>
+        <span class="n">trajectory</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span>
+        <span class="k">return</span> <span class="n">trajectory</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TrajectoryTimeMode</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time wrapping mode of the trajectory that is currently selected.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that a trajectory has been selected</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No trajectory has been selected.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Return selected trajectory</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span>
+        <span class="k">return</span> <span class="n">mode</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">robot</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Robot associated with the selected trajectory.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">use_theoretical_model</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the selected trajectory is associated with the theoretical</span>
+<span class="sd">        dynamical model or extended simulation model of the robot.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trajectory</span><span class="o">.</span><span class="n">use_theoretical_model</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">time_offset_ratio</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Relative time offset between the current simulation time and the</span>
+<span class="sd">        selected trajectory.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset_ratio</span>
+
+    <span class="nd">@time_offset_ratio</span><span class="o">.</span><span class="n">setter</span>
+    <span class="nd">@sync</span>
+    <span class="k">def</span> <span class="nf">time_offset_ratio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set relative time offset between the current simulation time and the</span>
+<span class="sd">        trajectory being selected at query time.</span>
+
+<span class="sd">        :param value:</span>
+<span class="sd">            Enforces a given relative time offset between the current</span>
+<span class="sd">            simulation time and the trajectory. Note that 0.0 and 1.0</span>
+<span class="sd">            correspond to the initial and final time of the trajectory,</span>
+<span class="sd">            respectively. `None` to disable time shift.</span>
+<span class="sd">            Optional: `None` by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Update internal buffer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset_ratio</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="c1"># Refresh selected trajectory to update time offset and reset quantity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="nd">@InterfaceQuantity</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">setter</span>  <span class="c1"># type: ignore[attr-defined]</span>
+    <span class="k">def</span> <span class="nf">cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SharedCache</span><span class="p">[</span><span class="n">ValueT</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Get existing registry if any and making sure not already out-of-sync</span>
+        <span class="n">owner</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cache</span><span class="o">.</span><span class="n">owners</span><span class="p">:</span>
+            <span class="n">owner</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">owners</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">owner</span><span class="p">,</span> <span class="n">DatasetTrajectoryQuantity</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s2">&quot;Trajectory dataset not empty. Impossible to add a shared &quot;</span>
+                    <span class="s2">&quot;cache already having owners.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="n">InterfaceQuantity</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">fset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>  <span class="c1"># type: ignore[attr-defined]</span>
+
+        <span class="c1"># Catch-up synchronization</span>
+        <span class="k">if</span> <span class="n">owner</span><span class="p">:</span>
+            <span class="c1"># Shallow copy the original registry, so that deletion / addition</span>
+            <span class="c1"># does not propagate to other instances.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="o">=</span> <span class="n">owner</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">owner</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset_ratio</span> <span class="o">=</span> <span class="n">owner</span><span class="o">.</span><span class="n">_time_offset_ratio</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">owner</span><span class="o">.</span><span class="n">_name</span><span class="p">)</span>
+
+    <span class="nd">@sync</span>
+    <span class="k">def</span> <span class="nf">_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+             <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+             <span class="n">trajectory</span><span class="p">:</span> <span class="n">Trajectory</span><span class="p">,</span>
+             <span class="n">mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;raise&#39;</span><span class="p">,</span> <span class="s1">&#39;wrap&#39;</span><span class="p">,</span> <span class="s1">&#39;clip&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a trajectory to local internal registry only without performing</span>
+<span class="sd">        any validity check.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is used internally by `add` method. It is not meant to</span>
+<span class="sd">            be called manually.</span>
+
+<span class="sd">        :param name: Desired name of the trajectory.</span>
+<span class="sd">        :param trajectory: Trajectory instance to register.</span>
+<span class="sd">        :param mode: Specifies how to deal with query time of are out of the</span>
+<span class="sd">                     time interval of the trajectory. See `Trajectory.get`</span>
+<span class="sd">                     documentation for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DatasetTrajectoryQuantity.add">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.add">[docs]</a>
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">trajectory</span><span class="p">:</span> <span class="n">Trajectory</span><span class="p">,</span>
+            <span class="n">mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;raise&#39;</span><span class="p">,</span> <span class="s1">&#39;wrap&#39;</span><span class="p">,</span> <span class="s1">&#39;clip&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;raise&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Jointly add a trajectory to the local internal registry of all</span>
+<span class="sd">        instances sharing the same cache as this quantity.</span>
+
+<span class="sd">        :param name: Desired name of the trajectory. It must be unique. If a</span>
+<span class="sd">                     trajectory with the exact same name already exists, then</span>
+<span class="sd">                     it must be discarded first, so as to prevent silently</span>
+<span class="sd">                     overwriting it by mistake.</span>
+<span class="sd">        :param trajectory: Trajectory instance to register.</span>
+<span class="sd">        :param mode: Specifies how to deal with query time of are out of the</span>
+<span class="sd">                     time interval of the trajectory. See `Trajectory.get`</span>
+<span class="sd">                     documentation for details.</span>
+<span class="sd">                     Optional: &#39;raise&#39; by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the dataset is not locked</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Trajectory dataset already locked. Impossible to add any &quot;</span>
+                <span class="s2">&quot;trajectory.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that no trajectory with the exact same name already exists</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                <span class="s2">&quot;A trajectory with the exact same name already exists. Please &quot;</span>
+                <span class="s2">&quot;delete it first before adding a new one.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Allocate new dummy robot to avoid altering the simulation one</span>
+        <span class="k">if</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="p">:</span>
+            <span class="n">trajectory</span> <span class="o">=</span> <span class="n">replace</span><span class="p">(</span><span class="n">trajectory</span><span class="p">,</span> <span class="n">robot</span><span class="o">=</span><span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+
+        <span class="c1"># Add the same post-processed trajectory to all identical instances.</span>
+        <span class="c1"># Note that `add` must be splitted in two methods. A first part that</span>
+        <span class="c1"># applies some trajectory post-processing only once, and a second part</span>
+        <span class="c1"># that adds the post-processed trajectory to all identical quantities</span>
+        <span class="c1"># at once. It is absolutely essential to proceed this way, because it</span>
+        <span class="c1"># guarantees that the underlying trajectories are all references to the</span>
+        <span class="c1"># same memory, including `pinocchio_data`. This means that calling</span>
+        <span class="c1"># `update_quantities` will perform the update for all of them at once.</span>
+        <span class="c1"># Consequently, kinematics and dynamics quantities of all `State`</span>
+        <span class="c1"># instances will be up-to-date as long as `refresh` is called once for</span>
+        <span class="c1"># a given evaluation mode.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_add</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DatasetTrajectoryQuantity.discard">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.discard">[docs]</a>
+    <span class="nd">@sync</span>
+    <span class="k">def</span> <span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Jointly remove a trajectory from the local internal registry of all</span>
+<span class="sd">        instances sharing the same cache as this quantity.</span>
+
+<span class="sd">        :param name: Name of the trajectory to discard.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the dataset is not locked</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Trajectory dataset already locked. Impossible to discard any &quot;</span>
+                <span class="s2">&quot;trajectory.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Un-select trajectory if it corresponds to the discarded one</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="c1"># Delete trajectory for global registry</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="DatasetTrajectoryQuantity.clear">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.clear">[docs]</a>
+    <span class="nd">@sync</span>
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear the trajectory dataset from the local internal registry of all</span>
+<span class="sd">        instances sharing the same cache as this quantity.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the dataset is not locked</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Trajectory dataset already locked. Impossible to clear the &quot;</span>
+                <span class="s2">&quot;dataset.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Un-select trajectory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="c1"># Delete the whole registry</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
+
+
+    <span class="nd">@sync</span>
+    <span class="k">def</span> <span class="nf">_select</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select an existing trajectory from the dataset shared amongst all</span>
+<span class="sd">        managed quantities without resetting the quantity itself at this point.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This method is used internally by `select` method. It is not meant</span>
+<span class="sd">             o be called manually.</span>
+
+<span class="sd">        :param name: Name of the trajectory to select.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that at least one trajectory has been specified</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot select trajectory on a empty dataset.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Select the desired trajectory for all identical instances</span>
+        <span class="n">trajectory</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
+
+        <span class="c1"># Update the absolute time ratio</span>
+        <span class="n">time_start</span><span class="p">,</span> <span class="n">time_end</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">time_interval</span>
+        <span class="n">time_delta</span> <span class="o">=</span> <span class="n">time_end</span> <span class="o">-</span> <span class="n">time_start</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset</span> <span class="o">=</span> <span class="n">time_start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset_ratio</span> <span class="o">*</span> <span class="n">time_delta</span>
+
+<div class="viewcode-block" id="DatasetTrajectoryQuantity.select">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.select">[docs]</a>
+    <span class="k">def</span> <span class="nf">select</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select an existing trajectory from the dataset shared amongst all</span>
+<span class="sd">        managed quantities, then reset the quantity itself.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            There is no way to select a different reference trajectory for</span>
+<span class="sd">            individual quantities at the time being.</span>
+
+<span class="sd">        :param name: Name of the trajectory to select.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Update the selected trajectory for all the instances at once</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="c1"># Un-initialize all instances of this quantity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset_tracking</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DatasetTrajectoryQuantity.lock">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.lock">[docs]</a>
+    <span class="nd">@sync</span>
+    <span class="k">def</span> <span class="nf">lock</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forbid adding/discarding trajectories to the dataset from now on.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="DatasetTrajectoryQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.DatasetTrajectoryQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">State</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute state of selected trajectory at current simulation time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that a trajectory has been selected</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No trajectory has been selected.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get the query time</span>
+        <span class="n">time_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">stepper_state</span><span class="o">.</span><span class="n">t</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_offset</span>
+
+        <span class="c1"># Fetch the state at query time from the selected trajectory</span>
+        <span class="n">trajectory</span><span class="p">,</span> <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_mode_pair</span>
+        <span class="k">return</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">time_query</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="StateQuantity">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.StateQuantity">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">StateQuantity</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="n">State</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;State to consider when evaluating any quantity deriving from</span>
+<span class="sd">    `AbstractQuantity` using the same evaluation mode as this instance.</span>
+
+<span class="sd">    This quantity is refreshed automatically no matter what. This guarantees</span>
+<span class="sd">    that all low-level kinematics and dynamics quantities that can be computed</span>
+<span class="sd">    from the current state are up-to-date. More specifically, every quantities</span>
+<span class="sd">    would be up-to-date if the evaluation mode is `QuantityEvalMode.TRUE`,</span>
+<span class="sd">    while it would depends on the information available on the selected</span>
+<span class="sd">    trajectory if the evaluation mode is `QuantityEvalMode.REFERENCE`. See</span>
+<span class="sd">    `update_quantities` documentation for details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">mode</span><span class="p">:</span> <span class="n">QuantityEvalMode</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specify on which state to evaluate this quantity. See `QuantityEvalMode`</span>
+<span class="sd">    documentation for details about each mode.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Mode `REFERENCE` requires a reference trajectory to be selected</span>
+<span class="sd">        manually prior to evaluating this quantity for the first time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">mode</span><span class="p">:</span> <span class="n">QuantityEvalMode</span> <span class="o">=</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">,</span>
+                 <span class="n">update_kinematics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">update_dynamics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">update_centroidal</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">update_energy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">update_jacobian</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        :param mode: Desired mode of evaluation for this quantity. If mode is</span>
+<span class="sd">                     set to `QuantityEvalMode.TRUE`, then current simulation</span>
+<span class="sd">                     state will be used in dynamics computations. If mode is</span>
+<span class="sd">                     set to `QuantityEvalMode.REFERENCE`, then at the state of</span>
+<span class="sd">                     some reference trajectory at the current simulation time</span>
+<span class="sd">                     will be used instead.</span>
+<span class="sd">                     Optional: &#39;QuantityEvalMode.TRUE&#39; by default.</span>
+<span class="sd">        :param update_kinematics: Whether to update body and frame transforms,</span>
+<span class="sd">                                  spatial velocities and accelerations stored</span>
+<span class="sd">                                  in `self.pinocchio_data` if necessary to be</span>
+<span class="sd">                                  consistent with the current state of the</span>
+<span class="sd">                                  robot. This argument has no effect if mode is</span>
+<span class="sd">                                  set to `QuantityEvalMode.TRUE` because this</span>
+<span class="sd">                                  property is already guarantee.</span>
+<span class="sd">                                  Optional: False by default.</span>
+<span class="sd">        :param update_dynamics: Whether to update the non-linear effects and</span>
+<span class="sd">                                the joint internal forces stored in</span>
+<span class="sd">                                `self.pinocchio_data` if necessary.</span>
+<span class="sd">                                Optional: False by default.</span>
+<span class="sd">        :param update_centroidal: Whether to update the centroidal dynamics</span>
+<span class="sd">                                  (incl. CoM) stored in `self.pinocchio_data`</span>
+<span class="sd">                                  if necessary.</span>
+<span class="sd">                                  Optional: True by default.</span>
+<span class="sd">        :param update_energy: Whether to update the potential and kinematic</span>
+<span class="sd">                              energy stored in `self.pinocchio_data` if</span>
+<span class="sd">                              necessary.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        :param update_jacobian: Whether to update the joint Jacobian matrices</span>
+<span class="sd">                                stored in `self.pinocchio_data` if necessary.</span>
+<span class="sd">                                Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Make sure that the input arguments are valid</span>
+        <span class="n">update_kinematics</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">update_kinematics</span> <span class="ow">or</span> <span class="n">update_dynamics</span> <span class="ow">or</span> <span class="n">update_centroidal</span> <span class="ow">or</span>
+            <span class="n">update_energy</span> <span class="ow">or</span> <span class="n">update_jacobian</span><span class="p">)</span>
+
+        <span class="c1"># Backup user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_kinematics</span> <span class="o">=</span> <span class="n">update_kinematics</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_dynamics</span> <span class="o">=</span> <span class="n">update_dynamics</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_centroidal</span> <span class="o">=</span> <span class="n">update_centroidal</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_energy</span> <span class="o">=</span> <span class="n">update_energy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_jacobian</span> <span class="o">=</span> <span class="n">update_jacobian</span>
+
+        <span class="c1"># Enable auto-refresh based on the evaluation mode</span>
+        <span class="c1"># Note that it is necessary to auto-refresh this quantity, as it is the</span>
+        <span class="c1"># one responsible for making sure that dynamics quantities are always</span>
+        <span class="c1"># up-to-date when refreshing quantities. The latter are involved one</span>
+        <span class="c1"># way of the other in the computation of any quantity, which means that</span>
+        <span class="c1"># pre-computing it does not induce any unnecessary computations as long</span>
+        <span class="c1"># as the user fetches the value of at least one quantity.</span>
+        <span class="c1"># Although this assumption is very likely to be true at the step update</span>
+        <span class="c1"># period, it is not the case at the observer update period. It sounds</span>
+        <span class="c1"># more efficient refresh to the state the first time any quantity gets</span>
+        <span class="c1"># computed. However, systematically checking if the state must be</span>
+        <span class="c1"># refreshed for all quantities adds overhead and may be fairly costly</span>
+        <span class="c1"># overall. The optimal trade-off is to rely on auto-refresh if the</span>
+        <span class="c1"># evaluation mode is TRUE, since refreshing the state only consists in</span>
+        <span class="c1"># copying some data, which is very cheap. On the contrary, it is more</span>
+        <span class="c1"># efficient to only refresh the state when needed if the evaluation</span>
+        <span class="c1"># mode is TRAJ.</span>
+        <span class="c1"># * Update state: 500ns (TRUE) | 5.0us (TRAJ)</span>
+        <span class="c1"># * Check cache state: 70ns</span>
+        <span class="n">auto_refresh</span> <span class="o">=</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span>
+
+        <span class="c1"># Call base implementation.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">,</span>
+            <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">trajectory</span><span class="o">=</span><span class="p">(</span><span class="n">DatasetTrajectoryQuantity</span><span class="p">,</span> <span class="p">{})),</span>
+            <span class="n">auto_refresh</span><span class="o">=</span><span class="n">auto_refresh</span><span class="p">)</span>
+
+        <span class="c1"># Robot for which the quantity must be evaluated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">robot</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+        <span class="c1"># State for which the quantity must be evaluated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">State</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]))</span>
+
+        <span class="c1"># Persistent buffer for storing body external forces if necessary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_vec</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">StdVec_Force</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_slices</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+
+        <span class="c1"># Persistent buffer storing all lambda multipliers for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+        <span class="c1"># Slices in stacked lambda multiplier flat vector</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_slices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Lambda multipliers of all the constraints individually</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Whether to update kinematic and dynamic data to be consistent with</span>
+        <span class="c1"># the current state of the robot, based on the requirement of all the</span>
+        <span class="c1"># co-owners of shared cache.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_kinematics</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_dynamics</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_centroidal</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_energy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_jacobian</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="StateQuantity.initialize">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.StateQuantity.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Determine which data must be update based on shared cache co-owners</span>
+        <span class="n">owners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">owners</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span> <span class="k">else</span> <span class="p">(</span><span class="bp">self</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_kinematics</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_dynamics</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_centroidal</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_energy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_jacobian</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">owner</span> <span class="ow">in</span> <span class="n">owners</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_kinematics</span> <span class="o">|=</span> <span class="n">owner</span><span class="o">.</span><span class="n">update_kinematics</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_dynamics</span> <span class="o">|=</span> <span class="n">owner</span><span class="o">.</span><span class="n">update_dynamics</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_centroidal</span> <span class="o">|=</span> <span class="n">owner</span><span class="o">.</span><span class="n">update_centroidal</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_energy</span> <span class="o">|=</span> <span class="n">owner</span><span class="o">.</span><span class="n">update_energy</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_jacobian</span> <span class="o">|=</span> <span class="n">owner</span><span class="o">.</span><span class="n">update_jacobian</span>
+
+        <span class="c1"># Backup previous robot, which will be used to check if it has changed</span>
+        <span class="n">robot_prev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span>
+
+        <span class="c1"># Update pinocchio model and data proxies</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">robot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span>
+            <span class="n">use_theoretical_model</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">robot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span>
+            <span class="n">use_theoretical_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trajectory</span><span class="o">.</span><span class="n">use_theoretical_model</span>
+        <span class="k">if</span> <span class="n">use_theoretical_model</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data_th</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+        <span class="c1"># Refresh robot and pinocchio proxies for co-owners of shared cache.</span>
+        <span class="c1"># Note that automatic refresh is not sufficient to guarantee that</span>
+        <span class="c1"># `initialize` will be called unconditionally, because it will be</span>
+        <span class="c1"># skipped if a value is already stored in cache. As a result, it is</span>
+        <span class="c1"># necessary to synchronize calls to this method between co-owners of</span>
+        <span class="c1"># the shared cache manually, so that it will be called by the first</span>
+        <span class="c1"># instance to found the cache empty. Only the necessary bits are</span>
+        <span class="c1"># synchronized instead of the whole method, to avoid messing up with</span>
+        <span class="c1"># computation graph tracking.</span>
+        <span class="k">for</span> <span class="n">owner</span> <span class="ow">in</span> <span class="n">owners</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">owner</span><span class="p">,</span> <span class="n">StateQuantity</span><span class="p">)</span>
+            <span class="n">owner</span><span class="o">.</span><span class="n">robot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span>
+            <span class="n">owner</span><span class="o">.</span><span class="n">pinocchio_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span>
+            <span class="n">owner</span><span class="o">.</span><span class="n">pinocchio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_data</span>
+
+        <span class="c1"># Early-return if the main cache owner is already initialized</span>
+        <span class="n">owner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_owner</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_cache</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">owner</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">owner</span><span class="o">.</span><span class="n">_is_initialized</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Call base implementation.</span>
+        <span class="c1"># The quantity will be considered initialized and active at this point.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+        <span class="c1"># Raise exception is not simulation is running</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">is_simulation_running</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No simulation running. Impossible to &quot;</span>
+                                   <span class="s2">&quot;initialize this quantity.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Early return if a complete refresh is not necessary.</span>
+        <span class="c1"># Note that memory is systematically re-allocated for `robot_state` at</span>
+        <span class="c1"># every reset, which must that proxies must always be reset in TRUE</span>
+        <span class="c1"># evaluation mode, even if the robot did not changed. On the contrary,</span>
+        <span class="c1"># it is safe to assume that the options of the robot are never</span>
+        <span class="c1"># updated in REFERENCE evaluation mode. As a result, it is sufficient</span>
+        <span class="c1"># to check that its address did not changed since last reset.</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">REFERENCE</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">robot</span> <span class="ow">is</span> <span class="n">robot_prev</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_list</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Refresh proxies and allocate memory for storing external forces</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot_state</span><span class="o">.</span><span class="n">f_external</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_vec</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">StdVec_Force</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_vec</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+                <span class="n">pin</span><span class="o">.</span><span class="n">Force</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">njoints</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">f_ext</span><span class="o">.</span><span class="n">vector</span> <span class="k">for</span> <span class="n">f_ext</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_vec</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">njoints</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_slices</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_f_external_batch</span><span class="p">)</span>
+
+        <span class="c1"># Allocate memory for lambda vector</span>
+        <span class="n">constraint_fieldnames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">log_constraint_fieldnames</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">constraint_fieldnames</span><span class="p">),))</span>
+
+        <span class="c1"># Refresh mapping from lambda multipliers to corresponding slice</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_list</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_slices</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">constraint_lookup_pairs</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Constraint</span><span class="si">{</span><span class="n">registry_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">registry</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">registry_type</span><span class="p">,</span> <span class="n">registry</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="p">(</span><span class="s2">&quot;BoundJoints&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">bounds_joints</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;ContactFrames&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">contact_frames</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;CollisionBodies&quot;</span><span class="p">,</span> <span class="p">{</span>
+                    <span class="n">name</span><span class="p">:</span> <span class="n">constraint</span> <span class="k">for</span> <span class="n">constraints</span> <span class="ow">in</span> <span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">collision_bodies</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">constraint</span> <span class="ow">in</span> <span class="n">constraints</span><span class="o">.</span><span class="n">items</span><span class="p">()}),</span>
+                <span class="p">(</span><span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">user</span><span class="p">)))</span>
+
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">constraint_fieldnames</span><span class="p">):</span>
+            <span class="n">fieldname</span> <span class="o">=</span> <span class="n">constraint_fieldnames</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">registry_type</span><span class="p">,</span> <span class="n">registry</span> <span class="ow">in</span> <span class="n">constraint_lookup_pairs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">fieldname</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">registry_type</span><span class="p">):</span>
+                    <span class="k">break</span>
+            <span class="n">constraint_name</span> <span class="o">=</span> <span class="n">fieldname</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">registry_type</span><span class="p">):</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">constraint</span> <span class="o">=</span> <span class="n">registry</span><span class="p">[</span><span class="n">constraint_name</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">constraint</span><span class="o">.</span><span class="n">lambda_c</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_batch</span><span class="p">[</span><span class="n">i</span><span class="p">:(</span><span class="n">i</span> <span class="o">+</span> <span class="n">constraint</span><span class="o">.</span><span class="n">size</span><span class="p">)])</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="c1"># Allocate state for which the quantity must be evaluated if needed</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">State</span><span class="p">(</span>
+                <span class="mf">0.0</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot_state</span><span class="o">.</span><span class="n">q</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot_state</span><span class="o">.</span><span class="n">v</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot_state</span><span class="o">.</span><span class="n">a</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot_state</span><span class="o">.</span><span class="n">u</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot_state</span><span class="o">.</span><span class="n">command</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_batch</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_batch</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StateQuantity.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/bases/quantities.html#gym_jiminy.common.bases.quantities.StateQuantity.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">State</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the current state depending on the mode of evaluation, and</span>
+<span class="sd">        make sure that kinematics and dynamics quantities are up-to-date.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">_TRUE</span><span class="p">:</span>
+            <span class="c1"># Update the current simulation time</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">stepper_state</span><span class="o">.</span><span class="n">t</span>
+
+            <span class="c1"># Update external forces and constraint multipliers in state buffer</span>
+            <span class="n">multi_array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_f_external_slices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_list</span><span class="p">)</span>
+            <span class="n">multi_array_copyto</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_slices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_list</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trajectory</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+            <span class="c1"># Copy body external forces from stacked buffer to force vector</span>
+            <span class="n">has_forces</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">f_external</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">has_forces</span><span class="p">:</span>
+                <span class="n">array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_f_external_batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">f_external</span><span class="p">)</span>
+                <span class="n">multi_array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_f_external_list</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_slices</span><span class="p">)</span>
+
+            <span class="c1"># Update all dynamical quantities that can be given available data</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_kinematics</span><span class="p">:</span>
+                <span class="n">update_quantities</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">q</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">v</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">a</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_f_external_vec</span> <span class="k">if</span> <span class="n">has_forces</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">update_dynamics</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_update_dynamics</span><span class="p">,</span>
+                    <span class="n">update_centroidal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_update_centroidal</span><span class="p">,</span>
+                    <span class="n">update_energy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_update_energy</span><span class="p">,</span>
+                    <span class="n">update_jacobian</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_update_jacobian</span><span class="p">,</span>
+                    <span class="n">update_collisions</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">use_theoretical_model</span><span class="o">=</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">trajectory</span><span class="o">.</span><span class="n">use_theoretical_model</span><span class="p">))</span>
+
+            <span class="c1"># Restore lagrangian multipliers of the constraints if available</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">lambda_c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">array_copyto</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">lambda_c</span><span class="p">)</span>
+                <span class="n">multi_array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_list</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">_constraint_lambda_slices</span><span class="p">)</span>
+
+        <span class="c1"># Return state</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

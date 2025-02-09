@@ -1,0 +1,281 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>motors &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="controller" href="controller.html" />
+    <link rel="prev" title="sensors" href="sensors.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Jiminy Python API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">core</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="constraints.html">analytical constraints</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">motors</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.AbstractMotor"><code class="docutils literal notranslate"><span class="pre">AbstractMotor</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.SimpleMotor"><code class="docutils literal notranslate"><span class="pre">SimpleMotor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="controller.html">controller</a></li>
+<li class="toctree-l3"><a class="reference internal" href="engine.html">engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utilities.html">utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../simulator.html">simulator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../viewer.html">viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../log.html">log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">plot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dynamics.html">dynamics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Jiminy Python API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">core</a></li>
+      <li class="breadcrumb-item active">motors</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/api/jiminy_py/core/motors.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="motors">
+<h1>motors<a class="headerlink" href="#motors" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">AbstractMotor</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>Raises an exception
+This class cannot be instantiated from Python</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.armature">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">armature</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.armature" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; float:</p>
+<p>Rotor inertia of the motor on joint side.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.backlash">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">backlash</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.backlash" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; float:</p>
+<p>Backlash of the transmission on joint side.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.effort_limit">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">effort_limit</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.effort_limit" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; float:</p>
+<p>Maximum effort of the motor.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.get_options">
+<span class="sig-name descname"><span class="pre">get_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractMotor)arg1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.get_options" title="Link to this definition">¶</a></dt>
+<dd><p>Configuration options of the sensor.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">index</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.index" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; int:</p>
+<p>Index of the sensor of the global shared buffer.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.is_attached">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_attached</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.is_attached" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; bool:</p>
+<p>Whether the sensor has been attached to a robot.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.is_initialized">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_initialized</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.is_initialized" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; bool:</p>
+<p>Whether the sensor has been initialized.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that a sensor can be considered initialized even if its telemetry is not
+properly configured. If not, it must be done before being ready to use.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.joint_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">joint_index</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.joint_index" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; int:</p>
+<p>Index of the joint associated with the motor in the kinematic tree.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.joint_name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">joint_name</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.joint_name" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; str:</p>
+<p>Name of the joint associated with the motor.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.name" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; str:</p>
+<p>Name of the sensor.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.position_limit_lower">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">position_limit_lower</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.position_limit_lower" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; float:</p>
+<p>Maximum position of the actuated joint translated on motor side.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.position_limit_upper">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">position_limit_upper</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.position_limit_upper" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; float:</p>
+<p>Minimum position of the actuated joint translated on motor side.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.set_options">
+<span class="sig-name descname"><span class="pre">set_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(AbstractMotor)arg1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)arg2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.set_options" title="Link to this definition">¶</a></dt>
+<dd><p>Set the configuration options of the motor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>motorOptions</strong> – Dictionary with the parameters of the motor.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.AbstractMotor.velocity_limit">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">velocity_limit</span></span><a class="headerlink" href="#jiminy_py.core.AbstractMotor.velocity_limit" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.AbstractMotor)self) -&gt; float:</p>
+<p>Maximum velocity of the motor.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.SimpleMotor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">SimpleMotor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)motor_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.SimpleMotor" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#jiminy_py.core.AbstractMotor" title="jiminy_py.core.AbstractMotor"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractMotor</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.SimpleMotor.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(SimpleMotor)arg1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)arg2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.SimpleMotor.initialize" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sensors.html" class="btn btn-neutral float-left" title="sensors" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="controller.html" class="btn btn-neutral float-right" title="controller" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

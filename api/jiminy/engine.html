@@ -1,0 +1,567 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>engine &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="utilities" href="utilities.html" />
+    <link rel="prev" title="controller" href="controller.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Jiminy C++ API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html">analytical constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="motors.html">motors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controller.html">controller</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">engine</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy16ContactModelTypeE"><code class="docutils literal notranslate"><span class="pre">ContactModelType</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16ContactModelType11UNSUPPORTEDE"><code class="docutils literal notranslate"><span class="pre">ContactModelType::UNSUPPORTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16ContactModelType13SPRING_DAMPERE"><code class="docutils literal notranslate"><span class="pre">ContactModelType::SPRING_DAMPER</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy16ContactModelType10CONSTRAINTE"><code class="docutils literal notranslate"><span class="pre">ContactModelType::CONSTRAINT</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy20ConstraintSolverTypeE"><code class="docutils literal notranslate"><span class="pre">ConstraintSolverType</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy20ConstraintSolverType11UNSUPPORTEDE"><code class="docutils literal notranslate"><span class="pre">ConstraintSolverType::UNSUPPORTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy20ConstraintSolverType3PGSE"><code class="docutils literal notranslate"><span class="pre">ConstraintSolverType::PGS</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForceE"><code class="docutils literal notranslate"><span class="pre">ProfileForce</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForce12ProfileForceEv"><code class="docutils literal notranslate"><span class="pre">ProfileForce::ProfileForce()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForce12ProfileForceERKNSt6stringEN9pinocchio10FrameIndexEdRK20ProfileForceFunction"><code class="docutils literal notranslate"><span class="pre">ProfileForce::ProfileForce()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForce9frameNameE"><code class="docutils literal notranslate"><span class="pre">ProfileForce::frameName</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForce10frameIndexE"><code class="docutils literal notranslate"><span class="pre">ProfileForce::frameIndex</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForce12updatePeriodE"><code class="docutils literal notranslate"><span class="pre">ProfileForce::updatePeriod</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForce5forceE"><code class="docutils literal notranslate"><span class="pre">ProfileForce::force</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ProfileForce4funcE"><code class="docutils literal notranslate"><span class="pre">ProfileForce::func</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForceE"><code class="docutils literal notranslate"><span class="pre">ImpulseForce</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForce12ImpulseForceEv"><code class="docutils literal notranslate"><span class="pre">ImpulseForce::ImpulseForce()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForce12ImpulseForceERKNSt6stringEN9pinocchio10FrameIndexEddRKN9pinocchio5ForceE"><code class="docutils literal notranslate"><span class="pre">ImpulseForce::ImpulseForce()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForce9frameNameE"><code class="docutils literal notranslate"><span class="pre">ImpulseForce::frameName</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForce10frameIndexE"><code class="docutils literal notranslate"><span class="pre">ImpulseForce::frameIndex</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForce1tE"><code class="docutils literal notranslate"><span class="pre">ImpulseForce::t</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForce2dtE"><code class="docutils literal notranslate"><span class="pre">ImpulseForce::dt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12ImpulseForce5forceE"><code class="docutils literal notranslate"><span class="pre">ImpulseForce::force</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForceE"><code class="docutils literal notranslate"><span class="pre">CouplingForce</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce13CouplingForceEv"><code class="docutils literal notranslate"><span class="pre">CouplingForce::CouplingForce()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce13CouplingForceERKNSt6stringENSt9ptrdiff_tERKNSt6stringENSt9ptrdiff_tERKNSt6stringEN9pinocchio10FrameIndexERKNSt6stringEN9pinocchio10FrameIndexERK21CouplingForceFunction"><code class="docutils literal notranslate"><span class="pre">CouplingForce::CouplingForce()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce10robotName1E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::robotName1</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce11robotIndex1E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::robotIndex1</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce10robotName2E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::robotName2</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce11robotIndex2E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::robotIndex2</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce10frameName1E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::frameName1</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce11frameIndex1E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::frameIndex1</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce10frameName2E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::frameName2</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce11frameIndex2E"><code class="docutils literal notranslate"><span class="pre">CouplingForce::frameIndex2</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy13CouplingForce4funcE"><code class="docutils literal notranslate"><span class="pre">CouplingForce::func</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy10RobotStateE"><code class="docutils literal notranslate"><span class="pre">RobotState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState10initializeERK5Robot"><code class="docutils literal notranslate"><span class="pre">RobotState::initialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy10RobotState16getIsInitializedEv"><code class="docutils literal notranslate"><span class="pre">RobotState::getIsInitialized()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState5clearEv"><code class="docutils literal notranslate"><span class="pre">RobotState::clear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState1qE"><code class="docutils literal notranslate"><span class="pre">RobotState::q</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState1vE"><code class="docutils literal notranslate"><span class="pre">RobotState::v</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState1aE"><code class="docutils literal notranslate"><span class="pre">RobotState::a</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState7commandE"><code class="docutils literal notranslate"><span class="pre">RobotState::command</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState1uE"><code class="docutils literal notranslate"><span class="pre">RobotState::u</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState6uMotorE"><code class="docutils literal notranslate"><span class="pre">RobotState::uMotor</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState13uTransmissionE"><code class="docutils literal notranslate"><span class="pre">RobotState::uTransmission</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState9uInternalE"><code class="docutils literal notranslate"><span class="pre">RobotState::uInternal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState7uCustomE"><code class="docutils literal notranslate"><span class="pre">RobotState::uCustom</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy10RobotState9fExternalE"><code class="docutils literal notranslate"><span class="pre">RobotState::fExternal</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy12StepperStateE"><code class="docutils literal notranslate"><span class="pre">StepperState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState5resetEdRKNSt6vectorIN5Eigen8VectorXdEEERKNSt6vectorIN5Eigen8VectorXdEEERKNSt6vectorIN5Eigen8VectorXdEEE"><code class="docutils literal notranslate"><span class="pre">StepperState::reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState4iterE"><code class="docutils literal notranslate"><span class="pre">StepperState::iter</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState10iterFailedE"><code class="docutils literal notranslate"><span class="pre">StepperState::iterFailed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState1tE"><code class="docutils literal notranslate"><span class="pre">StepperState::t</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState5tPrevE"><code class="docutils literal notranslate"><span class="pre">StepperState::tPrev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState6tErrorE"><code class="docutils literal notranslate"><span class="pre">StepperState::tError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState2dtE"><code class="docutils literal notranslate"><span class="pre">StepperState::dt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState9dtLargestE"><code class="docutils literal notranslate"><span class="pre">StepperState::dtLargest</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState13dtLargestPrevE"><code class="docutils literal notranslate"><span class="pre">StepperState::dtLargestPrev</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState6qSplitE"><code class="docutils literal notranslate"><span class="pre">StepperState::qSplit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState6vSplitE"><code class="docutils literal notranslate"><span class="pre">StepperState::vSplit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy12StepperState6aSplitE"><code class="docutils literal notranslate"><span class="pre">StepperState::aSplit</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="utilities.html">utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Jiminy C++ API</a></li>
+      <li class="breadcrumb-item active">engine</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/api/jiminy/engine.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="engine">
+<h1>engine<a class="headerlink" href="#engine" title="Link to this heading">¶</a></h1>
+<dl class="cpp enum-class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16ContactModelTypeE">
+<span class="target" id="namespacejiminy_1aa2f15a2d3d916c6d39128a7c2d87c208"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-prename descclassname"><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">ContactModelType</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">uint8_t</span></span><a class="headerlink" href="#_CPPv4N6jiminy16ContactModelTypeE" title="Link to this definition">¶</a><br /></dt>
+<dd><p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16ContactModelType11UNSUPPORTEDE">
+<span class="target" id="namespacejiminy_1aa2f15a2d3d916c6d39128a7c2d87c208a40aa75f8e8cfdf7b660c5620e953229f"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">UNSUPPORTED</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy16ContactModelType11UNSUPPORTEDE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16ContactModelType13SPRING_DAMPERE">
+<span class="target" id="namespacejiminy_1aa2f15a2d3d916c6d39128a7c2d87c208a1f32531ee9516767bc18337488c87f67"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SPRING_DAMPER</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy16ContactModelType13SPRING_DAMPERE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy16ContactModelType10CONSTRAINTE">
+<span class="target" id="namespacejiminy_1aa2f15a2d3d916c6d39128a7c2d87c208ae0f588affe0abe2e0565de8a962c4502"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">CONSTRAINT</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy16ContactModelType10CONSTRAINTE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="cpp enum-class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy20ConstraintSolverTypeE">
+<span class="target" id="namespacejiminy_1aa2694ecef96d777853abc86709863119"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-prename descclassname"><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">ConstraintSolverType</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">uint8_t</span></span><a class="headerlink" href="#_CPPv4N6jiminy20ConstraintSolverTypeE" title="Link to this definition">¶</a><br /></dt>
+<dd><p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy20ConstraintSolverType11UNSUPPORTEDE">
+<span class="target" id="namespacejiminy_1aa2694ecef96d777853abc86709863119a40aa75f8e8cfdf7b660c5620e953229f"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">UNSUPPORTED</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy20ConstraintSolverType11UNSUPPORTEDE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy20ConstraintSolverType3PGSE">
+<span class="target" id="namespacejiminy_1aa2694ecef96d777853abc86709863119a27eb8b9c1e2bbaa238edca6206308db0"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">PGS</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy20ConstraintSolverType3PGSE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForceE">
+<span class="target" id="structjiminy_1_1_profile_force"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ProfileForce</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForceE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForce12ProfileForceEv">
+<span class="target" id="structjiminy_1_1_profile_force_1a83332df83fa1a0484926faef44174ddc"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ProfileForce</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForce12ProfileForceEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForce12ProfileForceERKNSt6stringEN9pinocchio10FrameIndexEdRK20ProfileForceFunction">
+<span class="target" id="structjiminy_1_1_profile_force_1a3f53094aa718556ac3546600c4c0d42b"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ProfileForce</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">frameNameIn</span></span>, <span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">frameIndexIn</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">updatePeriodIn</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">ProfileForceFunction</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">forceFuncIn</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForce12ProfileForceERKNSt6stringEN9pinocchio10FrameIndexEdRK20ProfileForceFunction" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForce9frameNameE">
+<span class="target" id="structjiminy_1_1_profile_force_1a114ec99c61f0261636392171a2b78d8e"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameName</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForce9frameNameE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForce10frameIndexE">
+<span class="target" id="structjiminy_1_1_profile_force_1a2f1279ad5fa53cd321f8ba662f93e990"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameIndex</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForce10frameIndexE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForce12updatePeriodE">
+<span class="target" id="structjiminy_1_1_profile_force_1a61c753df1ff40d0d05ac225d243e8e8a"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">updatePeriod</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0.0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForce12updatePeriodE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForce5forceE">
+<span class="target" id="structjiminy_1_1_profile_force_1acfd768b6921a01717b62be66784a0eb5"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Force</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">force</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Force</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Zero</span></span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForce5forceE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ProfileForce4funcE">
+<span class="target" id="structjiminy_1_1_profile_force_1aa5f3941b9cfa4be16e87b9dbb8b3cf36"></span><span class="n"><span class="pre">ProfileForceFunction</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">func</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ProfileForce4funcE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForceE">
+<span class="target" id="structjiminy_1_1_impulse_force"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ImpulseForce</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForceE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForce12ImpulseForceEv">
+<span class="target" id="structjiminy_1_1_impulse_force_1a50b49e5a0d254181172a7e374cd10b29"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ImpulseForce</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForce12ImpulseForceEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForce12ImpulseForceERKNSt6stringEN9pinocchio10FrameIndexEddRKN9pinocchio5ForceE">
+<span class="target" id="structjiminy_1_1_impulse_force_1ab6cbd5a194ed2f9600ae4dc4098f1940"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ImpulseForce</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">frameNameIn</span></span>, <span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">frameIndexIn</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">tIn</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">dtIn</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Force</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">forceIn</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForce12ImpulseForceERKNSt6stringEN9pinocchio10FrameIndexEddRKN9pinocchio5ForceE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForce9frameNameE">
+<span class="target" id="structjiminy_1_1_impulse_force_1a6c559d3c2f4d2e3c8b1966ed4ee9f756"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameName</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForce9frameNameE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForce10frameIndexE">
+<span class="target" id="structjiminy_1_1_impulse_force_1a4d28c4c042c2b077dfa6f5dee05a7455"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameIndex</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForce10frameIndexE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForce1tE">
+<span class="target" id="structjiminy_1_1_impulse_force_1a730d81889c81958020294489bf0da3aa"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">t</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0.0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForce1tE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForce2dtE">
+<span class="target" id="structjiminy_1_1_impulse_force_1a3b2d3497c952311f040a92ea337166ca"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">dt</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0.0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForce2dtE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12ImpulseForce5forceE">
+<span class="target" id="structjiminy_1_1_impulse_force_1ad3e71d9e299b25df87d49b313ecf31c4"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Force</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">force</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12ImpulseForce5forceE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForceE">
+<span class="target" id="structjiminy_1_1_coupling_force"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">CouplingForce</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForceE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce13CouplingForceEv">
+<span class="target" id="structjiminy_1_1_coupling_force_1aa760bc7b0a98be22232baaf09ab7e39b"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">CouplingForce</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce13CouplingForceEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce13CouplingForceERKNSt6stringENSt9ptrdiff_tERKNSt6stringENSt9ptrdiff_tERKNSt6stringEN9pinocchio10FrameIndexERKNSt6stringEN9pinocchio10FrameIndexERK21CouplingForceFunction">
+<span class="target" id="structjiminy_1_1_coupling_force_1a848a23de404e6c2f73c07cc3b5cfa368"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">CouplingForce</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">robotName1In</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">ptrdiff_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">robotIndex1In</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">robotName2In</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">ptrdiff_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">robotIndex2In</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">frameName1In</span></span>, <span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">frameIndex1In</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">frameName2In</span></span>, <span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">frameIndex2In</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">CouplingForceFunction</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">forceFunIn</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce13CouplingForceERKNSt6stringENSt9ptrdiff_tERKNSt6stringENSt9ptrdiff_tERKNSt6stringEN9pinocchio10FrameIndexERKNSt6stringEN9pinocchio10FrameIndexERK21CouplingForceFunction" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce10robotName1E">
+<span class="target" id="structjiminy_1_1_coupling_force_1ab97350b08da032771aaad9e795db78af"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">robotName1</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce10robotName1E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce11robotIndex1E">
+<span class="target" id="structjiminy_1_1_coupling_force_1a715f395d77801b24878eebd3174c6107"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">ptrdiff_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">robotIndex1</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">1</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce11robotIndex1E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce10robotName2E">
+<span class="target" id="structjiminy_1_1_coupling_force_1a39d0dc7f5e012741cbae7d360913317a"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">robotName2</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce10robotName2E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce11robotIndex2E">
+<span class="target" id="structjiminy_1_1_coupling_force_1a19717de5557e085e5957db96836e854f"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">ptrdiff_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">robotIndex2</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">1</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce11robotIndex2E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce10frameName1E">
+<span class="target" id="structjiminy_1_1_coupling_force_1a1793251777d3492a2a0f027d0ea3bbf6"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameName1</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce10frameName1E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce11frameIndex1E">
+<span class="target" id="structjiminy_1_1_coupling_force_1a22566e39468565af30c52e4b3f5b62f6"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameIndex1</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce11frameIndex1E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce10frameName2E">
+<span class="target" id="structjiminy_1_1_coupling_force_1aeef68f3ef067dcb4079d7074f8d704d8"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameName2</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce10frameName2E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce11frameIndex2E">
+<span class="target" id="structjiminy_1_1_coupling_force_1ae470fd330ebd87562809d6a38e1cab74"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">FrameIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frameIndex2</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce11frameIndex2E" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy13CouplingForce4funcE">
+<span class="target" id="structjiminy_1_1_coupling_force_1aab612178d33c91b305119973a8d9322a"></span><span class="n"><span class="pre">CouplingForceFunction</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">func</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy13CouplingForce4funcE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotStateE">
+<span class="target" id="structjiminy_1_1_robot_state"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">RobotState</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotStateE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState10initializeERK5Robot">
+<span class="target" id="structjiminy_1_1_robot_state_1a58375d6e95035ace75958dd483295300"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">initialize</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="robot.html#_CPPv4N6jiminy5RobotE" title="jiminy::Robot"><span class="n"><span class="pre">Robot</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">robot</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState10initializeERK5Robot" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy10RobotState16getIsInitializedEv">
+<span class="target" id="structjiminy_1_1_robot_state_1ae8f9ff2dfd830c9aa6a3952c4691bece"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getIsInitialized</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy10RobotState16getIsInitializedEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState5clearEv">
+<span class="target" id="structjiminy_1_1_robot_state_1a6e27e605c3941495b806a2006c08110f"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">clear</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState5clearEv" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState1qE">
+<span class="target" id="structjiminy_1_1_robot_state_1ab3b1fd9f2706c98f7e5df3430459e713"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">q</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState1qE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState1vE">
+<span class="target" id="structjiminy_1_1_robot_state_1aad048a38804d14ece6a195eac7fd305e"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">v</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState1vE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState1aE">
+<span class="target" id="structjiminy_1_1_robot_state_1a18808e720db0f0c517276fef6f27cd3d"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">a</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState1aE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState7commandE">
+<span class="target" id="structjiminy_1_1_robot_state_1a17de46c422916e8061f3691d8c6e96c5"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">command</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState7commandE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState1uE">
+<span class="target" id="structjiminy_1_1_robot_state_1a64061b5ee37a1d7a55b4277127efe7be"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">u</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState1uE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState6uMotorE">
+<span class="target" id="structjiminy_1_1_robot_state_1aa371ddeb9bc81fe5d5dcc74d757daeb6"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">uMotor</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState6uMotorE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState13uTransmissionE">
+<span class="target" id="structjiminy_1_1_robot_state_1ae395a368634c83f8a4fd8a66f79076f4"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">uTransmission</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState13uTransmissionE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState9uInternalE">
+<span class="target" id="structjiminy_1_1_robot_state_1a8112356a226c7bdf0480751e6716f331"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">uInternal</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState9uInternalE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState7uCustomE">
+<span class="target" id="structjiminy_1_1_robot_state_1a08de0ce3a5198691b37e26d4c4eea541"></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">uCustom</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState7uCustomE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy10RobotState9fExternalE">
+<span class="target" id="structjiminy_1_1_robot_state_1addde8d5237c432c14d0a686508225061"></span><span class="n"><span class="pre">ForceVector</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">fExternal</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy10RobotState9fExternalE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperStateE">
+<span class="target" id="structjiminy_1_1_stepper_state"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">StepperState</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperStateE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState5resetEdRKNSt6vectorIN5Eigen8VectorXdEEERKNSt6vectorIN5Eigen8VectorXdEEERKNSt6vectorIN5Eigen8VectorXdEEE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a30f1830ecda487d0adc1fd7ccc76ab38"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">dtInit</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">qSplitInit</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">vSplitInit</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">aSplitInit</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState5resetEdRKNSt6vectorIN5Eigen8VectorXdEEERKNSt6vectorIN5Eigen8VectorXdEEERKNSt6vectorIN5Eigen8VectorXdEEE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState4iterE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a5c50cdb35eb3c37e1422fd42b8fa64aa"></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">iter</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0U</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState4iterE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState10iterFailedE">
+<span class="target" id="structjiminy_1_1_stepper_state_1aa9c2ca0afa2a6962a4f27227390e5c63"></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">iterFailed</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0U</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState10iterFailedE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState1tE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a81d1fe09c3f8552a59ea0cf40ee08584"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">t</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0.0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState1tE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState5tPrevE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a7d461de8aa8260bbf8c9a250b810b0e4"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">tPrev</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0.0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState5tPrevE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState6tErrorE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a19216f9e2fb42ceebf0cfb336f61a481"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">tError</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0.0</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState6tErrorE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Internal buffer used for Kahan algorithm storing the residual sum of errors. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState2dtE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a7315b579fea2d39c2975839fc76905f6"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">dt</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="n"><span class="pre">INF</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState2dtE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState9dtLargestE">
+<span class="target" id="structjiminy_1_1_stepper_state_1acb5c428cd1fc9373ca7eae951f0d5c01"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">dtLargest</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="n"><span class="pre">INF</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState9dtLargestE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState13dtLargestPrevE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a4a6677f83446c6ae22a4104c154757dc"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">dtLargestPrev</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="n"><span class="pre">INF</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState13dtLargestPrevE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState6qSplitE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a1938b7765902c2304d2d3e9810f24248"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">qSplit</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState6qSplitE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState6vSplitE">
+<span class="target" id="structjiminy_1_1_stepper_state_1acc6855583d0f7120d4945472ce4c02c9"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">vSplit</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState6vSplitE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy12StepperState6aSplitE">
+<span class="target" id="structjiminy_1_1_stepper_state_1a2e44faf24a58236ee3897c12f6313c49"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">aSplit</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy12StepperState6aSplitE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenstruct: Cannot find class “jiminy::Engine” in doxygen xml output for project “jiminy” from directory: /home/runner/work/jiminy/jiminy/build/doxygen/xml</p>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="controller.html" class="btn btn-neutral float-left" title="controller" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="utilities.html" class="btn btn-neutral float-right" title="utilities" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

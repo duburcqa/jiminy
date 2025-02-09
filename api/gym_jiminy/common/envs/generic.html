@@ -1,0 +1,1268 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generic &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Locomotion" href="locomotion.html" />
+    <link rel="prev" title="Envs" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Envs</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Generic</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv"><code class="docutils literal notranslate"><span class="pre">BaseJiminyEnv</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="locomotion.html">Locomotion</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Envs</a></li>
+      <li class="breadcrumb-item active">Generic</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/envs/generic.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.envs.generic">
+<span id="generic"></span><h1>Generic<a class="headerlink" href="#module-gym_jiminy.common.envs.generic" title="Link to this heading">¶</a></h1>
+<p>Generic gym environment specifically tailored to work with Jiminy Simulator
+as backend physics engine, and Jiminy Viewer as 3D visualizer. It implements
+the official OpenAI Gym API and extended it to add more functionalities.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.envs.generic.</span></span><span class="sig-name descname"><span class="pre">BaseJiminyEnv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simulator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simulation_duration_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">86400.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">render_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceJiminyEnv</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>]</p>
+<p>Base class to train an agent in Gym OpenAI using Jiminy simulator for
+physics computations.</p>
+<p>It creates an Gym environment wrapping an already instantiated Jiminy
+simulator and behaves like any standard Gym environment.</p>
+<p>The observation space is a dictionary gathering the current simulation
+time, the real robot state, and the sensors data. The action is a vector
+gathering the torques of the actuator of the robot.</p>
+<p>There is no reward by default. It is up to the user to overload this class
+to implement one. It has been designed to be highly flexible and easy to
+customize by overloading it to fit the vast majority of users’ needs.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In evaluation or debug modes, log files of the simulations are
+automatically written in the default temporary file directory of the
+system. Writing is triggered by calling <cite>stop</cite> manually or upon reset,
+right before starting the next episode. The path of the lof file
+assocciated with a given is stored under key <cite>log_path</cite> of the extra
+<cite>info</cite> output when calling <cite>reset</cite>. The user is responsible for
+deleting manually old log files if necessary.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>simulator</strong> (<a class="reference internal" href="../../../jiminy_py/simulator.html#jiminy_py.simulator.Simulator" title="jiminy_py.simulator.Simulator"><em>Simulator</em></a>) – Jiminy Python simulator used for physics
+computations. It must be fully initialized.</p></li>
+<li><p><strong>step_dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Environment timestep for learning. Note that it is
+independent from the controller and observation update
+periods. The latter are configured via
+<cite>engine.set_options</cite>.</p></li>
+<li><p><strong>simulation_duration_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Maximum duration of a simulation. If the current simulation time
+exceeds this threshold, then it will triggers <cite>is_truncated=True</cite>.
+It cannot exceed the maximum possible duration before telemetry
+log time overflow which is extremely large (about 30 years). Beware
+that log data are stored in RAM, which may cause out-of-memory
+error if the episode is lasting for too long without reset.
+Optional: About 4GB of log data assuming 5ms control update period
+and telemetry disabled for everything but the robot configuration.</p></li>
+<li><p><strong>render_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Desired rendering mode, ie “human” or “rgb_array”.
+If “human” is specified, calling <cite>render</cite> will open
+a graphical window for visualization, otherwise a
+rgb image is returned, as a 3D numpy array whose
+first dimension are the 3 red, green, blue channels
+and the two subsequent dimensions are the pixel
+height and weight respectively. <cite>None</cite> to select
+automatically the most appropriate mode based on
+the user-specified rendering backend if any, or the
+machine environment. Note that “rgb_array” does not
+require a graphical window manager.
+Optional: None by default.</p></li>
+<li><p><strong>debug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the debug mode must be enabled. Doing it enables
+telemetry recording.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments that may be useful for derived
+environments with multiple inheritance, and to allow
+automatic pipeline wrapper generation.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.simulator">
+<span class="sig-name descname"><span class="pre">simulator</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../../../jiminy_py/simulator.html#jiminy_py.simulator.Simulator" title="jiminy_py.simulator.Simulator"><span class="pre">Simulator</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.simulator" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.render_mode">
+<span class="sig-name descname"><span class="pre">render_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.render_mode" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.stepper_state">
+<span class="sig-name descname"><span class="pre">stepper_state</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">jiminy.StepperState</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.stepper_state" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.is_simulation_running">
+<span class="sig-name descname"><span class="pre">is_simulation_running</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">npt.NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">np.bool_</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.is_simulation_running" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.robot">
+<span class="sig-name descname"><span class="pre">robot</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">jiminy.Robot</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.robot" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.robot_state">
+<span class="sig-name descname"><span class="pre">robot_state</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">jiminy.RobotState</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.robot_state" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.derived">
+<span class="sig-name descname"><span class="pre">derived</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><span class="pre">InterfaceJiminyEnv</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.derived" title="Link to this definition">¶</a></dt>
+<dd><p>Top-most block from which this environment is part of when leveraging
+modular pipeline design capability.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.log_fieldnames">
+<span class="sig-name descname"><span class="pre">log_fieldnames</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Mapping</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldNested</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.log_fieldnames" title="Link to this definition">¶</a></dt>
+<dd><p>Fielnames associated with all the variables that have been recorded to
+the telemetry by any of the layer of the whole pipeline environment.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.np_random">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">np_random</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Generator</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.np_random" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the environment’s internal <a class="reference internal" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random" title="gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random"><code class="xref py py-attr docutils literal notranslate"><span class="pre">_np_random</span></code></a> that if not set will initialise with a random seed.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Instances of <cite>np.random.Generator</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.num_steps">
+<span class="sig-name descname"><span class="pre">num_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">npt.NDArray</span><span class="p"><span class="pre">[</span></span><span class="pre">np.int64</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.num_steps" title="Link to this definition">¶</a></dt>
+<dd><p>Number of simulation steps that has been performed since last reset of
+the base environment.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The counter is incremented before updating the observation at the end
+of the step, and consequently, before evaluating the reward and the
+termination conditions.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.quantities">
+<span class="sig-name descname"><span class="pre">quantities</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../quantities/manager.html#gym_jiminy.common.quantities.manager.QuantityManager" title="gym_jiminy.common.quantities.manager.QuantityManager"><span class="pre">QuantityManager</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.quantities" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.observation">
+<span class="sig-name descname"><span class="pre">observation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Obs</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.observation" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.action">
+<span class="sig-name descname"><span class="pre">action</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Act</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.action" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_action_space">
+<span class="sig-name descname"><span class="pre">_initialize_action_space</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._initialize_action_space"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_action_space" title="Link to this definition">¶</a></dt>
+<dd><p>Configure the action space of the environment.</p>
+<p>The action is a vector gathering the torques of the actuator of the
+robot.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is called internally by <cite>reset</cite> method. It is not
+meant to be overloaded since the actual action space of the
+robot is uniquely defined.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_seed">
+<span class="sig-name descname"><span class="pre">_initialize_seed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._initialize_seed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_seed" title="Link to this definition">¶</a></dt>
+<dd><p>Specify the seed of the environment.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is not meant to be called manually.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It also resets the low-level jiminy Engine. Therefore one must call
+the <cite>reset</cite> method afterward.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Random seed, as a positive integer.
+Optional: A strongly random seed will be generated by gym
+if omitted.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Updated seed of the environment</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.register_variable">
+<span class="sig-name descname"><span class="pre">register_variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fieldnames</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_eval_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.register_variable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.register_variable" title="Link to this definition">¶</a></dt>
+<dd><p>Register variable to the telemetry.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Variables are registered by reference. Consequently, the user is
+responsible to manage the lifetime of the data to prevent it from
+being garbage collected.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>gym_jiminy.common.utils.register_variables</cite> for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Base name of the variable. It will be used to prepend
+fields, using ‘.’ delimiter.</p></li>
+<li><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>ndarray</em>) – Variable to register. It supports any nested data
+structure whose leaves have type <cite>np.ndarray</cite> and either
+dtype <cite>np.float64</cite> or <cite>np.int64</cite>.</p></li>
+<li><p><strong>fieldnames</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><em>StructNested</em><em>[</em><em>ValueT</em><em>]</em><em>] </em><em>| </em><em>None</em>) – Nested fieldnames with the exact same data structure
+as the variable to register ‘value’. Individual
+elements of each leaf array must have its own
+fieldname, all gathered in a nested tuple with the
+same shape of the array.
+Optional: Generic fieldnames will be generated
+automatically.</p></li>
+<li><p><strong>namespace</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Namespace used to prepend the base name ‘name’, using
+‘.’ delimiter. Empty string to disable.
+Optional: Disabled by default.</p></li>
+<li><p><strong>is_eval_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to register the variable to the telemetry
+only in evaluation mode.
+Optional: True by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.set_wrapper_attr">
+<span class="sig-name descname"><span class="pre">set_wrapper_attr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.set_wrapper_attr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.set_wrapper_attr" title="Link to this definition">¶</a></dt>
+<dd><p>Assign an attribute to a specified value in the first layer of the
+pipeline environment for which it already exists, from this wrapper to
+the base environment. If the attribute does not exist in any layer, it
+is directly added to this wrapper.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the attribute.</p></li>
+<li><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Desired value of the attribute.</p></li>
+<li><p><strong>force</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.viewer_kwargs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">viewer_kwargs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.viewer_kwargs" title="Link to this definition">¶</a></dt>
+<dd><p>Default keyword arguments for the instantiation of the viewer, e.g.
+when <cite>render</cite> method is first called.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The default argument <cite>backend</cite> is ignored if a backend is already
+up and running, even if no viewer has been instantiated for the
+environment at hand in particular.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.step_dt">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">step_dt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.step_dt" title="Link to this definition">¶</a></dt>
+<dd><p>Get timestep of a single ‘step’.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.unwrapped">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">unwrapped</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv" title="gym_jiminy.common.envs.generic.BaseJiminyEnv"><span class="pre">BaseJiminyEnv</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.unwrapped" title="Link to this definition">¶</a></dt>
+<dd><p>The “underlying environment at the basis of the pipeline from which
+this environment is part of.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.training">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.training" title="Link to this definition">¶</a></dt>
+<dd><p>Check whether the environment is in training or evaluation mode.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.train" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the environment in training or evaluation mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to set training (True) or evaluation mode (False).
+Optional: <cite>True</cite> by default.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._update_pipeline">
+<span class="sig-name descname"><span class="pre">_update_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">derived</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._update_pipeline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._update_pipeline" title="Link to this definition">¶</a></dt>
+<dd><p>Dynamically update which blocks are declared as part of the
+environment pipeline.</p>
+<p>Internally, this method first unregister all blocks of the old
+pipeline, then register all blocks of the new pipeline, and finally
+notify the base environment that the top-most block of the pipeline as
+changed and must be updated accordingly.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not supposed to be called manually nor overloaded.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>derived</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em> | </em><em>None</em>) – Either the top-most block of the pipeline or None.
+If None, unregister all blocks of the old pipeline. If
+not None, first unregister all blocks of the old
+pipeline, then register all blocks of the new pipeline.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Reset the environment.</p>
+<p>In practice, it resets the backend simulator and set the initial state
+of the robot. The initial state is obtained by calling ‘_sample_state’.
+This method is also in charge of setting the initial action (at the
+beginning) and observation (at the end).</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It starts the simulation immediately. As a result, it is not
+possible to change the robot (included options), nor to register
+log variable.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Random seed, as a positive integer.
+Optional: <cite>None</cite> by default. If <cite>None</cite>, then the internal
+random generator of the environment will be kept as-is,
+without updating its seed.</p></li>
+<li><p><strong>options</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><em>None</em>) – Additional information to specify how the environment
+is reset. The field ‘reset_hook’ is reserved for
+chaining multiple <cite>BasePipelineWrapper</cite>. It is not
+meant to be defined manually.
+Optional: None by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initial observation of the episode and some auxiliary
+information for debugging or monitoring purpose.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ndarray</em>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.close" title="Link to this definition">¶</a></dt>
+<dd><p>Clean up the environment after the user has finished using it.</p>
+<p>It terminates the Python Jiminy engine.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Calling <cite>reset</cite> or <cite>step</cite> afterward is an undefined behavior.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.step" title="Link to this definition">¶</a></dt>
+<dd><p>Integration timestep of the environment’s dynamics under prescribed
+agent’s action over a single timestep, i.e. collect one transition step
+of the underlying Markov Decision Process of the learning problem.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>When reaching the end of an episode (<code class="docutils literal notranslate"><span class="pre">terminated</span> <span class="pre">or</span> <span class="pre">truncated</span></code>),
+it is necessary to reset the environment for starting a new episode
+before being able to do steps once again.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>action</strong> (<em>Act</em>) – Action performed by the agent during the ongoing step.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>observation (ObsType) - The next observation of the environment’s
+as a result of taking agent’s action.</p></li>
+<li><p>reward (float): the reward associated with the transition step.</p></li>
+<li><p>terminated (bool): Whether the agent reaches the terminal state,
+which means success or failure depending of the MDP of the task.</p></li>
+<li><p>truncated (bool): Whether some truncation condition outside the
+scope of the MDP is satisfied. This can be used to end an episode
+prematurely before a terminal state is reached, for instance if
+the agent’s state is going out of bounds.</p></li>
+<li><p>info (dict): Contains auxiliary information that may be helpful
+for debugging and monitoring. This might, for instance, contain:
+metrics that describe the agent’s performance state, variables
+that are hidden from observations, or individual reward terms
+from which the total reward is derived.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ndarray</em>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.stop" title="Link to this definition">¶</a></dt>
+<dd><p>Stop the underlying simulation completely.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method has nothing to do with termination and/or truncation of
+episodes. Calling it manually should never be necessary for
+collecting samples during training.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is mainly intended for evaluation analysis and
+debugging. Stopping the episode is only necessary for switching
+between training and evaluation mode, and to log the final state,
+otherwise it will be missing from plots and viewer replay (see
+<cite>InterfaceJiminyEnv.log_data</cite> for details). Moreover, sensor data
+will not be available when calling <cite>replay</cite>. The helper method
+<cite>jiminy_py.viewer.replay.play_logs_data</cite> must be preferred to
+replay an episode that cannot be stopped.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Resuming a simulation is not supported, which means that calling
+<cite>reset</cite> to start a new simulation is necessary prior to calling
+<cite>step</cite> once again. Falling to do so will trigger an exception.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.render">
+<span class="sig-name descname"><span class="pre">render</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.render"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.render" title="Link to this definition">¶</a></dt>
+<dd><p>Render the agent in its environment.</p>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version This: </span>method does not take input arguments anymore due to changes of
+the official <cite>gym.Wrapper</cite> API. A workaround is to set
+<cite>simulator.viewer_kwargs</cite> beforehand. Alternatively, it is possible
+to call the low-level implementation <cite>simulator.render</cite> directly to
+avoid API restrictions.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>RGB array if ‘render_mode’ is ‘rgb_array’, None otherwise.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>RenderFrame</em> | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a>[<em>RenderFrame</em>] | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable_block_states</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.plot" title="Link to this definition">¶</a></dt>
+<dd><p>Plot figures of simulation data over time associated with the
+ongoing episode until now if any, the previous one otherwise.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>enable_block_states</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to display the internal state of
+all blocks.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward to <cite>simulator.plot</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="../../../jiminy_py/plot.html#jiminy_py.plot.TabbedFigure" title="jiminy_py.plot.TabbedFigure"><em>TabbedFigure</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.replay">
+<span class="sig-name descname"><span class="pre">replay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.replay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.replay" title="Link to this definition">¶</a></dt>
+<dd><p>Replay the ongoing episode until now if any, the previous one
+otherwise.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward to
+<cite>jiminy_py.viewer.replay.play_trajectories</cite>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.evaluate">
+<span class="sig-name descname"><span class="pre">evaluate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_replay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.evaluate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.evaluate" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate a policy on the environment over a complete episode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It ignores any top-level <cite>gym.Wrapper</cite> that may be used for
+training but are not considered part of the environment pipeline.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy_fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>Obs</em><em>, </em><em>Act</em><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>]</em><em>, </em><em>Act</em><em>]</em>) – Policy to evaluate as a callback function. It must have the
+following signature (**rew** = None at reset):<div class="line-block">
+<div class="line">policy_fn(<strong>obs</strong>: Obs,</div>
+<div class="line-block">
+<div class="line"><strong>action_prev</strong>: Optional[Act],</div>
+<div class="line"><strong>reward</strong>: Optional[float],</div>
+<div class="line"><strong>terminated</strong>: bool,</div>
+<div class="line"><strong>truncated</strong>: bool,</div>
+<div class="line"><strong>info</strong>: InfoType</div>
+<div class="line">) -&gt; Act  # <strong>action</strong></div>
+</div>
+</div>
+</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Seed of the environment to be used for the evaluation of
+the policy.
+Optional: <cite>None</cite> by default. If not specified, then a
+strongly random seed will be generated by gym.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><em>None</em>) – Horizon of the simulation before early termination.
+<cite>None</cite> to disable.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>enable_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to print high-level statistics after the
+simulation.
+Optional: Enabled by default.</p></li>
+<li><p><strong>enable_replay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether to enable replay of the simulation, and
+eventually recording if the extra
+keyword argument <cite>record_video_path</cite> is provided.
+Optional: Enabled by default if display is
+available, disabled otherwise.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward to the <cite>replay</cite>
+method if replay is requested.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>]]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.play_interactive">
+<span class="sig-name descname"><span class="pre">play_interactive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable_travelling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_paused</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_is_done</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.play_interactive"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.play_interactive" title="Link to this definition">¶</a></dt>
+<dd><p>Interact evaluation mode where the robot or the world itself are
+actively “controlled” via keyboard inputs, with real-time rendering.</p>
+<p>This method is not available for all pipeline environments. When it
+does, the available interactions and keyboard mapping is completely
+implementation-specific. Please refer to the documentation of the base
+environment being considered for details.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It ignores any top-level <cite>gym.Wrapper</cite> that may be used for
+training but are not considered part of the pipeline environment.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>enable_travelling</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether enable travelling, following the
+motion of the root frame of the model. This
+parameter is ignored if the model has no
+freeflyer.
+Optional: Enabled by default iif ‘panda3d’
+viewer backend is used.</p></li>
+<li><p><strong>start_paused</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to start in pause.
+Optional: Enabled by default.</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to display status messages.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Implementation-specific extra keyword arguments if any.</p></li>
+<li><p><strong>enable_is_done</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._setup">
+<span class="sig-name descname"><span class="pre">_setup</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._setup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._setup" title="Link to this definition">¶</a></dt>
+<dd><p>Configure the environment. It must guarantee that its internal state
+is valid after calling this method.</p>
+<p>By default, it enforces some options of the engine.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Beware this method is called BEFORE <cite>observe_dt</cite> and
+<cite>controller_dt</cite> are properly set, so one cannot rely on it at this
+point. Yet, <cite>step_dt</cite> is available and should always be. One can
+still access the low-level controller update period through
+<cite>engine_options[‘stepper’][‘controllerUpdatePeriod’]</cite>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The user must overload this method to enforce custom observer
+update period, otherwise it will be the same of the controller.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called internally by <cite>reset</cite> methods.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_observation_space">
+<span class="sig-name descname"><span class="pre">_initialize_observation_space</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._initialize_observation_space"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_observation_space" title="Link to this definition">¶</a></dt>
+<dd><p>Configure the observation of the environment.</p>
+<p>By default, the observation is a dictionary gathering the current
+simulation time, the real agent state, and the sensors data.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called internally by <cite>reset</cite> method at the very end,
+just before computing and returning the initial observation. This
+method, alongside <cite>refresh_observation</cite>, must be overwritten in
+order to define a custom observation space.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._neutral">
+<span class="sig-name descname"><span class="pre">_neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._neutral" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a neutral valid configuration for the agent.</p>
+<p>The default implementation returns the neutral configuration if valid,
+the “mean” configuration otherwise (right in the middle of the position
+lower and upper bounds).</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Beware there is no guarantee for this configuration to be
+statically stable.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called internally by ‘_sample_state’ to generate the
+initial state. It can be overloaded to ensure static stability of
+the configuration.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._sample_state">
+<span class="sig-name descname"><span class="pre">_sample_state</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._sample_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._sample_state" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a randomized yet valid configuration and velocity for the
+robot.</p>
+<p>The default implementation returns the neutral configuration and zero
+velocity.</p>
+<p>Offsets are applied on the freeflyer to ensure no contact points are
+going through the ground and up to three are in contact.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called internally by <cite>reset</cite> to generate the initial
+state. It can be overloaded to act as a random state generator.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<em>ndarray</em>, <em>ndarray</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_buffers">
+<span class="sig-name descname"><span class="pre">_initialize_buffers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._initialize_buffers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._initialize_buffers" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize internal buffers for fast access to shared memory or to
+avoid redundant computations.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called at every <cite>reset</cite>, right after
+<cite>self.simulator.start</cite>. At this point, the simulation is running
+but <cite>refresh_observation</cite> has never been called, so that it can be
+used to initialize buffers involving the engine state but required
+to refresh the observation.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Buffers requiring manual update must be refreshed using
+<cite>_refresh_buffers</cite> method.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not appropriate for initializing buffers involved in
+<cite>compute_command</cite>. At the time being, there is no better way that
+taking advantage of the flag <cite>self.is_simulation_running</cite> in the
+method <cite>compute_command</cite> itself.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._refresh_buffers">
+<span class="sig-name descname"><span class="pre">_refresh_buffers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._refresh_buffers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._refresh_buffers" title="Link to this definition">¶</a></dt>
+<dd><p>Refresh internal buffers that must be updated manually.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called after every internal <cite>engine.step</cite> and before
+refreshing the observation one last time. As such, it is the right
+place to update shared data between <cite>has_terminated</cite> and
+<cite>compute_reward</cite>. However, it is not appropriate for quantities
+involved in <cite>refresh_observation</cite> not <cite>compute_command</cite>, which may
+be called more often than once per step.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><cite>_initialize_buffers</cite> method can be used to initialize buffers that
+may requires special care.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Be careful when using this method to update buffers involved in
+<cite>refresh_observation</cite>. The latter is called at <cite>self.observe_dt</cite>
+update period, while this method is called at <cite>self.step_dt</cite> update
+period. <cite>self.observe_dt</cite> is likely to be different from
+<cite>self.step_dt</cite>, unless configured manually when overloading
+<cite>_setup</cite> method.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._abc_impl">
+<span class="sig-name descname"><span class="pre">_abc_impl</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;_abc._abc_data</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._abc_impl" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._controller_handle">
+<span class="sig-name descname"><span class="pre">_controller_handle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sensor_measurements</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._controller_handle" title="Link to this definition">¶</a></dt>
+<dd><p>Thin wrapper around user-specified <cite>refresh_observation</cite> and
+<cite>compute_command</cite> methods.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The internal cache of managed quantities is cleared right away
+systematically, before anything else.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not supposed to be called manually nor overloaded.
+It will be used by the base environment to instantiate a
+<cite>jiminy.FunctionalController</cite> responsible for both refreshing
+observations and compute commands of all the way through a given
+pipeline in the correct order of the blocks to finally sends
+command motor torques directly to the robot.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Current simulation time.</p></li>
+<li><p><strong>q</strong> (<em>ndarray</em>) – Current extended configuration vector of the robot.</p></li>
+<li><p><strong>v</strong> (<em>ndarray</em>) – Current actual velocity vector of the robot.</p></li>
+<li><p><strong>sensor_measurements</strong> (<a class="reference internal" href="../../../jiminy_py/core/sensors.html#jiminy_py.core.SensorMeasurementTree" title="jiminy_py.core.SensorMeasurementTree"><em>SensorMeasurementTree</em></a>) – Current sensor measurements.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Output argument corresponding to motors torques to
+apply on the robot. It must be updated by reference
+using <cite>[:]</cite> or <cite>np.copyto</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Motors torques to apply on the robot.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random">
+<span class="sig-name descname"><span class="pre">_np_random</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">np.random.Generator</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random_seed">
+<span class="sig-name descname"><span class="pre">_np_random_seed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random_seed" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._observer_handle">
+<span class="sig-name descname"><span class="pre">_observer_handle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sensor_measurements</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._observer_handle" title="Link to this definition">¶</a></dt>
+<dd><p>Thin wrapper around user-specified <cite>refresh_observation</cite> method.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method is not supposed to be called manually nor overloaded.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Current simulation time.</p></li>
+<li><p><strong>q</strong> (<em>ndarray</em>) – Current extended configuration vector of the robot.</p></li>
+<li><p><strong>v</strong> (<em>ndarray</em>) – Current extended velocity vector of the robot.</p></li>
+<li><p><strong>sensor_measurements</strong> (<a class="reference internal" href="../../../jiminy_py/core/sensors.html#jiminy_py.core.SensorMeasurementTree" title="jiminy_py.core.SensorMeasurementTree"><em>SensorMeasurementTree</em></a>) – Current sensor data.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.compute_reward">
+<span class="sig-name descname"><span class="pre">compute_reward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.compute_reward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the reward related to a specific control block, plus extra
+information that may be helpful for monitoring or debugging purposes.</p>
+<p>For the corresponding MDP to be stationary, the computation of the
+reward is supposed to involve only the transition from previous to
+current state of the simulation (possibly comprising multiple agents)
+under the ongoing action.</p>
+<p>By default, it returns 0.0 without extra information no matter what.
+The user is expected to provide an appropriate reward on its own,
+either by overloading this method or by wrapping the environment with
+<cite>ComposedJiminyEnv</cite> for modular environment pipeline design.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode has reached the terminal state
+of the MDP at the current step. This flag can be
+used to compute a specific terminal reward.</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Aggregated reward for the current step.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.control_dt">
+<span class="sig-name descname"><span class="pre">control_dt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.control_dt" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.eval">
+<span class="sig-name descname"><span class="pre">eval</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.eval" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the environment in evaluation mode.</p>
+<p>This only has an effect on certain environments. It can be used for
+instance to enable clipping or filtering of the action at evaluation
+time specifically. See documentations of a given environment for
+details about their behaviors in training and evaluation modes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.get_wrapper_attr">
+<span class="sig-name descname"><span class="pre">get_wrapper_attr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.get_wrapper_attr" title="Link to this definition">¶</a></dt>
+<dd><p>Gets the attribute <cite>name</cite> from the environment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.has_wrapper_attr">
+<span class="sig-name descname"><span class="pre">has_wrapper_attr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.has_wrapper_attr" title="Link to this definition">¶</a></dt>
+<dd><p>Checks if the attribute <cite>name</cite> exists in the environment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.log_data">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">log_data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.log_data" title="Link to this definition">¶</a></dt>
+<dd><p>Get log data associated with the ongoing simulation if any, the
+previous one otherwise.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>Simulator.log_data</cite> documentation for details.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_modes':</span> <span class="pre">['rgb_array']}</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.metadata" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.np_random_seed">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">np_random_seed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.np_random_seed" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the environment’s internal <a class="reference internal" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random_seed" title="gym_jiminy.common.envs.generic.BaseJiminyEnv._np_random_seed"><code class="xref py py-attr docutils literal notranslate"><span class="pre">_np_random_seed</span></code></a> that if not set will first initialise with a random int as seed.</p>
+<p>If <a class="reference internal" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.np_random_seed" title="gym_jiminy.common.envs.generic.BaseJiminyEnv.np_random_seed"><code class="xref py py-attr docutils literal notranslate"><span class="pre">np_random_seed</span></code></a> was set directly instead of through <a class="reference internal" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.reset" title="gym_jiminy.common.envs.generic.BaseJiminyEnv.reset"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reset()</span></code></a> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">set_np_random_through_seed()</span></code>,
+the seed will take the value -1.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: the seed of the current <cite>np_random</cite> or -1, if the seed of the rng is unknown</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.observe_dt">
+<span class="sig-name descname"><span class="pre">observe_dt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.observe_dt" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.refresh_observation">
+<span class="sig-name descname"><span class="pre">refresh_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">measurement</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.refresh_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.refresh_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the observation based on the current state of the robot.</p>
+<p>In practice, it updates the internal buffer directly for the sake of
+efficiency.</p>
+<p>By default, it sets the observation to the value of the measurement,
+which would not work unless <cite>Obs</cite> corresponds to <cite>EngineObsType</cite>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called and the end of every low-level <cite>Engine.step</cite>.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method may be called without any simulation running, either
+to perform basic consistency checking or allocate and initialize
+buffers. There is no way at the time being to distinguish the
+initialization stage in particular. A workaround consists in
+checking whether the simulation already started. It is not exactly
+the same but it does the job regarding preserving efficiency.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>One must only rely on <cite>measurement</cite> to get the state of the robot,
+as anything else is not reliable for this. More specifically,
+<cite>self.robot_state</cite> would not be valid if an adaptive stepper is
+being used for physics integration.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>measurement</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.EngineObsType" title="gym_jiminy.common.bases.interfaces.EngineObsType"><em>EngineObsType</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.spec">
+<span class="sig-name descname"><span class="pre">spec</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">EnvSpec</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.spec" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.action_space">
+<span class="sig-name descname"><span class="pre">action_space</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">gym.Space</span><span class="p"><span class="pre">[</span></span><span class="pre">Act</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.action_space" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.observation_space">
+<span class="sig-name descname"><span class="pre">observation_space</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">gym.Space</span><span class="p"><span class="pre">[</span></span><span class="pre">Obs</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.observation_space" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.measurements">
+<span class="sig-name descname"><span class="pre">measurements</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.EngineObsType" title="gym_jiminy.common.bases.interfaces.EngineObsType"><span class="pre">EngineObsType</span></a></em><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.measurements" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the motors efforts to apply on the robot.</p>
+<p>By default, all it does is forwarding the input action as is, without
+performing any processing. One is responsible of overloading this
+method if the action space has been customized, or just to clip the
+action to make sure it is never out-of-bounds if necessary.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>There is not good place to initialize buffers that are necessary to
+compute the command. The only solution for now is to define
+initialization inside this method itself, using the safeguard
+<cite>if not self.is_simulation_running:</cite>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>Act</em>) – High-level target to achieve by means of the command.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv.has_terminated">
+<span class="sig-name descname"><span class="pre">has_terminated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv.has_terminated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv.has_terminated" title="Link to this definition">¶</a></dt>
+<dd><p>Determine whether the episode is over, because a terminal state of
+the underlying MDP has been reached or an aborting condition outside
+the scope of the MDP has been triggered.</p>
+<p>By default, it always returns <cite>terminated=False</cite>, and <cite>truncated=True</cite>
+iif the observation is out-of-bounds. One can overload this method to
+implement custom termination conditions for the environment at hand.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>No matter what, truncation will happen when reaching the maximum
+simulation duration, i.e. ‘self.simulation_duration_max’.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called after <cite>refresh_observation</cite>, so that the
+internal buffer ‘observation’ is up-to-date.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>terminated and truncated flags.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.envs.generic.BaseJiminyEnv._key_to_action">
+<span class="sig-name descname"><span class="pre">_key_to_action</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reward</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/envs/generic.html#BaseJiminyEnv._key_to_action"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.envs.generic.BaseJiminyEnv._key_to_action" title="Link to this definition">¶</a></dt>
+<dd><p>Mapping from input keyboard keys to actions.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called before <cite>step</cite> method systematically, even if
+not key has been pressed, or reward is not defined. In such a case,
+the value is <cite>None</cite>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The mapping can be state dependent, and the key can be used for
+something different than computing the action directly. For
+instance, one can provide as extra argument to this method a
+custom policy taking user parameters mapped to keyboard in input.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Overloading this method is required for calling <cite>play_interactive</cite>
+method.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><em>None</em>) – Key pressed by the user as a string. <cite>None</cite> if no key has
+been pressed since the last step of the environment.</p></li>
+<li><p><strong>obs</strong> (<em>Obs</em>) – Previous observation from last step of the environment.
+It is always available, included right after <cite>reset</cite>.</p></li>
+<li><p><strong>reward</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><em>None</em>) – Previous reward from last step of the environment.
+Not available before first step right after <cite>reset</cite>.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword argument provided by the user when calling
+<cite>play_interactive</cite> method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Action to forward to the environment. None to hold the</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Act</em> | <em>None</em></p>
+</dd>
+</dl>
+<p>previous action without updating it.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Envs" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="locomotion.html" class="btn btn-neutral float-right" title="Locomotion" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

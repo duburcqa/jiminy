@@ -1,0 +1,255 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HDF5 telemetry log format (TLMC) &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Downloadable PDF" href="../pdf/index.html" />
+    <link rel="prev" title="Helpers" href="../../api/gym_jiminy/common/utils/misc.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">HDF5 telemetry log format (TLMC)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">HDF5 telemetry log format (TLMC)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/spec/src/tlmc_format_specification.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="hdf5-telemetry-log-format-tlmc">
+<h1>HDF5 telemetry log format (TLMC)<a class="headerlink" href="#hdf5-telemetry-log-format-tlmc" title="Link to this heading">¶</a></h1>
+<p>This file describes the content of the so-called <code class="docutils literal notranslate"><span class="pre">tlmc</span></code> format. <code class="docutils literal notranslate"><span class="pre">tlmc</span></code> stands for compressed telemetry: it is simply a standard <a class="reference external" href="https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5">HDF5</a> file with compression enabled, that can be opened with any HDF5 reader. This document specifies the organization of data in this file. The examples in this document are made using the Python <code class="docutils literal notranslate"><span class="pre">h5py</span></code> library ;</p>
+<p>The telemetry of the robot outputs two different types of object: constants and variables. They must have a unique name and can have various basic types. Constants are (key, value) pairs and variables consists of two time series: one for time, one for values. Unlike constants, variables can have metadata associated to them.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">tlmc</span></code> will be organized as follows:</p>
+<ul class="simple">
+<li><p>The root group shall contain an attribute ‘VERSION’, which stores an int specifying the version of the <code class="docutils literal notranslate"><span class="pre">tlmc</span></code> standard use. This document describes <code class="docutils literal notranslate"><span class="pre">VERSION=1</span></code>.</p></li>
+<li><p>The root group shall contain an attribute ‘START_TIME’, which stores a long specifying the absolute start time of the log, in second relative to the UNIX epoch.</p></li>
+<li><p>A group <code class="docutils literal notranslate"><span class="pre">constants</span></code> will store the telemetry constants in its attribute dictionary for scalar data of any type or as independent <code class="docutils literal notranslate"><span class="pre">constantName</span></code> 0D datasets without filter nor compression for null-padded byte arrays exclusively. The former only supports data of up to 64K bytes as per the HDF5 standard, while the latter as no size limitation and is convenient for pre-serialized data.</p></li>
+<li><p>A second group <code class="docutils literal notranslate"><span class="pre">variables</span></code> will store the variables.</p>
+<ul>
+<li><p>Each subgroup <code class="docutils literal notranslate"><span class="pre">variableName</span></code> represents a variable, originally named <code class="docutils literal notranslate"><span class="pre">variableName</span></code>. Each variable group contains:</p>
+<ul>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">value</span></code> 1D dataset representing the variable’s values through time.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">time</span></code> 1D dataset representing the time instants relative to the ‘START_TIME’ file constant. This dataset will contain an attribute <code class="docutils literal notranslate"><span class="pre">unit</span></code> specifying the ratio to SI unit (i.e. 1 second). For instance when using nanoseconds, <code class="docutils literal notranslate"><span class="pre">file[&quot;variables/myvariable/time&quot;].attrs[&quot;unit&quot;]</span></code> evaluates to <code class="docutils literal notranslate"><span class="pre">1.0e-9</span></code>.</p></li>
+<li><p>Variable-specific metadata stored in the group’s attribute.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>For storage efficiency, all datasets for variables will be stored using the ‘gzip’ filter with compression level of 4, and the ‘shuffle’ filter. The chunk size is equal to the number of timestamps to maxing-out reading performances. These are enabled in <code class="docutils literal notranslate"><span class="pre">h5py</span></code> using the following flags:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="p">,</span>
+                 <span class="n">data</span><span class="o">=</span><span class="n">data_array</span><span class="p">,</span>
+                 <span class="n">compression</span><span class="o">=</span><span class="s1">&#39;gzip&#39;</span><span class="p">,</span>
+                 <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">chunks</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data_array</span><span class="p">),))</span>
+</pre></div>
+</div>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h2>
+<p>Here is a (simplified) view of a <code class="docutils literal notranslate"><span class="pre">tlmc</span></code> file using the <code class="docutils literal notranslate"><span class="pre">h5dump</span> <span class="pre">-p</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">HDF5</span> <span class="s2">&quot;data/20200921T101310Z_LogFile.tlmc&quot;</span> <span class="p">{</span>
+<span class="n">GROUP</span> <span class="s2">&quot;/&quot;</span> <span class="p">{</span>
+   <span class="n">ATTRIBUTE</span> <span class="s2">&quot;START_TIME&quot;</span> <span class="p">{</span>
+      <span class="n">DATATYPE</span>  <span class="n">H5T_IEEE_F64LE</span>
+      <span class="n">DATASPACE</span>  <span class="n">SCALAR</span>
+      <span class="n">DATA</span> <span class="p">{</span>
+      <span class="p">(</span><span class="mi">0</span><span class="p">):</span> <span class="mi">1607002673</span>
+      <span class="p">}</span>
+   <span class="p">}</span>
+   <span class="n">ATTRIBUTE</span> <span class="s2">&quot;VERSION&quot;</span> <span class="p">{</span>
+      <span class="n">DATATYPE</span>  <span class="n">H5T_STD_I32LE</span>
+      <span class="n">DATASPACE</span>  <span class="n">SCALAR</span>
+      <span class="n">DATA</span> <span class="p">{</span>
+      <span class="p">(</span><span class="mi">0</span><span class="p">):</span> <span class="mi">1</span>
+      <span class="p">}</span>
+   <span class="p">}</span>
+   <span class="n">GROUP</span> <span class="s2">&quot;constants&quot;</span> <span class="p">{</span>
+      <span class="n">ATTRIBUTE</span> <span class="s2">&quot;NumIntEntries&quot;</span> <span class="p">{</span>
+         <span class="n">DATATYPE</span>  <span class="n">H5T_STD_I32LE</span>
+         <span class="n">DATASPACE</span>  <span class="n">SCALAR</span>
+         <span class="n">DATA</span> <span class="p">{</span>
+         <span class="p">(</span><span class="mi">0</span><span class="p">):</span> <span class="mi">1</span>
+         <span class="p">}</span>
+      <span class="p">}</span>
+      <span class="n">DATASET</span> <span class="s2">&quot;controlOffsetTimestamp&quot;</span> <span class="p">{</span>
+         <span class="n">DATATYPE</span>  <span class="n">H5T_STRING</span> <span class="p">{</span>
+            <span class="n">STRSIZE</span> <span class="mi">8</span><span class="p">;</span>
+            <span class="n">STRPAD</span> <span class="n">H5T_STR_NULLPAD</span><span class="p">;</span>
+            <span class="n">CSET</span> <span class="n">H5T_CSET_ASCII</span><span class="p">;</span>
+            <span class="n">CTYPE</span> <span class="n">H5T_C_S1</span><span class="p">;</span>
+         <span class="p">}</span>
+         <span class="n">DATASPACE</span>  <span class="n">SCALAR</span>
+         <span class="n">DATA</span> <span class="p">{</span>
+         <span class="p">(</span><span class="mi">0</span><span class="p">):</span> <span class="s2">&quot;1.680000&quot;</span>
+         <span class="p">}</span>
+      <span class="p">}</span>
+      <span class="o">...</span>
+   <span class="p">}</span>
+   <span class="n">GROUP</span> <span class="s2">&quot;variables&quot;</span> <span class="p">{</span>
+      <span class="n">GROUP</span> <span class="s2">&quot;currentPositionLeftSagittalHip&quot;</span> <span class="p">{</span>
+         <span class="n">DATASET</span> <span class="s2">&quot;time&quot;</span> <span class="p">{</span>
+            <span class="n">DATATYPE</span>  <span class="n">H5T_STD_I64LE</span>
+            <span class="n">DATASPACE</span>  <span class="n">SIMPLE</span> <span class="p">{</span> <span class="p">(</span> <span class="mi">338623</span> <span class="p">)</span> <span class="o">/</span> <span class="p">(</span> <span class="mi">338623</span> <span class="p">)</span> <span class="p">}</span>
+            <span class="n">ATTRIBUTE</span> <span class="s2">&quot;unit&quot;</span> <span class="p">{</span>
+               <span class="n">DATATYPE</span>  <span class="n">H5T_IEEE_F64LE</span>
+               <span class="n">DATASPACE</span>  <span class="n">SCALAR</span>
+               <span class="n">DATA</span> <span class="p">{</span>
+               <span class="p">(</span><span class="mi">0</span><span class="p">):</span> <span class="mf">1e-09</span>
+               <span class="p">}</span>
+            <span class="p">}</span>
+         <span class="p">}</span>
+         <span class="n">DATASET</span> <span class="s2">&quot;value&quot;</span> <span class="p">{</span>
+            <span class="n">DATATYPE</span>  <span class="n">H5T_IEEE_F64LE</span>
+            <span class="n">DATASPACE</span>  <span class="n">SIMPLE</span> <span class="p">{</span> <span class="p">(</span> <span class="mi">338623</span> <span class="p">)</span> <span class="o">/</span> <span class="p">(</span> <span class="mi">338623</span> <span class="p">)</span> <span class="p">}</span>
+            <span class="n">STORAGE_LAYOUT</span> <span class="p">{</span>
+               <span class="n">CHUNKED</span> <span class="p">(</span> <span class="mi">338623</span> <span class="p">)</span>
+               <span class="n">SIZE</span> <span class="mi">2708984</span> <span class="p">(</span><span class="mf">1.000</span><span class="p">:</span><span class="mi">1</span> <span class="n">COMPRESSION</span><span class="p">)</span>
+            <span class="p">}</span>
+            <span class="n">FILTERS</span> <span class="p">{</span>
+               <span class="n">PREPROCESSING</span> <span class="n">SHUFFLE</span>
+               <span class="n">COMPRESSION</span> <span class="n">DEFLATE</span> <span class="p">{</span> <span class="n">LEVEL</span> <span class="mi">4</span> <span class="p">}</span>
+            <span class="p">}</span>
+         <span class="p">}</span>
+      <span class="p">}</span>
+      <span class="o">...</span>
+   <span class="p">}</span>
+<span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Here is a python snippet for parsing a generic <code class="docutils literal notranslate"><span class="pre">tlmc</span></code> file:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span>
+
+<span class="n">file</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;my_file.tlmc&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;VERSION&#39;</span><span class="p">])</span> <span class="c1"># Prints 1</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The log contains the following constants:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">file</span><span class="p">[</span><span class="s1">&#39;constants&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="n">tlmc</span><span class="p">[</span><span class="s1">&#39;constants&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+   <span class="n">v</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">dataset</span><span class="p">[()])</span>
+   <span class="n">v</span> <span class="o">+=</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\0</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>  <span class="c1"># Append missing null char &#39;\0&#39; at end</span>
+   <span class="nb">print</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Log start time: </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;START_TIME&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The log contains the following variables:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">variable_name</span> <span class="ow">in</span> <span class="n">file</span><span class="p">[</span><span class="s1">&#39;variables&#39;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">variable_name</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../../api/gym_jiminy/common/utils/misc.html" class="btn btn-neutral float-left" title="Helpers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../pdf/index.html" class="btn btn-neutral float-right" title="Downloadable PDF" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

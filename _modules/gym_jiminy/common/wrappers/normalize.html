@@ -1,0 +1,250 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.wrappers.normalize &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.wrappers.normalize</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.wrappers.normalize</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module implements two block transformations for normalizing the</span>
+<span class="sd">observation and action spaces of the environment.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">TypeAlias</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Obs</span><span class="p">,</span>
+                     <span class="n">Act</span><span class="p">,</span>
+                     <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">BaseTransformObservation</span><span class="p">,</span>
+                     <span class="n">BaseTransformAction</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">build_map</span><span class="p">,</span> <span class="n">build_normalize</span>
+
+
+<span class="n">NormalizedObs</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">Obs</span>
+<span class="n">NormalizedAct</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">Act</span>
+
+
+<span class="k">def</span> <span class="nf">_normalize_space</span><span class="p">(</span><span class="n">space</span><span class="p">:</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize a space instance deriving from `gym.spaces.Box`.</span>
+
+<span class="sd">    This method returns a new space instance identical to the original one</span>
+<span class="sd">    except for the lower and upper bounds that are -1.0, 1.0 respectively.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The returned space is a new instance created by calling the</span>
+<span class="sd">        constructor of the original space with the arguments of</span>
+<span class="sd">        `gym.spaces.Box` regardless of its actual type. Then, any instance</span>
+<span class="sd">        attributes of  the original space that are not defined at this point</span>
+<span class="sd">        for the new instance are copied.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Instantiate normalized space</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">space</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="k">assert</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)</span>
+    <span class="n">space_</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">space</span><span class="p">)(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+
+    <span class="c1"># Preserve instance-specific attributes as is, if any</span>
+    <span class="n">space_attrs</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">space_</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="n">space</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">space_attrs</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">space_</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">space_</span>
+
+
+<div class="viewcode-block" id="NormalizeObservation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.normalize.NormalizeObservation">[docs]</a>
+<span class="k">class</span> <span class="nc">NormalizeObservation</span><span class="p">(</span>
+        <span class="n">BaseTransformObservation</span><span class="p">[</span><span class="n">NormalizedObs</span><span class="p">,</span> <span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+        <span class="n">Generic</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize (without clipping) the observation space of a pipeline</span>
+<span class="sd">    environment according to its pre-defined bounds rather than statistics over</span>
+<span class="sd">    collected data.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All leaves of the observation space must have type `gym.spaces.Box`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                 <span class="n">ignore_unbounded</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or already wrapped jiminy environment.</span>
+<span class="sd">        :param ignore_unbounded: If True, then spaces that are not bounded will</span>
+<span class="sd">                                 be ignored, leaving them unchanged even if</span>
+<span class="sd">                                 some elements are bounded. If False, it will</span>
+<span class="sd">                                 raise an exception if in such a case.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Define specialized operator(s) for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_observation</span> <span class="o">=</span> <span class="n">build_normalize</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">,</span>
+            <span class="n">ignore_unbounded</span><span class="o">=</span><span class="n">ignore_unbounded</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">build_map</span><span class="p">(</span>
+            <span class="n">_normalize_space</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">)()</span>
+
+<div class="viewcode-block" id="NormalizeObservation.transform_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.normalize.NormalizeObservation.transform_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">transform_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_observation</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NormalizeAction">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.normalize.NormalizeAction">[docs]</a>
+<span class="k">class</span> <span class="nc">NormalizeAction</span><span class="p">(</span><span class="n">BaseTransformAction</span><span class="p">[</span><span class="n">NormalizedAct</span><span class="p">,</span> <span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                      <span class="n">Generic</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize (without clipping) the action space of a pipeline environment</span>
+<span class="sd">    according to its pre-defined bounds rather than statistics over collected</span>
+<span class="sd">    data. Unbounded elements if any are left unchanged.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All leaves of the action space must have type `gym.spaces.Box`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                 <span class="n">ignore_unbounded</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Define specialized operator(s) for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_denormalize_to_env_action</span> <span class="o">=</span> <span class="n">build_normalize</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action</span><span class="p">,</span>
+            <span class="n">ignore_unbounded</span><span class="o">=</span><span class="n">ignore_unbounded</span><span class="p">,</span>
+            <span class="n">is_reversed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="n">build_map</span><span class="p">(</span>
+            <span class="n">_normalize_space</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">)()</span>
+
+<div class="viewcode-block" id="NormalizeAction.transform_action">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.normalize.NormalizeAction.transform_action">[docs]</a>
+    <span class="k">def</span> <span class="nf">transform_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">NormalizedAct</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_denormalize_to_env_action</span><span class="p">(</span><span class="n">action</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

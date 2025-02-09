@@ -1,0 +1,570 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.envs.locomotion &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.envs.locomotion</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.envs.locomotion</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Generic environment to learn locomotion skills for legged robots using</span>
+<span class="sd">Jiminy simulator as physics engine.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">EncoderSensor</span><span class="p">,</span>
+    <span class="n">EffortSensor</span><span class="p">,</span>
+    <span class="n">ContactSensor</span><span class="p">,</span>
+    <span class="n">ForceSensor</span><span class="p">,</span>
+    <span class="n">ImuSensor</span><span class="p">,</span>
+    <span class="n">PeriodicGaussianProcess</span><span class="p">,</span>
+    <span class="n">Robot</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.robot</span> <span class="kn">import</span> <span class="n">BaseJiminyRobot</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.simulator</span> <span class="kn">import</span> <span class="n">Simulator</span>
+
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">sample</span>
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="n">InfoType</span>
+<span class="kn">from</span> <span class="nn">.generic</span> <span class="kn">import</span> <span class="n">BaseJiminyEnv</span>
+
+
+<span class="n">GROUND_FRICTION_RANGE</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">)</span>
+
+<span class="n">F_IMPULSE_DT</span> <span class="o">=</span> <span class="mf">10.0e-3</span>
+<span class="n">F_IMPULSE_PERIOD</span> <span class="o">=</span> <span class="mf">2.0</span>
+<span class="n">F_IMPULSE_DELTA</span> <span class="o">=</span> <span class="mf">0.25</span>
+<span class="n">F_IMPULSE_SCALE</span> <span class="o">=</span> <span class="mf">1000.0</span>
+<span class="n">F_PROFILE_SCALE</span> <span class="o">=</span> <span class="mf">50.0</span>
+<span class="n">F_PROFILE_WAVELENGTH</span> <span class="o">=</span> <span class="mf">0.2</span>
+<span class="n">F_PROFILE_PERIOD</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="n">FLEX_STIFFNESS_SCALE</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">FLEX_DAMPING_SCALE</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="n">SENSOR_DELAY_SCALE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">EncoderSensor</span><span class="p">:</span> <span class="mf">3.0e-3</span><span class="p">,</span>
+    <span class="n">EffortSensor</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">ContactSensor</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">ForceSensor</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">ImuSensor</span><span class="p">:</span> <span class="mf">0.0</span>
+<span class="p">}</span>
+<span class="n">SENSOR_NOISE_SCALE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">EncoderSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">]),</span>
+    <span class="n">EffortSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">10.0</span><span class="p">]),</span>
+    <span class="n">ContactSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">]),</span>
+    <span class="n">ForceSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">]),</span>
+    <span class="n">ImuSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">])</span>
+<span class="p">}</span>
+<span class="n">SENSOR_BIAS_SCALE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">EncoderSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]),</span>
+    <span class="n">EffortSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span>
+    <span class="n">ContactSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">]),</span>
+    <span class="n">ForceSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">]),</span>
+    <span class="n">ImuSensor</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+<span class="p">}</span>
+
+<span class="n">DEFAULT_SIMULATION_DURATION</span> <span class="o">=</span> <span class="mf">30.0</span>  <span class="c1"># (s) Default simulation duration</span>
+<span class="n">DEFAULT_STEP_DT</span> <span class="o">=</span> <span class="mf">0.04</span>              <span class="c1"># (s) Stepper update period</span>
+
+<span class="n">DEFAULT_HLC_TO_LLC_RATIO</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># (NA)</span>
+
+
+<div class="viewcode-block" id="WalkerJiminyEnv">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/envs/locomotion.html#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv">[docs]</a>
+<span class="k">class</span> <span class="nc">WalkerJiminyEnv</span><span class="p">(</span><span class="n">BaseJiminyEnv</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gym environment for learning locomotion skills for legged robots.</span>
+
+<span class="sd">    Jiminy is used for both physics computations and rendering.</span>
+
+<span class="sd">    The observation and action spaces are unchanged wrt `BaseJiminyEnv`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">reward_range</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">urdf_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                 <span class="n">hardware_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">simulation_duration_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_SIMULATION_DURATION</span><span class="p">,</span>
+                 <span class="n">step_dt</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_STEP_DT</span><span class="p">,</span>
+                 <span class="n">reward_mixture</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">std_ratio</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">config_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">avoid_instable_collisions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+                 <span class="n">robot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Robot</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">viewer_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param urdf_path: Path of the urdf model to be used for the simulation.</span>
+<span class="sd">                          It is assumed that the robot has a floating base.</span>
+<span class="sd">        :param hardware_path: Path of Jiminy hardware description toml file.</span>
+<span class="sd">                              Optional: Looking for &#39;\*_hardware.toml&#39; file in</span>
+<span class="sd">                              the same folder and with the same name.</span>
+<span class="sd">        :param mesh_dir_path: Path to the folder containing the model meshes.</span>
+<span class="sd">                              Optional: Env variable &#39;JIMINY_DATA_PATH&#39; will be</span>
+<span class="sd">                              used if available.</span>
+<span class="sd">        :param simulation_duration_max: Maximum duration of a simulation before</span>
+<span class="sd">                                        returning done.</span>
+<span class="sd">        :param step_dt: Environment timestep for learning. Note that it is</span>
+<span class="sd">                        independent from the controller and observation update</span>
+<span class="sd">                        periods. The latter are configured via</span>
+<span class="sd">                        `engine.set_options`.</span>
+<span class="sd">        :param reward_mixture: Weighting factors of selected contributions to</span>
+<span class="sd">                               total reward.</span>
+<span class="sd">        :param std_ratio: Relative standard deviation of selected contributions</span>
+<span class="sd">                          to environment stochasticity.</span>
+<span class="sd">        :param config_path: Configuration toml file to import. It will be</span>
+<span class="sd">                            imported AFTER loading the hardware description</span>
+<span class="sd">                            file. It can be automatically generated from an</span>
+<span class="sd">                            instance by calling `export_config_file` method.</span>
+<span class="sd">                            Optional: Looking for &#39;\*_options.toml&#39; file in the</span>
+<span class="sd">                            same folder and with the same name. If not found,</span>
+<span class="sd">                            using default configuration.</span>
+<span class="sd">        :param avoid_instable_collisions: Prevent numerical instabilities by</span>
+<span class="sd">                                          replacing collision mesh by vertices</span>
+<span class="sd">                                          of associated minimal volume bounding</span>
+<span class="sd">                                          box, and replacing primitive box by</span>
+<span class="sd">                                          its vertices.</span>
+<span class="sd">        :param debug: Whether the debug mode must be activated. Doing it</span>
+<span class="sd">                      enables telemetry recording.</span>
+<span class="sd">        :param robot: Robot being simulated, already instantiated and</span>
+<span class="sd">                      initialized. Build default robot using &#39;urdf_path&#39;,</span>
+<span class="sd">                      &#39;hardware_path&#39; and &#39;mesh_dir_path&#39; if omitted.</span>
+<span class="sd">                      Optional: None by default.</span>
+<span class="sd">        :param viewer_kwargs: Keyword arguments used to override the original</span>
+<span class="sd">                              default values whenever a viewer is instantiated.</span>
+<span class="sd">                              This is the only way to pass custom arguments to</span>
+<span class="sd">                              the viewer when calling `render` method, unlike</span>
+<span class="sd">                              `replay` which forwards extra keyword arguments.</span>
+<span class="sd">                              Optional: None by default.</span>
+<span class="sd">        :param kwargs: Keyword arguments to forward to `Simulator` and</span>
+<span class="sd">                       `BaseJiminyEnv` constructors.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Handling of default arguments</span>
+        <span class="k">if</span> <span class="n">reward_mixture</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">reward_mixture</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;survival&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="s1">&#39;direction&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;energy&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;failure&#39;</span><span class="p">:</span> <span class="mf">0.0</span>
+            <span class="p">}</span>
+        <span class="n">reward_mixture</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">reward_mixture</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">std_ratio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">std_ratio</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;ground&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;sensors&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;disturbance&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="n">std_ratio</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">std_ratio</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">}</span>
+
+        <span class="c1"># Backup user arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reward_mixture</span> <span class="o">=</span> <span class="n">reward_mixture</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">urdf_path</span> <span class="o">=</span> <span class="n">urdf_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mesh_dir_path</span> <span class="o">=</span> <span class="n">mesh_dir_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hardware_path</span> <span class="o">=</span> <span class="n">hardware_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_path</span> <span class="o">=</span> <span class="n">config_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span> <span class="o">=</span> <span class="n">std_ratio</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">avoid_instable_collisions</span> <span class="o">=</span> <span class="n">avoid_instable_collisions</span>
+
+        <span class="c1"># Robot and engine internal buffers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f_xy_profile</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">PeriodicGaussianProcess</span><span class="p">(</span><span class="n">F_PROFILE_WAVELENGTH</span><span class="p">,</span> <span class="n">F_PROFILE_PERIOD</span><span class="p">),</span>
+            <span class="n">PeriodicGaussianProcess</span><span class="p">(</span><span class="n">F_PROFILE_PERIOD</span><span class="p">,</span> <span class="n">F_PROFILE_PERIOD</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_power_consumption_max</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_height_neutral</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="c1"># Configure the backend simulator</span>
+        <span class="k">if</span> <span class="n">robot</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">urdf_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+            <span class="n">simulator</span> <span class="o">=</span> <span class="n">Simulator</span><span class="o">.</span><span class="n">build</span><span class="p">(</span>
+                <span class="n">urdf_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">urdf_path</span><span class="p">,</span>
+                <span class="n">hardware_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hardware_path</span><span class="p">,</span>
+                <span class="n">mesh_dir_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mesh_dir_path</span><span class="p">,</span>
+                <span class="n">config_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">,</span>
+                <span class="n">avoid_instable_collisions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">avoid_instable_collisions</span><span class="p">,</span>
+                <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span>
+                <span class="n">viewer_kwargs</span><span class="o">=</span><span class="n">viewer_kwargs</span><span class="p">,</span>
+                <span class="o">**</span><span class="p">{</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">has_freeflyer</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Instantiate a simulator</span>
+            <span class="n">simulator</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">(</span><span class="n">robot</span><span class="p">,</span> <span class="n">viewer_kwargs</span><span class="o">=</span><span class="n">viewer_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="c1"># Load engine and robot options</span>
+            <span class="k">if</span> <span class="n">config_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">robot</span><span class="p">,</span> <span class="n">BaseJiminyRobot</span><span class="p">):</span>
+                    <span class="n">urdf_path</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">robot</span><span class="o">.</span><span class="n">_urdf_path_orig</span><span class="p">)</span>  <span class="c1"># type: ignore[attr-defined]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">urdf_path</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">urdf_path</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">urdf_path</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;&#39;config_path&#39; must be provided if the robot is not &quot;</span>
+                        <span class="s2">&quot;associated with any URDF.&quot;</span><span class="p">)</span>
+                <span class="n">config_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span>
+                    <span class="n">urdf_path</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;_options.toml&#39;</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">config_path</span><span class="p">):</span>
+                    <span class="n">config_path</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">simulator</span><span class="o">.</span><span class="n">import_options</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
+
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">simulator</span><span class="p">,</span> <span class="n">step_dt</span><span class="p">,</span> <span class="n">simulation_duration_max</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WalkerJiminyEnv._setup">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/envs/locomotion.html#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._setup">[docs]</a>
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the environment.</span>
+
+<span class="sd">        It is doing the following steps, successively:</span>
+
+<span class="sd">            - updates some proxies that will be used for computing the</span>
+<span class="sd">              reward and termination condition,</span>
+<span class="sd">            - enforce some options of the low-level robot and engine,</span>
+<span class="sd">            - randomize the environment according to &#39;std_ratio&#39;.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method is called internally by `reset` method at the very</span>
+<span class="sd">            beginning. One must override it to implement new contributions to</span>
+<span class="sd">            the environment stochasticity, or to create custom low-level robot</span>
+<span class="sd">            if the model must be different for each learning episode.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Call the base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;`WalkerJiminyEnv` only supports robots with freeflyer.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Update some internal buffers used for computing the reward</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_power_consumption_max</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">:</span>
+            <span class="n">motor_power_max</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">velocity_limit</span> <span class="o">*</span> <span class="n">motor</span><span class="o">.</span><span class="n">effort_limit</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_power_consumption_max</span> <span class="o">+=</span> <span class="n">motor_power_max</span>
+
+        <span class="c1"># Compute the height of the freeflyer in neutral configuration</span>
+        <span class="c1"># TODO: Take into account the ground profile.</span>
+        <span class="n">q_init</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_height_neutral</span> <span class="o">=</span> <span class="n">q_init</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># Get the options of robot and engine</span>
+        <span class="n">robot_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+        <span class="n">engine_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulator</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+
+        <span class="c1"># Make sure to log at least the required data for terminal reward</span>
+        <span class="c1"># computation and log replay.</span>
+        <span class="n">engine_options</span><span class="p">[</span><span class="s1">&#39;telemetry&#39;</span><span class="p">][</span><span class="s1">&#39;enableConfiguration&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">engine_options</span><span class="p">[</span><span class="s1">&#39;telemetry&#39;</span><span class="p">][</span><span class="s1">&#39;enableVelocity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="s1">&#39;disturbance&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">engine_options</span><span class="p">[</span><span class="s1">&#39;telemetry&#39;</span><span class="p">][</span><span class="s1">&#39;enableForceExternal&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># ============= Add some stochasticity to the environment =============</span>
+
+        <span class="c1"># Change ground friction</span>
+        <span class="n">engine_options</span><span class="p">[</span><span class="s1">&#39;contacts&#39;</span><span class="p">][</span><span class="s1">&#39;friction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">GROUND_FRICTION_RANGE</span><span class="p">,</span>
+            <span class="n">scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ground&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="n">enable_log_scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+
+        <span class="c1"># Add sensor noise, bias and delay</span>
+        <span class="k">if</span> <span class="s1">&#39;sensors&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="p">(</span><span class="n">EncoderSensor</span><span class="p">,</span>
+                        <span class="n">EffortSensor</span><span class="p">,</span>
+                        <span class="n">ContactSensor</span><span class="p">,</span>
+                        <span class="n">ForceSensor</span><span class="p">,</span>
+                        <span class="n">ImuSensor</span><span class="p">):</span>
+                <span class="n">sensors_options</span> <span class="o">=</span> <span class="n">robot_options</span><span class="p">[</span><span class="s2">&quot;sensors&quot;</span><span class="p">][</span><span class="bp">cls</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">sensor_options</span> <span class="ow">in</span> <span class="n">sensors_options</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;delay&quot;</span><span class="p">,</span> <span class="s2">&quot;jitter&quot;</span><span class="p">):</span>
+                        <span class="n">sensor_options</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample</span><span class="p">(</span>
+                            <span class="n">low</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                            <span class="n">high</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="p">[</span><span class="s1">&#39;sensors&#39;</span><span class="p">]</span> <span class="o">*</span>
+                                  <span class="n">SENSOR_DELAY_SCALE</span><span class="p">[</span><span class="bp">cls</span><span class="p">]),</span>
+                            <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span>
+                            <span class="p">(</span><span class="s2">&quot;bias&quot;</span><span class="p">,</span> <span class="n">SENSOR_BIAS_SCALE</span><span class="p">),</span>
+                            <span class="p">(</span><span class="s2">&quot;noiseStd&quot;</span><span class="p">,</span> <span class="n">SENSOR_NOISE_SCALE</span><span class="p">)):</span>
+                        <span class="n">sensor_options</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample</span><span class="p">(</span>
+                            <span class="n">scale</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="p">[</span><span class="s1">&#39;sensors&#39;</span><span class="p">]</span> <span class="o">*</span>
+                                   <span class="n">SENSOR_NOISE_SCALE</span><span class="p">[</span><span class="bp">cls</span><span class="p">]),</span>
+                            <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">fieldnames</span><span class="p">),),</span>
+                            <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+
+        <span class="c1"># Randomize the flexibility parameters</span>
+        <span class="k">if</span> <span class="s1">&#39;model&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">is_flexibility_enabled</span><span class="p">:</span>
+                <span class="n">dynamics_options</span> <span class="o">=</span> <span class="n">robot_options</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;dynamics&quot;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">flexibility</span> <span class="ow">in</span> <span class="n">dynamics_options</span><span class="p">[</span><span class="s2">&quot;flexibilityConfig&quot;</span><span class="p">]:</span>
+                    <span class="n">flexibility</span><span class="p">[</span><span class="s1">&#39;stiffness&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">FLEX_STIFFNESS_SCALE</span> <span class="o">*</span> <span class="n">sample</span><span class="p">(</span>
+                        <span class="n">scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+                    <span class="n">flexibility</span><span class="p">[</span><span class="s1">&#39;damping&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">FLEX_DAMPING_SCALE</span> <span class="o">*</span> <span class="n">sample</span><span class="p">(</span>
+                        <span class="n">scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+
+        <span class="c1"># Apply the disturbance to the first actual body</span>
+        <span class="k">if</span> <span class="s1">&#39;disturbance&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="c1"># Make sure the pinocchio model has at least one frame</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">nframes</span>
+
+            <span class="c1"># Determine the actual root body of the kinematic tree</span>
+            <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">frames</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">frame</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">pin</span><span class="o">.</span><span class="n">FrameType</span><span class="o">.</span><span class="n">BODY</span> <span class="ow">and</span> <span class="n">frame</span><span class="o">.</span><span class="n">parent</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">frame_name</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">name</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s2">&quot;There is an issue with the robot model. Impossible to &quot;</span>
+                    <span class="s2">&quot;determine the root joint.&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Schedule some external impulse forces applied on PelvisLink</span>
+            <span class="k">for</span> <span class="n">t_ref</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
+                    <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulation_duration_max</span><span class="p">,</span> <span class="n">F_IMPULSE_PERIOD</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="n">t_ref</span> <span class="o">+</span> <span class="n">sample</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">F_IMPULSE_DELTA</span><span class="p">,</span> <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+                <span class="n">f_xy</span> <span class="o">=</span> <span class="n">sample</span><span class="p">(</span><span class="n">dist</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,),</span> <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+                <span class="n">f_xy</span> <span class="o">/=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">f_xy</span><span class="p">,</span> <span class="nb">ord</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+                <span class="n">f_xy</span> <span class="o">*=</span> <span class="n">sample</span><span class="p">(</span>
+                    <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="p">[</span><span class="s1">&#39;disturbance&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">F_IMPULSE_SCALE</span><span class="p">,</span>
+                    <span class="n">rg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">simulator</span><span class="o">.</span><span class="n">register_impulse_force</span><span class="p">(</span>
+                    <span class="n">frame_name</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">F_IMPULSE_DT</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">f_xy</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+
+            <span class="c1"># Schedule a single periodic force profile applied on PelvisLink</span>
+            <span class="k">for</span> <span class="n">func</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f_xy_profile</span><span class="p">:</span>
+                <span class="n">func</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">np_random</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">simulator</span><span class="o">.</span><span class="n">register_profile_force</span><span class="p">(</span>
+                <span class="n">frame_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_force_external_profile</span><span class="p">)</span>
+
+        <span class="c1"># Set the options, finally</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">robot_options</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">simulator</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">engine_options</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WalkerJiminyEnv._force_external_profile">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/envs/locomotion.html#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv._force_external_profile">[docs]</a>
+    <span class="k">def</span> <span class="nf">_force_external_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                <span class="n">t</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                                <span class="n">q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                <span class="n">v</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                <span class="n">wrench</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;User-specified processing of external force profiles.</span>
+
+<span class="sd">        Typical usecases are time rescaling (1.0 second by default), or</span>
+<span class="sd">        changing the orientation of the force (x/y in world frame by default).</span>
+<span class="sd">        It could also be used for clamping the force.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Beware it updates &#39;wrench&#39; by reference for the sake of efficiency.</span>
+
+<span class="sd">        :param t: Current time.</span>
+<span class="sd">        :param q: Current configuration vector of the robot.</span>
+<span class="sd">        :param v: Current velocity vector of the robot.</span>
+<span class="sd">        :param wrench: Force to apply on the robot as a vector (linear and</span>
+<span class="sd">                       angular) [Fx, Fy, Fz, Mx, My, Mz].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=unused-argument</span>
+        <span class="n">wrench</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">F_PROFILE_SCALE</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f_xy_profile</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="n">t</span><span class="p">)</span>
+        <span class="n">wrench</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">F_PROFILE_SCALE</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f_xy_profile</span><span class="p">[</span><span class="mi">1</span><span class="p">](</span><span class="n">t</span><span class="p">)</span>
+        <span class="n">wrench</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">std_ratio</span><span class="p">[</span><span class="s1">&#39;disturbance&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="WalkerJiminyEnv.has_terminated">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/envs/locomotion.html#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.has_terminated">[docs]</a>
+    <span class="k">def</span> <span class="nf">has_terminated</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Determine whether the episode is over.</span>
+
+<span class="sd">        It terminates (`terminated=True`) under the following conditions:</span>
+
+<span class="sd">            - fall detection: the freeflyer goes lower than 75% of its height</span>
+<span class="sd">              in neutral configuration.</span>
+
+<span class="sd">        It is truncated under the following conditions:</span>
+
+<span class="sd">            - observation out-of-bounds</span>
+<span class="sd">            - maximum simulation duration exceeded</span>
+
+<span class="sd">        :param info: Dictionary of extra information for monitoring.</span>
+
+<span class="sd">        :returns: terminated and truncated flags.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="n">terminated</span><span class="p">,</span> <span class="n">truncated</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">has_terminated</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+
+        <span class="c1"># Check if the agent has successfully solved the task</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_robot_state_q</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_height_neutral</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">:</span>
+            <span class="n">terminated</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">terminated</span><span class="p">,</span> <span class="n">truncated</span></div>
+
+
+<div class="viewcode-block" id="WalkerJiminyEnv.compute_reward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/envs/locomotion.html#gym_jiminy.common.envs.locomotion.WalkerJiminyEnv.compute_reward">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">InfoType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute reward at current episode state.</span>
+
+<span class="sd">        It computes the reward associated with each individual contribution</span>
+<span class="sd">        according to &#39;reward_mixture&#39;.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This method can be overwritten to implement new contributions to</span>
+<span class="sd">            the reward, or to monitor more information.</span>
+
+<span class="sd">        :returns: Aggregated reward.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reward_dict</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;reward&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># Define some proxies</span>
+        <span class="n">reward_mixture_keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reward_mixture</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="s1">&#39;survival&#39;</span> <span class="ow">in</span> <span class="n">reward_mixture_keys</span><span class="p">:</span>
+            <span class="n">reward_dict</span><span class="p">[</span><span class="s1">&#39;survival&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="k">if</span> <span class="s1">&#39;energy&#39;</span> <span class="ow">in</span> <span class="n">reward_mixture_keys</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">v_mot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensor_measurements</span><span class="p">[</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">robot_state</span><span class="o">.</span><span class="n">command</span>
+            <span class="n">power_consumption</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">command</span> <span class="o">*</span> <span class="n">v_mot</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+            <span class="n">power_consumption_rel</span> <span class="o">=</span> \
+                <span class="n">power_consumption</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_power_consumption_max</span>
+            <span class="n">reward_dict</span><span class="p">[</span><span class="s1">&#39;energy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">power_consumption_rel</span>
+
+        <span class="k">if</span> <span class="n">terminated</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;failure&#39;</span> <span class="ow">in</span> <span class="n">reward_mixture_keys</span><span class="p">:</span>
+                <span class="n">reward_dict</span><span class="p">[</span><span class="s1">&#39;failure&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="mf">1.0</span>
+
+            <span class="c1"># Add a negative reward proportional to the average deviation on</span>
+            <span class="c1"># Y-axis. It is equal to 0.0 if the frontal displacement is</span>
+            <span class="c1"># perfectly symmetric wrt Y-axis over the whole trajectory.</span>
+            <span class="k">if</span> <span class="s1">&#39;direction&#39;</span> <span class="ow">in</span> <span class="n">reward_mixture_keys</span><span class="p">:</span>
+                <span class="n">frontal_displacement</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log_data</span><span class="p">[</span><span class="s1">&#39;currentFreeflyerPositionTransY&#39;</span><span class="p">]))</span>
+                <span class="n">reward_dict</span><span class="p">[</span><span class="s1">&#39;direction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">frontal_displacement</span>
+
+        <span class="c1"># Compute the total reward</span>
+        <span class="n">reward_total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reward_mixture</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">*</span> <span class="n">value</span>
+                           <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">reward_dict</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">reward_total</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

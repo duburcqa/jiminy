@@ -1,0 +1,504 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.wrappers.scale &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.wrappers.scale</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.wrappers.scale</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module implements two block transformations for applying scaling</span>
+<span class="sd">factors to subtrees of the observation and action spaces of the environment.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TypeAlias</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">array_copyto</span><span class="p">,</span> <span class="n">multi_array_copyto</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">jiminy_py.tree</span> <span class="kn">import</span> <span class="n">flatten_with_path</span><span class="p">,</span> <span class="n">unflatten_as</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Obs</span><span class="p">,</span>
+                     <span class="n">Act</span><span class="p">,</span>
+                     <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                     <span class="n">BaseTransformObservation</span><span class="p">,</span>
+                     <span class="n">BaseTransformAction</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">DataNested</span><span class="p">,</span> <span class="n">build_reduce</span>
+
+<span class="kn">from</span> <span class="nn">.observation_layout</span> <span class="kn">import</span> <span class="n">NestedKey</span><span class="p">,</span> <span class="n">NestedData</span><span class="p">,</span> <span class="n">ArrayBlockSpec</span>
+
+
+<span class="n">ScaledObs</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">Obs</span>
+<span class="n">ScaledAct</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">Act</span>
+
+
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_array_scale</span><span class="p">(</span><span class="n">scale</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a scalar scaling factor to given array out-of-place.</span>
+
+<span class="sd">    :param dst: Pre-allocated array into which the result must be stored.</span>
+<span class="sd">    :param src: Input array.</span>
+<span class="sd">    :param scale: Scaling factor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span>  <span class="c1"># Faster than `dst[:] = scale * src`</span>
+
+
+<span class="k">def</span> <span class="nf">_split_nested_key_and_slice</span><span class="p">(</span>
+        <span class="n">nested_scale</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">NestedData</span><span class="p">,</span> <span class="nb">float</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">NestedKey</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">],</span> <span class="o">...</span><span class="p">]],</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Split apart nested keys from array view spec, then convert the latter in</span>
+<span class="sd">    actually sequence of slices if any.</span>
+
+<span class="sd">    :param nested_scale: Sequence of tuple (nested_data, scale) where</span>
+<span class="sd">                         &#39;nested_data&#39; is itself sequence of nested keys, with</span>
+<span class="sd">                         eventually an array view spec at the end. if an array</span>
+<span class="sd">                         view is specified, then the nested key must map to a</span>
+<span class="sd">                         leaf of the corresponding nested space. The array view</span>
+<span class="sd">                         spec is a sequence of int, empty tuple, or pair of</span>
+<span class="sd">                         optional int that fully specified independent slices</span>
+<span class="sd">                         to extract for each dimension of the array associated</span>
+<span class="sd">                         with the leaf that the nested key is mapping to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">nested_key_slices_scale_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span>
+        <span class="n">Tuple</span><span class="p">[</span><span class="n">NestedKey</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">],</span> <span class="o">...</span><span class="p">]],</span> <span class="nb">float</span><span class="p">]</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">nested_spec</span><span class="p">,</span> <span class="n">scale</span> <span class="ow">in</span> <span class="n">nested_scale</span><span class="p">:</span>
+        <span class="n">nested_keys</span><span class="p">:</span> <span class="n">NestedKey</span>
+        <span class="n">block_spec</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayBlockSpec</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">nested_spec</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nested_spec</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="c1"># Split nested keys from block specification if any</span>
+            <span class="n">nested_keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">nested_spec</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">block_spec</span> <span class="o">=</span> <span class="n">nested_spec</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="c1"># Convert array block specification to slices</span>
+            <span class="n">slices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">start_end</span> <span class="ow">in</span> <span class="n">block_spec</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">start_end</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                    <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">start_end</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="n">start_end</span><span class="p">:</span>
+                    <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="o">*</span><span class="n">start_end</span><span class="p">))</span>
+            <span class="n">slices</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">slices</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nested_keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">nested_spec</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="n">slices</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">nested_key_slices_scale_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">nested_keys</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">scale</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">nested_key_slices_scale_list</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_get_rescale_space</span><span class="p">(</span>
+        <span class="n">space</span><span class="p">:</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">DataNested</span><span class="p">],</span>
+        <span class="n">nested_key_slices_scale_list</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">NestedKey</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">],</span> <span class="o">...</span><span class="p">]],</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">DataNested</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a sequence of (inverted) scalar scaling factors on subtrees or</span>
+<span class="sd">    leaves of a given nested space out-of-place.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All leaf space of the space being altered must be `gym.spaces.Box`</span>
+<span class="sd">        instance with floating point dtype.</span>
+
+<span class="sd">    :param space: Space on which to operate.</span>
+<span class="sd">    :param nested_key_slices_scale_list:</span>
+<span class="sd">        Sequence of tuple (nested_key, slices, scale) where &#39;nested_key&#39; is</span>
+<span class="sd">        itself sequence of nested keys mapping to a node on which to apply a</span>
+<span class="sd">        scaling factor, &#39;slices&#39; is an optional sequence of slices that can be</span>
+<span class="sd">        specified to only operate on a block of a leaf, and &#39;scale&#39; is the</span>
+<span class="sd">        value of the scaling factor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Deepcopy the base observation space</span>
+    <span class="n">space</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">space</span><span class="p">)</span>
+
+    <span class="c1"># Apply scaling on the bounds of the leaf spaces</span>
+    <span class="n">space_flat</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">subspace</span> <span class="ow">in</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="n">space</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">scale</span> <span class="ow">in</span> <span class="n">nested_key_slices_scale_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">path</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">nested_key</span><span class="p">)]</span> <span class="o">==</span> <span class="n">nested_key</span><span class="p">:</span>
+                <span class="c1"># Make sure that the space is supported</span>
+                <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">subspace</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">)</span> <span class="ow">or</span>
+                        <span class="n">subspace</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span>
+                        <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">subspace</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                        <span class="s2">&quot;Rescaled leaf spaces of base observation space &quot;</span>
+                        <span class="s2">&quot;must be `gym.space.Box` with floating dtype.&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Rescale bounds</span>
+                <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="n">subspace</span><span class="o">.</span><span class="n">low</span><span class="p">,</span> <span class="n">subspace</span><span class="o">.</span><span class="n">high</span>
+                <span class="k">if</span> <span class="n">slices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">low</span> <span class="o">/=</span> <span class="n">scale</span>
+                    <span class="n">high</span> <span class="o">/=</span> <span class="n">scale</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">low</span><span class="p">[</span><span class="n">slices</span><span class="p">]</span> <span class="o">/=</span> <span class="n">scale</span>
+                    <span class="n">high</span><span class="p">[</span><span class="n">slices</span><span class="p">]</span> <span class="o">/=</span> <span class="n">scale</span>
+
+                <span class="c1"># Instantiate rescaled space</span>
+                <span class="n">subspace</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span><span class="n">low</span><span class="o">=</span><span class="n">low</span><span class="p">,</span>
+                                          <span class="n">high</span><span class="o">=</span><span class="n">high</span><span class="p">,</span>
+                                          <span class="n">shape</span><span class="o">=</span><span class="n">subspace</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                                          <span class="n">dtype</span><span class="o">=</span><span class="n">subspace</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+        <span class="n">space_flat</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subspace</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">unflatten_as</span><span class="p">(</span><span class="n">space</span><span class="p">,</span> <span class="n">space_flat</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ScaleObservation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.scale.ScaleObservation">[docs]</a>
+<span class="k">class</span> <span class="nc">ScaleObservation</span><span class="p">(</span><span class="n">BaseTransformObservation</span><span class="p">[</span><span class="n">ScaledObs</span><span class="p">,</span> <span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                       <span class="n">Generic</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply (inverse) scaling factors on subtrees or leaves of the observation</span>
+<span class="sd">    space of a given pipeline environment.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All leaf space of the observation space on which a scaling factor is</span>
+<span class="sd">        applied must be `gym.spaces.Box` instance with floating point dtype.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                 <span class="n">nested_scale</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">NestedData</span><span class="p">,</span> <span class="nb">float</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or already wrapped jiminy environment.</span>
+<span class="sd">        :param nested_scale: Sequence of tuple (nested_data, scale) where</span>
+<span class="sd">                             &#39;nested_data&#39; is itself sequence of nested keys,</span>
+<span class="sd">                             with eventually an array view spec at the end. if</span>
+<span class="sd">                             an array view is specified, then the nested key</span>
+<span class="sd">                             must map to a leaf of the corresponding nested</span>
+<span class="sd">                             space. The array view spec is a sequence of int,</span>
+<span class="sd">                             empty tuple, or pair of optional int that fully</span>
+<span class="sd">                             specified independent slices to extract for each</span>
+<span class="sd">                             dimension of the array associated with the leaf</span>
+<span class="sd">                             that the nested key is mapping to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nested_scale</span> <span class="o">=</span> <span class="n">nested_scale</span>
+
+        <span class="c1"># Define all subtrees that must be altered</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">_split_nested_key_and_slice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nested_scale</span><span class="p">))</span>
+
+        <span class="c1"># Make sure that all nested keys are valid</span>
+        <span class="n">base_observation_path_flat</span> <span class="o">=</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">base_observation_path_flat</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">path</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">nested_key</span><span class="p">)]</span> <span class="o">==</span> <span class="n">nested_key</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Nested key </span><span class="si">{</span><span class="n">nested_key</span><span class="si">}</span><span class="s2"> not found in base &quot;</span>
+                                 <span class="s2">&quot;observation space.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Build observation binding unaltered leaves to the original data while</span>
+        <span class="c1"># copying to others. Besides, generate a flattened list of scaling ops</span>
+        <span class="c1"># to apply sequentially at run-time.</span>
+        <span class="n">copy_ops</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">scale_ops_dict</span><span class="p">:</span> <span class="n">OrderedDict</span><span class="p">[</span>
+            <span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">observation_flat</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">base_observation_path_flat</span><span class="p">:</span>
+            <span class="n">dst</span><span class="p">,</span> <span class="n">is_copy</span><span class="p">,</span> <span class="n">is_scale_full</span> <span class="o">=</span> <span class="n">src</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">scale</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">path</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">nested_key</span><span class="p">)]</span> <span class="o">==</span> <span class="n">nested_key</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_copy</span><span class="p">:</span>
+                        <span class="n">dst</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                        <span class="n">is_copy</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">if</span> <span class="n">slices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="c1"># Factorize full scaling to make sure it only happens</span>
+                        <span class="c1"># once, which incidentally improves efficiency.</span>
+                        <span class="n">dst_id</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+                        <span class="n">scale_op</span> <span class="o">=</span> <span class="n">scale_ops_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">dst_id</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">scale_op</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">scale</span> <span class="o">/=</span> <span class="n">scale_op</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                        <span class="n">scale_ops_dict</span><span class="p">[</span><span class="n">dst_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">scale</span><span class="p">)</span>
+                        <span class="c1"># Must move first to make sure full scaling always</span>
+                        <span class="c1"># happens before chunk scaling if any.</span>
+                        <span class="n">scale_ops_dict</span><span class="o">.</span><span class="n">move_to_end</span><span class="p">(</span><span class="n">dst_id</span><span class="p">,</span> <span class="n">last</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="n">is_scale_full</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">scale_op</span> <span class="o">=</span> <span class="p">(</span><span class="n">dst</span><span class="p">[</span><span class="n">slices</span><span class="p">],</span> <span class="n">dst</span><span class="p">[</span><span class="n">slices</span><span class="p">],</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">scale</span><span class="p">)</span>
+                        <span class="n">scale_ops_dict</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">scale_op</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span> <span class="o">=</span> <span class="n">scale_op</span>
+            <span class="k">if</span> <span class="n">is_copy</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_scale_full</span><span class="p">:</span>
+                <span class="n">copy_ops</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">dst</span><span class="p">,</span> <span class="n">src</span><span class="p">))</span>
+            <span class="n">observation_flat</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">copy_ops</span><span class="p">:</span>
+            <span class="c1"># FIXME: Could be optimized by avoiding copying fields for which</span>
+            <span class="c1"># the union of extracted slices is covering the whole subspace.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_dst</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_src</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">copy_ops</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_dst</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_src</span> <span class="o">=</span> <span class="p">(),</span> <span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scale_ops</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">scale_ops_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation</span> <span class="o">=</span> <span class="n">unflatten_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation</span><span class="p">,</span> <span class="n">observation_flat</span><span class="p">)</span>
+
+        <span class="c1"># Apply transform at least one to make sure the observation is valid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform_observation</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">_get_rescale_space</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ScaleObservation.transform_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.scale.ScaleObservation.transform_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">transform_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># First, copy the value of some leaves.</span>
+        <span class="c1"># Guarding function call is faster than calling no-op python bindings.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_dst</span><span class="p">:</span>
+            <span class="n">multi_array_copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_copyto_dst</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copyto_src</span><span class="p">)</span>
+
+        <span class="c1"># Apply scaling factor sequentially on some chunks</span>
+        <span class="k">for</span> <span class="n">dst</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">scale</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_ops</span><span class="p">:</span>
+            <span class="n">_array_scale</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">src</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ScaleAction">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.scale.ScaleAction">[docs]</a>
+<span class="k">class</span> <span class="nc">ScaleAction</span><span class="p">(</span><span class="n">BaseTransformAction</span><span class="p">[</span><span class="n">ScaledAct</span><span class="p">,</span> <span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                  <span class="n">Generic</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply scaling factors on subtrees or leaves of the action space of a</span>
+<span class="sd">    given pipeline environment.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All leaf space of the action space on which a scaling factor is applied</span>
+<span class="sd">        must be `gym.spaces.Box` instance with floating point dtype.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">Obs</span><span class="p">,</span> <span class="n">Act</span><span class="p">],</span>
+                 <span class="n">nested_scale</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">NestedData</span><span class="p">,</span> <span class="nb">float</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or already wrapped jiminy environment.</span>
+<span class="sd">        :param nested_scale: Sequence of tuple (nested_data, scale) where</span>
+<span class="sd">                             &#39;nested_data&#39; is itself sequence of nested keys,</span>
+<span class="sd">                             with eventually an array view spec at the end. if</span>
+<span class="sd">                             an array view is specified, then the nested key</span>
+<span class="sd">                             must map to a leaf of the corresponding nested</span>
+<span class="sd">                             space. The array view spec is a sequence of int,</span>
+<span class="sd">                             empty tuple, or pair of optional int that fully</span>
+<span class="sd">                             specified independent slices to extract for each</span>
+<span class="sd">                             dimension of the array associated with the leaf</span>
+<span class="sd">                             that the nested key is mapping to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup user arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nested_scale</span> <span class="o">=</span> <span class="n">nested_scale</span>
+
+        <span class="c1"># Define all subtrees that must be altered</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">_split_nested_key_and_slice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nested_scale</span><span class="p">))</span>
+
+        <span class="c1"># Make sure that all nested keys are valid</span>
+        <span class="n">base_action_path_flat</span> <span class="o">=</span> <span class="n">flatten_with_path</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">action</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">base_action_path_flat</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">path</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">nested_key</span><span class="p">)]</span> <span class="o">==</span> <span class="n">nested_key</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Nested key </span><span class="si">{</span><span class="n">nested_key</span><span class="si">}</span><span class="s2"> not found in base action space.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize base class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+        <span class="c1"># Keeping track of the factorized scaling operations per leaf</span>
+        <span class="n">slices_scale_list_flat</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">],</span> <span class="o">...</span><span class="p">]],</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">base_action_path_flat</span><span class="p">:</span>
+            <span class="n">slices_scale_dict</span><span class="p">:</span> <span class="n">OrderedDict</span><span class="p">[</span>
+                <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">],</span> <span class="o">...</span><span class="p">]],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">scale</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">path</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">nested_key</span><span class="p">)]</span> <span class="o">==</span> <span class="n">nested_key</span><span class="p">:</span>
+                    <span class="n">scale</span> <span class="o">*=</span> <span class="n">slices_scale_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+                    <span class="n">slices_scale_dict</span><span class="p">[</span><span class="n">slices</span><span class="p">]</span> <span class="o">=</span> <span class="n">scale</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">slices</span><span class="p">:</span>
+                        <span class="n">slices_scale_dict</span><span class="o">.</span><span class="n">move_to_end</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">last</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">slices_scale_list_flat</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">slices_scale_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+        <span class="n">nested_slices_scale_list</span> <span class="o">=</span> <span class="n">unflatten_as</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">action</span><span class="p">,</span> <span class="n">slices_scale_list_flat</span><span class="p">)</span>
+
+        <span class="c1"># Define specialized array scaling operator for efficiency</span>
+        <span class="k">def</span> <span class="nf">_array_scale_chunks</span><span class="p">(</span>
+                <span class="n">slices_scale_list</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span>
+                    <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">],</span> <span class="o">...</span><span class="p">]],</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">],</span>
+                <span class="n">dst</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                <span class="n">src</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Apply a series of scalar scaling factors on blocks of a given</span>
+<span class="sd">            array out-of-place.</span>
+
+<span class="sd">            It is assumed that all slices are unique, and the first one is the</span>
+<span class="sd">            &quot;empty&quot; slices (full array) if any.</span>
+
+<span class="sd">            :param dst: Pre-allocated array into which the result must be</span>
+<span class="sd">                        stored.</span>
+<span class="sd">            :param src: Input array.</span>
+<span class="sd">            :param slices_scale_list: Sequence of tuple (slices, scale) where</span>
+<span class="sd">                                      &#39;slices&#39; is a group of slices to extract</span>
+<span class="sd">                                      block views from &#39;dst&#39; and &#39;src&#39; arrays,</span>
+<span class="sd">                                      while &#39;scale&#39; is the scalar scaling</span>
+<span class="sd">                                      factor to apply on this specific view.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># Extract first slice if any</span>
+            <span class="n">slices</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">slices_scale_list</span><span class="p">:</span>
+                <span class="n">slices</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">slices_scale_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Must first copy src to dst if no scaling factor to apply or only</span>
+            <span class="c1"># on chunks.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">slices_scale_list</span> <span class="ow">or</span> <span class="n">slices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">array_copyto</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">src</span><span class="p">)</span>
+                <span class="n">src</span> <span class="o">=</span> <span class="n">dst</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">slices_scale_list</span><span class="p">:</span>
+                    <span class="k">return</span>
+
+            <span class="c1"># Apply scaling factor on chunks of full array depending on slices</span>
+            <span class="k">for</span> <span class="n">slices</span><span class="p">,</span> <span class="n">scale</span> <span class="ow">in</span> <span class="n">slices_scale_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">slices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">_array_scale</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">src</span><span class="p">)</span>
+                    <span class="n">src</span> <span class="o">=</span> <span class="n">dst</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_array_scale</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">dst</span><span class="p">[</span><span class="n">slices</span><span class="p">],</span> <span class="n">src</span><span class="p">[</span><span class="n">slices</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scale_action_inv</span> <span class="o">=</span> <span class="n">build_reduce</span><span class="p">(</span>
+            <span class="n">fn</span><span class="o">=</span><span class="n">_array_scale_chunks</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="p">(</span><span class="n">nested_slices_scale_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action</span><span class="p">),</span>
+            <span class="n">space</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">action_space</span><span class="p">,</span>
+            <span class="n">arity</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">forward_bounds</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="n">_get_rescale_space</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nested_key_slices_scale_list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ScaleAction.transform_action">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/wrappers/scale.html#gym_jiminy.common.wrappers.scale.ScaleAction.transform_action">[docs]</a>
+    <span class="k">def</span> <span class="nf">transform_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">ScaledAct</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update in-place pre-allocated transformed action buffer with</span>
+<span class="sd">        the normalized action of the wrapped environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scale_action_inv</span><span class="p">(</span><span class="n">action</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

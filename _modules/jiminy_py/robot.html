@@ -1,0 +1,1094 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jiminy_py.robot &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jiminy_py.robot</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jiminy_py.robot</h1><div class="highlight"><pre>
+<span></span><span class="c1"># mypy: disable-error-code=&quot;attr-defined, name-defined&quot;</span>
+<span class="sd">&quot;&quot;&quot;This module adds the notion of hardware and option TOML configuration files</span>
+<span class="sd">for robots. It provides utilities for generating them automatically and a basic</span>
+<span class="sd">wrapper on top of the lower-level Jiminy Robot for loading them.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span><span class="p">,</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">ModuleType</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">get_args</span>
+
+<span class="kn">import</span> <span class="nn">tomlkit</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">trimesh</span>
+<span class="kn">import</span> <span class="nn">trimesh.parent</span>
+
+<span class="kn">import</span> <span class="nn">hppfcl</span>
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+<span class="kn">from</span> <span class="nn">pinocchio.rpy</span> <span class="kn">import</span> <span class="n">rpyToMatrix</span>  <span class="c1"># pylint: disable=import-error</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">core</span> <span class="k">as</span> <span class="n">jiminy</span>
+<span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+    <span class="n">SimpleMotor</span><span class="p">,</span> <span class="n">EncoderSensor</span><span class="p">,</span> <span class="n">EffortSensor</span><span class="p">,</span> <span class="n">ForceSensor</span><span class="p">,</span> <span class="n">ImuSensor</span><span class="p">)</span>
+
+
+<span class="n">DEFAULT_UPDATE_RATE</span> <span class="o">=</span> <span class="mf">1000.0</span>  <span class="c1"># [Hz]</span>
+<span class="n">DEFAULT_FRICTION_DRY_SLOPE</span> <span class="o">=</span> <span class="mf">20.0</span>
+
+<span class="n">EXTENSION_MODULES</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ModuleType</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+
+<span class="n">GeometryModelType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">,</span> <span class="s1">&#39;visual&#39;</span><span class="p">]</span>
+<span class="n">GeometryObjectType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;primitive&#39;</span><span class="p">,</span> <span class="s1">&#39;mesh&#39;</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">_DuplicateFilter</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Filter</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Basic logging filter for printing out identical logging messages only</span>
+<span class="sd">    once regardless its origin by keeping track of the whole history.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">msgs</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">LogRecord</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter all messages that have already been logged once.</span>
+
+<span class="sd">        All new messages are stored in a singleton buffer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">msg</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">msgs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">msgs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">LOGGER</span><span class="o">.</span><span class="n">addFilter</span><span class="p">(</span><span class="n">_DuplicateFilter</span><span class="p">())</span>
+
+
+<span class="k">def</span> <span class="nf">_gcd</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+         <span class="n">b</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+         <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0e-05</span><span class="p">,</span>
+         <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0e-08</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the greatest common divisor of two float numbers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">abs</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+    <span class="k">while</span> <span class="nb">abs</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">rtol</span> <span class="o">*</span> <span class="n">t</span> <span class="o">+</span> <span class="n">atol</span><span class="p">:</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">%</span> <span class="n">b</span>
+    <span class="k">return</span> <span class="n">a</span>
+
+
+<span class="k">def</span> <span class="nf">_fix_urdf_mesh_path</span><span class="p">(</span><span class="n">urdf_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                        <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                        <span class="n">output_root_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate an URDF with updated mesh paths.</span>
+
+<span class="sd">    :param urdf_path: Full path of the URDF file.</span>
+<span class="sd">    :param mesh_dir_path: Root path of the meshes.</span>
+<span class="sd">    :param output_root_path: Root directory of the fixed URDF file.</span>
+<span class="sd">                             Optional: temporary directory by default.</span>
+
+<span class="sd">    :returns: Full path of the fixed URDF file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract all the mesh path that are not package path, continue if any</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">urdf_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">urdf_file</span><span class="p">:</span>
+        <span class="n">urdf_contents</span> <span class="o">=</span> <span class="n">urdf_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="n">mesh_tag</span> <span class="o">=</span> <span class="s2">&quot;&lt;mesh filename=&quot;</span>
+    <span class="n">pathlists</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">filename</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">mesh_tag</span> <span class="o">+</span> <span class="s1">&#39;&quot;(.*)&quot;&#39;</span><span class="p">,</span> <span class="n">urdf_contents</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;package://&#39;</span><span class="p">)}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pathlists</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">urdf_path</span>
+
+    <span class="c1"># If mesh root path already matching, then nothing to do</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pathlists</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">pathlists</span><span class="p">):</span>
+            <span class="n">mesh_path_dir_orig</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mesh_path_dir_orig</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">commonpath</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">pathlists</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mesh_path_dir_orig</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">pathlists</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">mesh_dir_path</span> <span class="o">==</span> <span class="n">mesh_path_dir_orig</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">urdf_path</span>
+
+    <span class="c1"># Create the output directory</span>
+    <span class="k">if</span> <span class="n">output_root_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">output_root_path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">fixed_urdf_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">output_root_path</span><span class="p">,</span> <span class="s2">&quot;fixed_urdf&quot;</span> <span class="o">+</span> <span class="n">mesh_dir_path</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span>
+            <span class="nb">str</span><span class="o">.</span><span class="n">maketrans</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="s1">&#39;_&#39;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="s1">&#39;/:&#39;</span><span class="p">})))</span>  <span class="c1"># type: ignore[arg-type]</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">fixed_urdf_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">fixed_urdf_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">fixed_urdf_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">urdf_path</span><span class="p">))</span>
+
+    <span class="c1"># Override the root mesh path with the desired one</span>
+    <span class="n">urdf_contents</span> <span class="o">=</span> <span class="n">urdf_contents</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+        <span class="s1">&#39;&quot;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">mesh_tag</span><span class="p">,</span> <span class="n">mesh_path_dir_orig</span><span class="p">)),</span>
+        <span class="s1">&#39;&quot;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">mesh_tag</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">)))</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fixed_urdf_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">urdf_contents</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fixed_urdf_path</span>
+
+
+<div class="viewcode-block" id="generate_default_hardware_description_file">
+<a class="viewcode-back" href="../../api/jiminy_py/robot.html#jiminy_py.robot.generate_default_hardware_description_file">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_default_hardware_description_file</span><span class="p">(</span>
+        <span class="n">urdf_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">hardware_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">default_update_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_UPDATE_RATE</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Generate a default hardware description file, based on the information</span>
+<span class="sd">    grabbed from the URDF when available, using educated guess otherwise.</span>
+
+<span class="sd">    If no IMU sensor is found, a single one is added on the root body of the</span>
+<span class="sd">    kinematic tree. If no Gazebo plugin is available, collision bodies and</span>
+<span class="sd">    force sensors are added on every leaf body of the robot. Otherwise, the</span>
+<span class="sd">    definition of the plugins in use to infer them.</span>
+
+<span class="sd">    &#39;joint&#39; fields are parsed to extract every joint, actuated or not. &#39;fixed&#39;</span>
+<span class="sd">    joints are not considered as actual joints. Transmission fields are parsed</span>
+<span class="sd">    to determine which one of those joints are actuated. If no transmission is</span>
+<span class="sd">    found, it is assumed that every joint is actuated, with a transmission</span>
+<span class="sd">    ratio of 1:1.</span>
+
+<span class="sd">    It is assumed that:</span>
+
+<span class="sd">    - every joint has an encoder attached,</span>
+<span class="sd">    - every actuated joint has an effort sensor attached,</span>
+<span class="sd">    - every collision body has a force sensor attached</span>
+<span class="sd">    - for every Gazebo contact sensor, the associated body is added</span>
+<span class="sd">      to the set of the collision bodies, but it is not the case</span>
+<span class="sd">      for Gazebo force plugin.</span>
+
+<span class="sd">    When the default update rate is unspecified, then the default</span>
+<span class="sd">    sensor update rate is 1KHz if no Gazebo plugin has been found,</span>
+<span class="sd">    otherwise the highest one among found plugins will be used.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        It has been primarily designed for robots with freeflyer. The default</span>
+<span class="sd">        configuration should work out-of-the-box for walking robot, but</span>
+<span class="sd">        substantial modification may be required for different types of robots</span>
+<span class="sd">        such as wheeled robots or robotics manipulator arms.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        TOML format as be chosen to make reading and manually editing of the</span>
+<span class="sd">        file as human-friendly as possible.</span>
+
+<span class="sd">    :param urdf_path: Fullpath of the URDF file.</span>
+<span class="sd">    :param hardware_path: Fullpath of the hardware description file.</span>
+<span class="sd">                          Optional: By default, it is the same location than</span>
+<span class="sd">                          the URDF file, using &#39;\*_hardware.toml&#39; extension.</span>
+<span class="sd">    :param default_update_rate: Default update rate of the sensors and the</span>
+<span class="sd">                                controller in Hz. It will be used for sensors</span>
+<span class="sd">                                whose the update rate is unspecified. 0.0 for</span>
+<span class="sd">                                continuous update.</span>
+<span class="sd">                                Optional: DEFAULT_UPDATE_RATE if no Gazebo</span>
+<span class="sd">                                plugin has been found, the lowest among the</span>
+<span class="sd">                                Gazebo plugins otherwise.</span>
+<span class="sd">    :param verbose: Whether to print warnings.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Handle verbosity level</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
+
+    <span class="c1"># Read the XML</span>
+    <span class="n">tree</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">urdf_path</span><span class="p">)</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
+
+    <span class="c1"># Initialize the hardware information</span>
+    <span class="n">hardware_info</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span>
+        <span class="n">Global</span><span class="o">=</span><span class="n">OrderedDict</span><span class="p">(</span>
+            <span class="n">sensorsUpdatePeriod</span><span class="o">=</span><span class="mf">1.0</span><span class="o">/</span><span class="n">default_update_rate</span><span class="p">,</span>
+            <span class="n">controllerUpdatePeriod</span><span class="o">=</span><span class="mf">1.0</span><span class="o">/</span><span class="n">default_update_rate</span><span class="p">,</span>
+            <span class="n">collisionBodyNames</span><span class="o">=</span><span class="p">[],</span>
+            <span class="n">contactFrameNames</span><span class="o">=</span><span class="p">[]</span>
+        <span class="p">),</span>
+        <span class="n">Motor</span><span class="o">=</span><span class="n">defaultdict</span><span class="p">(</span><span class="n">OrderedDict</span><span class="p">),</span>
+        <span class="n">Sensor</span><span class="o">=</span><span class="n">defaultdict</span><span class="p">(</span><span class="n">OrderedDict</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">motors_info</span> <span class="o">=</span> <span class="n">hardware_info</span><span class="p">[</span><span class="s1">&#39;Motor&#39;</span><span class="p">]</span>
+    <span class="n">sensors_info</span> <span class="o">=</span> <span class="n">hardware_info</span><span class="p">[</span><span class="s1">&#39;Sensor&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Extract the root link. It is the one having no parent at all.</span>
+    <span class="n">links</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">link_descr</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;./link&#39;</span><span class="p">):</span>
+        <span class="n">links</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">link_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">joint_descr</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;./joint&#39;</span><span class="p">):</span>
+        <span class="n">child_obj</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./child&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">child_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">links</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">child_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;link&#39;</span><span class="p">))</span>
+    <span class="n">link_root</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">links</span><span class="p">))</span>
+
+    <span class="c1"># Extract the list of parent and child links, excluding the one related</span>
+    <span class="c1"># to fixed link not having collision geometry, because they are likely not</span>
+    <span class="c1"># &quot;real&quot; joint.</span>
+    <span class="n">links_parent</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">links_child</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">joint_descr</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;./joint&#39;</span><span class="p">):</span>
+        <span class="n">parent_link_obj</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./parent&#39;</span><span class="p">)</span>
+        <span class="n">child_link_obj</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./child&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">parent_link_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="n">child_link_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">parent_link</span> <span class="o">=</span> <span class="n">parent_link_obj</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;link&#39;</span><span class="p">]</span>
+        <span class="n">child_link</span> <span class="o">=</span> <span class="n">child_link_obj</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;link&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;fixed&#39;</span> <span class="ow">or</span> <span class="n">root</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;./link[@name=&#39;</span><span class="si">{</span><span class="n">child_link</span><span class="si">}</span><span class="s2">&#39;]/collision&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">links_parent</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">parent_link</span><span class="p">)</span>
+            <span class="n">links_child</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">child_link</span><span class="p">)</span>
+
+    <span class="c1"># Determine leaf links. If there is no parent, then use root link instead.</span>
+    <span class="k">if</span> <span class="n">links_parent</span><span class="p">:</span>
+        <span class="n">links_leaf</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">links_child</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">links_parent</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">links_leaf</span> <span class="o">=</span> <span class="p">[</span><span class="n">link_root</span><span class="p">]</span>
+
+    <span class="c1"># Parse the gazebo plugins, if any.</span>
+    <span class="c1"># Note that it is only useful to extract &quot;advanced&quot; hardware, not basic</span>
+    <span class="c1"># motors, encoders and effort sensors.</span>
+    <span class="n">gazebo_ground_stiffness</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">gazebo_ground_damping</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">gazebo_update_rate</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">collision_body_names</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">gazebo_plugins_found</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;gazebo&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">gazebo_plugin_descr</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">iterfind</span><span class="p">(</span><span class="s1">&#39;gazebo&#39;</span><span class="p">):</span>
+        <span class="n">body_name</span> <span class="o">=</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;reference&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Extract sensors</span>
+        <span class="k">for</span> <span class="n">gazebo_sensor_descr</span> <span class="ow">in</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">iterfind</span><span class="p">(</span><span class="s1">&#39;sensor&#39;</span><span class="p">):</span>
+            <span class="n">sensor_info</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span><span class="n">body_name</span><span class="o">=</span><span class="n">body_name</span><span class="p">)</span>
+
+            <span class="c1"># Extract the sensor name</span>
+            <span class="n">sensor_name</span> <span class="o">=</span> <span class="n">gazebo_sensor_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+
+            <span class="c1"># Extract the sensor type</span>
+            <span class="n">sensor_type</span> <span class="o">=</span> <span class="n">gazebo_sensor_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s1">&#39;imu&#39;</span> <span class="ow">in</span> <span class="n">sensor_type</span><span class="p">:</span>
+                <span class="n">sensor_type</span> <span class="o">=</span> <span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span>
+            <span class="k">elif</span> <span class="s1">&#39;contact&#39;</span> <span class="ow">in</span> <span class="n">sensor_type</span><span class="p">:</span>
+                <span class="n">collision_body_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">body_name</span><span class="p">)</span>
+                <span class="n">sensor_type</span> <span class="o">=</span> <span class="n">ForceSensor</span><span class="o">.</span><span class="n">type</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Unsupported Gazebo sensor plugin of type &#39;</span><span class="si">%s</span><span class="s2">&#39;.&quot;</span><span class="p">,</span>
+                    <span class="n">sensor_type</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Extract the sensor update period</span>
+            <span class="n">update_rate_obj</span> <span class="o">=</span> <span class="n">gazebo_sensor_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./update_rate&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">update_rate_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">assert</span> <span class="n">update_rate_obj</span><span class="o">.</span><span class="n">text</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">update_rate</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">update_rate_obj</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">gazebo_update_rate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">gazebo_update_rate</span> <span class="o">=</span> <span class="n">update_rate</span>
+            <span class="k">elif</span> <span class="n">gazebo_update_rate</span> <span class="o">!=</span> <span class="n">update_rate</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Jiminy does not support sensors with different &quot;</span>
+                    <span class="s2">&quot;update rate. Using greatest common divisor instead.&quot;</span><span class="p">)</span>
+                <span class="n">gazebo_update_rate</span> <span class="o">=</span> <span class="n">_gcd</span><span class="p">(</span><span class="n">gazebo_update_rate</span><span class="p">,</span> <span class="n">update_rate</span><span class="p">)</span>
+
+            <span class="c1"># Extract the pose of the frame associate with the sensor.</span>
+            <span class="c1"># Note that it is optional but usually defined since sensors</span>
+            <span class="c1"># can only be attached to link in Gazebo, not to frame.</span>
+            <span class="n">frame_pose_obj</span> <span class="o">=</span> <span class="n">gazebo_sensor_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./pose&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">frame_pose_obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">sensor_info</span><span class="p">[</span><span class="s1">&#39;frame_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sensor_info</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;body_name&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="n">frame_pose_obj</span><span class="o">.</span><span class="n">text</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="n">sensor_info</span><span class="p">[</span><span class="s1">&#39;frame_pose&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+                    <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">frame_pose_obj</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+
+            <span class="c1"># Add the sensor to the robot&#39;s hardware</span>
+            <span class="n">sensors_info</span><span class="p">[</span><span class="n">sensor_type</span><span class="p">][</span><span class="n">sensor_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">sensor_info</span>
+
+        <span class="c1"># Extract the collision bodies and ground model, then add force</span>
+        <span class="c1"># sensors. At this point, every force sensor is associated with a</span>
+        <span class="c1"># collision body.</span>
+        <span class="k">if</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;kp&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Add a force sensor, if not already in the collision set</span>
+            <span class="k">if</span> <span class="n">body_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">collision_body_names</span><span class="p">:</span>
+                <span class="n">force_sensor_info</span> <span class="o">=</span> <span class="n">sensors_info</span><span class="p">[</span><span class="n">ForceSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+                <span class="n">force_sensor_info</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">body_name</span><span class="si">}</span><span class="s2">Contact&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span>
+                    <span class="n">frame_name</span><span class="o">=</span><span class="n">body_name</span><span class="p">)</span>
+
+            <span class="c1"># Add the related body to the collision set</span>
+            <span class="n">collision_body_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">body_name</span><span class="p">)</span>
+
+            <span class="c1"># Update the ground model</span>
+            <span class="n">kp_obj</span> <span class="o">=</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;kp&#39;</span><span class="p">)</span>
+            <span class="n">kd_obj</span> <span class="o">=</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;kd&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">kp_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">kp_obj</span><span class="o">.</span><span class="n">text</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">assert</span> <span class="n">kd_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">kd_obj</span><span class="o">.</span><span class="n">text</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">ground_stiffness</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">kp_obj</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+            <span class="n">ground_damping</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">kd_obj</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">gazebo_ground_stiffness</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">gazebo_ground_stiffness</span> <span class="o">=</span> <span class="n">ground_stiffness</span>
+            <span class="k">if</span> <span class="n">gazebo_ground_damping</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">gazebo_ground_damping</span> <span class="o">=</span> <span class="n">ground_damping</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">gazebo_ground_stiffness</span> <span class="o">!=</span> <span class="n">ground_stiffness</span> <span class="ow">or</span>
+                    <span class="n">gazebo_ground_damping</span> <span class="o">!=</span> <span class="n">ground_damping</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s2">&quot;Jiminy does not support contacts with different ground &quot;</span>
+                    <span class="s2">&quot;models.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Extract plugins not wrapped into a sensor</span>
+        <span class="k">for</span> <span class="n">gazebo_plugin_descr</span> <span class="ow">in</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">iterfind</span><span class="p">(</span><span class="s1">&#39;plugin&#39;</span><span class="p">):</span>
+            <span class="n">plugin</span> <span class="o">=</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;filename&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">plugin</span> <span class="o">==</span> <span class="s2">&quot;libgazebo_ros_force.so&quot;</span><span class="p">:</span>
+                <span class="n">body_name_obj</span> <span class="o">=</span> <span class="n">gazebo_plugin_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;bodyName&#39;</span><span class="p">)</span>
+                <span class="k">assert</span> <span class="n">body_name_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="n">body_name</span> <span class="o">=</span> <span class="n">body_name_obj</span><span class="o">.</span><span class="n">text</span>
+                <span class="n">force_sensor_info</span> <span class="o">=</span> <span class="n">sensors_info</span><span class="p">[</span><span class="n">ForceSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+                <span class="n">force_sensor_info</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">body_name</span><span class="si">}</span><span class="s2">Wrench&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span>
+                    <span class="n">frame_name</span><span class="o">=</span><span class="n">body_name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unsupported Gazebo plugin &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">plugin</span><span class="p">)</span>
+
+    <span class="c1"># Add IMU sensor to the root link if no Gazebo IMU sensor has been found</span>
+    <span class="k">if</span> <span class="n">link_root</span> <span class="ow">and</span> <span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sensors_info</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">sensors_info</span><span class="p">[</span><span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="n">link_root</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span>
+            <span class="n">frame_name</span><span class="o">=</span><span class="n">link_root</span><span class="p">)</span>
+
+    <span class="c1"># Add force sensors and collision bodies if no Gazebo plugin is available</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">gazebo_plugins_found</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">link_leaf</span> <span class="ow">in</span> <span class="n">links_leaf</span><span class="p">:</span>
+            <span class="c1"># Add a force sensor</span>
+            <span class="n">sensors_info</span><span class="p">[</span><span class="n">ForceSensor</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="n">link_leaf</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span>
+                <span class="n">frame_name</span><span class="o">=</span><span class="n">link_leaf</span><span class="p">)</span>
+
+            <span class="c1"># Add the related body to the collision set if possible</span>
+            <span class="k">if</span> <span class="n">root</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;./link[@name=&#39;</span><span class="si">{</span><span class="n">link_leaf</span><span class="si">}</span><span class="s2">&#39;]/collision&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">collision_body_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">link_leaf</span><span class="p">)</span>
+
+    <span class="c1"># Specify collision bodies and ground model in global config options</span>
+    <span class="n">hardware_info</span><span class="p">[</span><span class="s1">&#39;Global&#39;</span><span class="p">][</span><span class="s1">&#39;collisionBodyNames&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+        <span class="nb">list</span><span class="p">(</span><span class="n">collision_body_names</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">gazebo_ground_stiffness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">hardware_info</span><span class="p">[</span><span class="s1">&#39;Global&#39;</span><span class="p">][</span><span class="s1">&#39;groundStiffness&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gazebo_ground_stiffness</span>
+    <span class="k">if</span> <span class="n">gazebo_ground_damping</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">hardware_info</span><span class="p">[</span><span class="s1">&#39;Global&#39;</span><span class="p">][</span><span class="s1">&#39;groundDamping&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gazebo_ground_damping</span>
+
+    <span class="c1"># Extract joint dynamics properties, namely &#39;friction&#39; and &#39;damping&#39;</span>
+    <span class="n">joints_options</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">joint_descr</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;./joint&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;fixed&#39;</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">joint_name</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="n">dyn_descr</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./dynamics&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dyn_descr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">damping</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dyn_descr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;damping&#39;</span><span class="p">,</span>  <span class="mf">0.0</span><span class="p">))</span>
+            <span class="n">friction</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dyn_descr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;friction&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">damping</span><span class="p">,</span> <span class="n">friction</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
+        <span class="n">joints_options</span><span class="p">[</span><span class="n">joint_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">damping</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">joints_options</span><span class="p">[</span><span class="n">joint_name</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="n">frictionViscousPositive</span><span class="o">=-</span><span class="n">damping</span><span class="p">,</span>
+                <span class="n">frictionViscousNegative</span><span class="o">=-</span><span class="n">damping</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">friction</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">joints_options</span><span class="p">[</span><span class="n">joint_name</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="n">frictionDryPositive</span><span class="o">=-</span><span class="n">friction</span><span class="p">,</span>
+                <span class="n">frictionDryNegative</span><span class="o">=-</span><span class="n">friction</span><span class="p">,</span>
+                <span class="n">frictionDrySlope</span><span class="o">=</span><span class="n">DEFAULT_FRICTION_DRY_SLOPE</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Extract the motors and effort sensors.</span>
+    <span class="c1"># It is done by reading &#39;transmission&#39; field, that is part of</span>
+    <span class="c1"># URDF standard, so it should be available on any URDF file.</span>
+    <span class="n">joint_transmissions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">transmission_descr</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">iterfind</span><span class="p">(</span><span class="s1">&#39;transmission&#39;</span><span class="p">):</span>
+        <span class="c1"># Assert(s) for type checker</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transmission_descr</span><span class="p">,</span> <span class="n">ET</span><span class="o">.</span><span class="n">Element</span><span class="p">)</span>
+
+        <span class="c1"># Initialize motor and sensor info</span>
+        <span class="n">motor_info</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">sensor_info</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+        <span class="c1"># Check that the transmission type is supported</span>
+        <span class="n">transmission_name</span> <span class="o">=</span> <span class="n">transmission_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="n">transmission_type_obj</span> <span class="o">=</span> <span class="n">transmission_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./type&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">transmission_type_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">transmission_type</span> <span class="o">=</span> <span class="n">transmission_type_obj</span><span class="o">.</span><span class="n">text</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">transmission_type</span> <span class="o">=</span> <span class="n">transmission_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">transmission_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">transmission_type</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">transmission_type</span><span class="p">)</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">transmission_type</span> <span class="o">!=</span> <span class="s1">&#39;simpletransmission&#39;</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Jiminy only support SimpleTransmission for now. Skipping&quot;</span>
+                <span class="s2">&quot;transmission &#39;</span><span class="si">%s</span><span class="s2">&#39; of type &#39;</span><span class="si">%s</span><span class="s2">&#39;.&quot;</span><span class="p">,</span> <span class="n">transmission_name</span><span class="p">,</span>
+                <span class="n">transmission_type</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Extract the motor name</span>
+        <span class="n">motor_descr</span> <span class="o">=</span> <span class="n">transmission_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./actuator&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">motor_descr</span><span class="p">,</span> <span class="n">ET</span><span class="o">.</span><span class="n">Element</span><span class="p">)</span>
+        <span class="n">motor_name</span> <span class="o">=</span> <span class="n">motor_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="n">sensor_info</span><span class="p">[</span><span class="s1">&#39;motor_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">motor_name</span>
+
+        <span class="c1"># Extract the associated joint name</span>
+        <span class="n">joint_descr</span> <span class="o">=</span> <span class="n">transmission_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./joint&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">joint_descr</span><span class="p">,</span> <span class="n">ET</span><span class="o">.</span><span class="n">Element</span><span class="p">)</span>
+        <span class="n">joint_name</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="n">motor_info</span><span class="p">[</span><span class="s1">&#39;joint_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">joint_name</span>
+        <span class="n">joint_transmissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">joint_name</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that the joint is revolute</span>
+        <span class="n">joint</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;./joint[@name=&#39;</span><span class="si">{</span><span class="n">joint_name</span><span class="si">}</span><span class="s2">&#39;]&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">joint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">joint_type</span> <span class="o">=</span> <span class="n">joint</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">joint_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;revolute&quot;</span><span class="p">,</span> <span class="s2">&quot;continuous&quot;</span><span class="p">,</span> <span class="s2">&quot;prismatic&quot;</span><span class="p">):</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Jiminy only support 1-dof joint actuators and effort &quot;</span>
+                <span class="s2">&quot;sensors. Attached joint cannot of type &#39;</span><span class="si">%s</span><span class="s2">&#39;.&quot;</span><span class="p">,</span> <span class="n">joint_type</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Extract the transmission ratio (motor / joint)</span>
+        <span class="n">ratio_obj</span> <span class="o">=</span> <span class="n">transmission_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./mechanicalReduction&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ratio_obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">motor_info</span><span class="p">[</span><span class="s1">&#39;mechanicalReduction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">ratio_obj</span><span class="o">.</span><span class="n">text</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">ratio_txt</span> <span class="o">=</span> <span class="n">ratio_obj</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">motor_info</span><span class="p">[</span><span class="s1">&#39;mechanicalReduction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">ratio_txt</span><span class="p">)</span>
+
+        <span class="c1"># Extract the armature (rotor) inertia</span>
+        <span class="n">armature</span> <span class="o">=</span> <span class="n">transmission_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./motorInertia&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">armature</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">motor_info</span><span class="p">[</span><span class="s1">&#39;armature&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">armature_txt</span> <span class="o">=</span> <span class="n">armature</span><span class="o">.</span><span class="n">text</span>
+            <span class="k">assert</span> <span class="n">armature_txt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">motor_info</span><span class="p">[</span><span class="s1">&#39;armature&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">armature_txt</span><span class="p">)</span>
+
+        <span class="c1"># Add dynamics property to motor info, if any</span>
+        <span class="n">motor_info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">joints_options</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">joint_name</span><span class="p">))</span>
+
+        <span class="c1"># Add the motor and sensors to the robot&#39;s hardware</span>
+        <span class="n">motors_info</span><span class="p">[</span><span class="n">SimpleMotor</span><span class="o">.</span><span class="vm">__name__</span><span class="p">][</span><span class="n">motor_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">motor_info</span>
+        <span class="n">sensors_info</span><span class="p">[</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="n">motor_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">sensor_info</span>
+        <span class="n">sensors_info</span><span class="p">[</span><span class="n">EffortSensor</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="n">motor_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">sensor_info</span>
+
+    <span class="c1"># Define default encoder sensors, and default effort sensors if no</span>
+    <span class="c1"># transmission available.</span>
+    <span class="k">for</span> <span class="n">joint_descr</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">iterfind</span><span class="p">(</span><span class="s1">&#39;joint&#39;</span><span class="p">):</span>
+        <span class="n">encoder_info</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+        <span class="c1"># Skip fixed joints</span>
+        <span class="n">joint_type</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">joint_type</span> <span class="o">==</span> <span class="s1">&#39;fixed&#39;</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Extract the joint name</span>
+        <span class="n">joint_name</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="n">encoder_info</span><span class="p">[</span><span class="s1">&#39;joint_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">joint_name</span>
+
+        <span class="c1"># Add the sensor to the robot&#39;s hardware</span>
+        <span class="k">if</span> <span class="n">joint_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">joint_transmissions</span><span class="p">:</span>
+            <span class="n">sensors_info</span><span class="p">[</span><span class="n">EncoderSensor</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="n">joint_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">encoder_info</span>
+
+        <span class="c1"># Add motors to robot hardware by default if no transmission found</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">joint_transmissions</span><span class="p">:</span>
+            <span class="n">joint_limit_descr</span> <span class="o">=</span> <span class="n">joint_descr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;./limit&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">joint_limit_descr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">joint_limit_descr</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;effort&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">motors_info</span><span class="p">[</span><span class="s1">&#39;SimpleMotor&#39;</span><span class="p">][</span><span class="n">joint_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span>
+                <span class="n">joint_name</span><span class="o">=</span><span class="n">joint_name</span><span class="p">,</span>
+                <span class="n">armature</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">joints_options</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">joint_name</span><span class="p">))</span>
+            <span class="n">sensors_info</span><span class="p">[</span><span class="n">EffortSensor</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="n">joint_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span>
+                <span class="n">motor_name</span><span class="o">=</span><span class="n">joint_name</span><span class="p">)</span>
+
+    <span class="c1"># Warn if friction model has been defined for non-actuated joints</span>
+    <span class="k">if</span> <span class="n">joints_options</span><span class="p">:</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Jiminy only support friction model for actuated joint.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Specify custom update rate for the controller and the sensors, if any</span>
+    <span class="k">if</span> <span class="n">gazebo_update_rate</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">hardware_info</span><span class="p">[</span><span class="s1">&#39;Global&#39;</span><span class="p">][</span><span class="s1">&#39;sensorsUpdatePeriod&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="mf">1.0</span> <span class="o">/</span> <span class="n">gazebo_update_rate</span>
+        <span class="n">hardware_info</span><span class="p">[</span><span class="s1">&#39;Global&#39;</span><span class="p">][</span><span class="s1">&#39;controllerUpdatePeriod&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="mf">1.0</span> <span class="o">/</span> <span class="n">gazebo_update_rate</span>
+
+    <span class="c1"># Write the sensor description file</span>
+    <span class="k">if</span> <span class="n">hardware_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">hardware_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span>
+            <span class="n">urdf_path</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;_hardware.toml&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">hardware_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">tomlkit</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">hardware_info</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="load_hardware_description_file">
+<a class="viewcode-back" href="../../api/jiminy_py/robot.html#jiminy_py.robot.load_hardware_description_file">[docs]</a>
+<span class="k">def</span> <span class="nf">load_hardware_description_file</span><span class="p">(</span>
+        <span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">,</span>
+        <span class="n">hardware_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">avoid_instable_collisions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load hardware configuration file.</span>
+
+<span class="sd">    If no collision geometry is associated with the body requiring collision</span>
+<span class="sd">    handling, then the visual geometry is used instead, if any. If none is</span>
+<span class="sd">    available despite at, then a single contact point is added at body frame.</span>
+
+<span class="sd">    For now, every mesh used for collision are replaced by the vertices of the</span>
+<span class="sd">    associated minimum volume bounding box, to avoid numerical instabilities.</span>
+
+<span class="sd">    :param robot: Jiminy robot.</span>
+<span class="sd">    :param hardware_path: Path of Jiminy hardware description toml file.</span>
+<span class="sd">    :param avoid_instable_collisions: Prevent numerical instabilities by</span>
+<span class="sd">                                      replacing collision mesh by vertices of</span>
+<span class="sd">                                      associated minimal volume bounding box,</span>
+<span class="sd">                                      and primitive box by its vertices.</span>
+<span class="sd">    :param verbose: Whether to print warnings.</span>
+
+<span class="sd">    :returns: Unused information available in hardware configuration file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Handle verbosity level</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">hardware_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">hardware_info</span> <span class="o">=</span> <span class="n">tomlkit</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">unwrap</span><span class="p">()</span>
+    <span class="n">extra_info</span> <span class="o">=</span> <span class="n">hardware_info</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;Global&#39;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">motors_info</span> <span class="o">=</span> <span class="n">hardware_info</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;Motor&#39;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">sensors_info</span> <span class="o">=</span> <span class="n">hardware_info</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;Sensor&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+    <span class="c1"># Extract the list of bodies having visual and collision meshes or</span>
+    <span class="c1"># primitives.</span>
+    <span class="n">geometry_types</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span>
+            <span class="n">GeometryModelType</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">GeometryObjectType</span><span class="p">,</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">geom_type</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;primitive&#39;</span><span class="p">:</span> <span class="nb">set</span><span class="p">(),</span> <span class="s1">&#39;mesh&#39;</span><span class="p">:</span> <span class="nb">set</span><span class="p">()}</span>
+        <span class="k">for</span> <span class="n">geom_type</span> <span class="ow">in</span> <span class="n">get_args</span><span class="p">(</span><span class="n">GeometryModelType</span><span class="p">)}</span>
+    <span class="n">geometry_specs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">GeometryModelType</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">GeometryObjectType</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span>
+            <span class="n">GeometryObjectType</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">pin</span><span class="o">.</span><span class="n">GeometryObject</span><span class="p">]]]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">geom_type</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;primitive&#39;</span><span class="p">:</span> <span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[]),</span>
+            <span class="s1">&#39;mesh&#39;</span><span class="p">:</span> <span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])}</span>
+        <span class="k">for</span> <span class="n">geom_type</span> <span class="ow">in</span> <span class="n">get_args</span><span class="p">(</span><span class="n">GeometryModelType</span><span class="p">)}</span>
+    <span class="k">for</span> <span class="n">geom_model</span><span class="p">,</span> <span class="n">geometry_types_i</span><span class="p">,</span> <span class="n">geometry_specs_i</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">robot</span><span class="o">.</span><span class="n">collision_model</span><span class="p">,</span> <span class="n">robot</span><span class="o">.</span><span class="n">visual_model</span><span class="p">),</span>
+            <span class="n">geometry_types</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+            <span class="n">geometry_specs</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+        <span class="k">for</span> <span class="n">geometry_object</span> <span class="ow">in</span> <span class="n">geom_model</span><span class="o">.</span><span class="n">geometryObjects</span><span class="p">:</span>
+            <span class="n">frame_index</span> <span class="o">=</span> <span class="n">geometry_object</span><span class="o">.</span><span class="n">parentFrame</span>
+            <span class="n">frame_name</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="n">frame_index</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">mesh_path</span> <span class="o">=</span> <span class="n">geometry_object</span><span class="o">.</span><span class="n">meshPath</span>
+            <span class="n">is_mesh</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">char</span> <span class="ow">in</span> <span class="n">mesh_path</span> <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">))</span>
+            <span class="n">geom_type</span><span class="p">:</span> <span class="n">GeometryObjectType</span> <span class="o">=</span> <span class="s1">&#39;mesh&#39;</span> <span class="k">if</span> <span class="n">is_mesh</span> <span class="k">else</span> <span class="s1">&#39;primitive&#39;</span>
+            <span class="n">geometry_types_i</span><span class="p">[</span><span class="n">geom_type</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">frame_name</span><span class="p">)</span>
+            <span class="n">geometry_specs_i</span><span class="p">[</span><span class="n">geom_type</span><span class="p">][</span><span class="n">frame_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">geometry_object</span><span class="p">)</span>
+
+    <span class="c1"># Checking the collision bodies, to make sure they are associated with</span>
+    <span class="c1"># supported collision geometries. If not, fixing the issue after</span>
+    <span class="c1"># throwing a warning.</span>
+    <span class="n">collision_body_names</span> <span class="o">=</span> <span class="n">extra_info</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;collisionBodyNames&#39;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="n">contact_frame_names</span> <span class="o">=</span> <span class="n">extra_info</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;contactFrameNames&#39;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">for</span> <span class="n">body_name</span> <span class="ow">in</span> <span class="n">collision_body_names</span><span class="o">.</span><span class="n">copy</span><span class="p">():</span>
+        <span class="c1"># Filter out the different cases.</span>
+        <span class="c1"># After this filter, we know that their is no collision geometry</span>
+        <span class="c1"># associated with the body but their is a visual mesh, or there is</span>
+        <span class="c1"># only collision meshes.</span>
+        <span class="k">if</span> <span class="n">body_name</span> <span class="ow">in</span> <span class="n">geometry_types</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">][</span><span class="s1">&#39;mesh&#39;</span><span class="p">]</span> <span class="ow">and</span> \
+                <span class="n">body_name</span> <span class="ow">in</span> <span class="n">geometry_types</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">][</span><span class="s1">&#39;primitive&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">avoid_instable_collisions</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Collision body having both primitive and mesh geometries &quot;</span>
+                <span class="s2">&quot;is not supported. Enabling only primitive collision for &quot;</span>
+                <span class="s2">&quot;this body.&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">body_name</span> <span class="ow">in</span> <span class="n">geometry_types</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">][</span><span class="s1">&#39;primitive&#39;</span><span class="p">]:</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="n">body_name</span> <span class="ow">in</span> <span class="n">geometry_types</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">][</span><span class="s1">&#39;mesh&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">avoid_instable_collisions</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Collision body associated with mesh geometry is not &quot;</span>
+                <span class="s2">&quot;supported for now. Replacing it by contact points at the &quot;</span>
+                <span class="s2">&quot;vertices of the minimal volume bounding box.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">body_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">geometry_types</span><span class="p">[</span><span class="s1">&#39;visual&#39;</span><span class="p">][</span><span class="s1">&#39;mesh&#39;</span><span class="p">]:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;No visual mesh nor collision geometry associated with &quot;</span>
+                <span class="s2">&quot;collision body &#39;</span><span class="si">%s</span><span class="s2">&#39;. Fallback to adding a single contact &quot;</span>
+                <span class="s2">&quot;point at body frame.&quot;</span><span class="p">,</span> <span class="n">body_name</span><span class="p">)</span>
+            <span class="n">contact_frame_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">body_name</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;No collision geometry associated with the collision body &quot;</span>
+                <span class="s2">&quot;&#39;</span><span class="si">%s</span><span class="s2">&#39;. Fallback to replacing it by contact points at the &quot;</span>
+                <span class="s2">&quot;vertices of the minimal volume bounding box of the available &quot;</span>
+                <span class="s2">&quot;visual meshes.&quot;</span><span class="p">,</span> <span class="n">body_name</span><span class="p">)</span>
+
+        <span class="c1"># Check if collision primitive box are available</span>
+        <span class="n">collision_boxes_size</span><span class="p">,</span> <span class="n">collision_boxes_origin</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">geometry_object</span> <span class="ow">in</span> \
+                <span class="n">geometry_specs</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">][</span><span class="s1">&#39;primitive&#39;</span><span class="p">][</span><span class="n">body_name</span><span class="p">]:</span>
+            <span class="n">geom</span> <span class="o">=</span> <span class="n">geometry_object</span><span class="o">.</span><span class="n">geometry</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="n">hppfcl</span><span class="o">.</span><span class="n">Box</span><span class="p">):</span>
+                <span class="n">collision_boxes_size</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">geom</span><span class="o">.</span><span class="n">halfSide</span><span class="p">)</span>
+                <span class="n">collision_boxes_origin</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">geometry_object</span><span class="o">.</span><span class="n">placement</span><span class="p">)</span>
+
+        <span class="c1"># Replace the collision boxes by contact points, if any</span>
+        <span class="k">if</span> <span class="n">collision_boxes_size</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">avoid_instable_collisions</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Collision body associated with box geometry is not &quot;</span>
+                <span class="s2">&quot;numerically stable for now. Replacing it by contact points &quot;</span>
+                <span class="s2">&quot;at the vertices.&quot;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">box_size</span><span class="p">,</span> <span class="n">box_origin</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
+                    <span class="n">collision_boxes_size</span><span class="p">,</span> <span class="n">collision_boxes_origin</span><span class="p">)):</span>
+                <span class="n">vertices</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="p">[</span>
+                    <span class="mf">0.5</span> <span class="o">*</span> <span class="n">v</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">box_size</span><span class="p">])]</span>
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">vertices</span><span class="p">)):</span>
+                    <span class="n">frame_name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+                        <span class="n">body_name</span><span class="p">,</span> <span class="s2">&quot;CollisionBox&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)))</span>
+                    <span class="n">vertex_pos_rel</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">(</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">]))</span>
+                    <span class="n">frame_transform</span> <span class="o">=</span> <span class="n">box_origin</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">vertex_pos_rel</span><span class="p">)</span>
+                    <span class="n">robot</span><span class="o">.</span><span class="n">add_frame</span><span class="p">(</span><span class="n">frame_name</span><span class="p">,</span> <span class="n">body_name</span><span class="p">,</span> <span class="n">frame_transform</span><span class="p">)</span>
+                    <span class="n">contact_frame_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame_name</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">body_name</span> <span class="ow">in</span> <span class="n">geometry_types</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">][</span><span class="s1">&#39;primitive&#39;</span><span class="p">]:</span>
+            <span class="c1"># Do nothing if the primitive is not a box. It should be fine.</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Remove the body from the collision detection set</span>
+        <span class="n">collision_body_names</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">body_name</span><span class="p">)</span>
+
+        <span class="c1"># Early return if collision box primitives have been replaced</span>
+        <span class="k">if</span> <span class="n">collision_boxes_size</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Replace the collision bodies by contact points, falling back to</span>
+        <span class="c1"># visual bodies if none.</span>
+        <span class="k">for</span> <span class="n">geometry_object</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="n">geometry_specs</span><span class="p">[</span><span class="s1">&#39;collision&#39;</span><span class="p">][</span><span class="s1">&#39;mesh&#39;</span><span class="p">][</span><span class="n">body_name</span><span class="p">]</span> <span class="ow">or</span>
+                <span class="n">geometry_specs</span><span class="p">[</span><span class="s1">&#39;visual&#39;</span><span class="p">][</span><span class="s1">&#39;mesh&#39;</span><span class="p">][</span><span class="n">body_name</span><span class="p">]):</span>
+            <span class="c1"># Extract info from geometry object</span>
+            <span class="n">mesh_name</span> <span class="o">=</span> <span class="n">geometry_object</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">mesh_path</span> <span class="o">=</span> <span class="n">geometry_object</span><span class="o">.</span><span class="n">meshPath</span>
+            <span class="n">mesh_scale</span> <span class="o">=</span> <span class="n">geometry_object</span><span class="o">.</span><span class="n">meshScale</span>
+            <span class="n">mesh_origin</span> <span class="o">=</span> <span class="n">geometry_object</span><span class="o">.</span><span class="n">placement</span>
+
+            <span class="c1"># Replace relative mesh path by absolute one</span>
+            <span class="k">if</span> <span class="n">mesh_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;package://&quot;</span><span class="p">):</span>
+                <span class="n">mesh_path_orig</span> <span class="o">=</span> <span class="n">mesh_path</span>
+                <span class="k">for</span> <span class="n">root_dir</span> <span class="ow">in</span> <span class="n">robot</span><span class="o">.</span><span class="n">mesh_package_dirs</span><span class="p">:</span>
+                    <span class="n">mesh_path</span> <span class="o">=</span> <span class="n">mesh_path_orig</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                        <span class="s2">&quot;package:/&quot;</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">mesh_path</span><span class="p">):</span>
+                        <span class="k">break</span>
+
+            <span class="c1"># Compute the minimal volume bounding box, then</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">mesh</span> <span class="o">=</span> <span class="n">trimesh</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">mesh_path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>  <span class="c1"># Mesh file is not available</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Assert(s) for type checker</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">trimesh</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">Geometry</span><span class="p">)</span>
+
+            <span class="c1"># Extract oriented bounding box</span>
+            <span class="n">box</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">bounding_box_oriented</span>
+
+            <span class="c1"># Add new frames to the robot model at its vertices and register</span>
+            <span class="c1"># contact points at their respective location.</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+                <span class="n">frame_name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">mesh_name</span><span class="p">,</span> <span class="s2">&quot;BoundingBox&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+                <span class="n">frame_transform_rel</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">(</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">mesh_scale</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">box</span><span class="o">.</span><span class="n">vertices</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+                <span class="n">frame_transform</span> <span class="o">=</span> <span class="n">mesh_origin</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">frame_transform_rel</span><span class="p">)</span>
+                <span class="n">robot</span><span class="o">.</span><span class="n">add_frame</span><span class="p">(</span><span class="n">frame_name</span><span class="p">,</span> <span class="n">body_name</span><span class="p">,</span> <span class="n">frame_transform</span><span class="p">)</span>
+                <span class="n">contact_frame_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame_name</span><span class="p">)</span>
+
+    <span class="c1"># Add the collision bodies and contact points.</span>
+    <span class="c1"># * It must be done before adding the sensors because Contact sensors</span>
+    <span class="c1"># requires contact points to be defined.</span>
+    <span class="c1"># * Mesh collisions is not numerically stable for now, so disabling it.</span>
+    <span class="c1"># * Be careful, the order of the contact points is important, it changes</span>
+    <span class="c1"># the computation of the external forces, which is an iterative algorithm</span>
+    <span class="c1"># for impulse model, resulting in different simulation results. The order</span>
+    <span class="c1"># of the element of the set depends of the `hash` method of python, whose</span>
+    <span class="c1"># seed is randomly generated when starting the interpreter for security</span>
+    <span class="c1"># reason. As a result, the set must be sorted manually to ensure consistent</span>
+    <span class="c1"># results.</span>
+    <span class="n">robot</span><span class="o">.</span><span class="n">add_collision_bodies</span><span class="p">(</span>
+        <span class="n">collision_body_names</span><span class="p">,</span> <span class="n">ignore_meshes</span><span class="o">=</span><span class="n">avoid_instable_collisions</span><span class="p">)</span>
+    <span class="n">robot</span><span class="o">.</span><span class="n">add_contact_points</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">contact_frame_names</span><span class="p">))))</span>
+
+    <span class="c1"># Add the motors to the robot</span>
+    <span class="k">for</span> <span class="n">motor_type</span><span class="p">,</span> <span class="n">motors_descr</span> <span class="ow">in</span> <span class="n">motors_info</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">motor_name</span><span class="p">,</span> <span class="n">motor_descr</span> <span class="ow">in</span> <span class="n">motors_descr</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Make sure the motor can be instantiated</span>
+            <span class="n">joint_name</span> <span class="o">=</span> <span class="n">motor_descr</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;joint_name&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">existJointName</span><span class="p">(</span><span class="n">joint_name</span><span class="p">):</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;&#39;</span><span class="si">%s</span><span class="s2">&#39; is not a valid joint name.&quot;</span><span class="p">,</span> <span class="n">joint_name</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Create the motor and attach it</span>
+            <span class="n">motor</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="p">(</span><span class="n">jiminy</span><span class="p">,</span> <span class="o">*</span><span class="n">EXTENSION_MODULES</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">motor</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">motor_type</span><span class="p">)(</span><span class="n">motor_name</span><span class="p">)</span>
+                    <span class="k">break</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">if</span> <span class="n">motor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Cannot instantiate motor of type &#39;</span><span class="si">{</span><span class="n">motor_type</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="n">robot</span><span class="o">.</span><span class="n">attach_motor</span><span class="p">(</span><span class="n">motor</span><span class="p">)</span>
+
+            <span class="c1"># Initialize the motor</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">joint_name</span><span class="p">)</span>
+
+            <span class="c1"># Set the motor options</span>
+            <span class="n">options</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+            <span class="n">option_fields</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">motor_descr</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">option_fields</span><span class="p">:</span>
+                    <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">&quot;&#39;</span><span class="si">%s</span><span class="s2">&#39; is not a valid option for the motor &#39;</span><span class="si">%s</span><span class="s2">&#39; of &quot;</span>
+                        <span class="s2">&quot;type &#39;</span><span class="si">%s</span><span class="s2">&#39;.&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">motor_name</span><span class="p">,</span> <span class="n">motor_type</span><span class="p">)</span>
+                <span class="n">options</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="n">options</span><span class="p">[</span><span class="s1">&#39;enableArmature&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">motor</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="c1"># Add the sensors to the robot</span>
+    <span class="n">motor_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">motor</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">motor</span> <span class="ow">in</span> <span class="n">robot</span><span class="o">.</span><span class="n">motors</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">sensor_type</span><span class="p">,</span> <span class="n">sensors_descr</span> <span class="ow">in</span> <span class="n">sensors_info</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">sensor_name</span><span class="p">,</span> <span class="n">sensor_descr</span> <span class="ow">in</span> <span class="n">sensors_descr</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Extract initialization arguments from options</span>
+            <span class="n">init_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">field</span><span class="p">:</span> <span class="n">sensor_descr</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="s1">&#39;joint_name&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;motor_name&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;frame_name&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;body_name&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;frame_pose&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">sensor_descr</span><span class="p">}</span>
+
+            <span class="c1"># Make sure the sensor can be instantiated</span>
+            <span class="n">joint_name</span> <span class="o">=</span> <span class="n">init_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;joint_name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">joint_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">init_kwargs</span><span class="p">[</span><span class="s1">&#39;joint_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">joint_name</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">existJointName</span><span class="p">(</span><span class="n">joint_name</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">joint_name</span><span class="si">}</span><span class="s2">&#39; is not a valid joint name.&quot;</span><span class="p">)</span>
+
+            <span class="n">motor_name</span> <span class="o">=</span> <span class="n">init_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;motor_name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">motor_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">init_kwargs</span><span class="p">[</span><span class="s1">&#39;motor_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">motor_name</span>
+                <span class="k">if</span> <span class="n">motor_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">motor_names</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">motor_name</span><span class="si">}</span><span class="s2">&#39; is not a valid motor name.&quot;</span><span class="p">)</span>
+
+            <span class="n">frame_name</span> <span class="o">=</span> <span class="n">init_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;frame_name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">frame_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Create a frame if a frame name has been specified.</span>
+                <span class="c1"># In such a case, the body name must be specified.</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">existFrame</span><span class="p">(</span><span class="n">frame_name</span><span class="p">):</span>
+                    <span class="c1"># Get the body name</span>
+                    <span class="n">body_name</span> <span class="o">=</span> <span class="n">init_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;body_name&#39;</span><span class="p">)</span>
+
+                    <span class="c1"># Generate a frame name both intelligible and available</span>
+                    <span class="k">if</span> <span class="n">frame_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="n">frame_name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+                            <span class="n">sensor_name</span><span class="p">,</span> <span class="n">sensor_type</span><span class="p">,</span> <span class="s2">&quot;Frame&quot;</span><span class="p">))</span>
+                        <span class="k">while</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">existFrame</span><span class="p">(</span><span class="n">frame_name</span><span class="p">):</span>
+                            <span class="n">frame_name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+                                <span class="n">sensor_name</span><span class="p">,</span> <span class="n">sensor_type</span><span class="p">,</span> <span class="s2">&quot;Frame&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+                            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                    <span class="c1"># Compute SE3 object representing the frame placement</span>
+                    <span class="n">frame_pose_xyzrpy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">init_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;frame_pose&#39;</span><span class="p">))</span>
+                    <span class="n">frame_trans</span> <span class="o">=</span> <span class="n">frame_pose_xyzrpy</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+                    <span class="n">frame_rot</span> <span class="o">=</span> <span class="n">rpyToMatrix</span><span class="p">(</span><span class="n">frame_pose_xyzrpy</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span>
+                    <span class="n">frame_placement</span> <span class="o">=</span> <span class="n">pin</span><span class="o">.</span><span class="n">SE3</span><span class="p">(</span><span class="n">frame_rot</span><span class="p">,</span> <span class="n">frame_trans</span><span class="p">)</span>
+
+                    <span class="c1"># Add the frame to the robot model</span>
+                    <span class="n">robot</span><span class="o">.</span><span class="n">add_frame</span><span class="p">(</span><span class="n">frame_name</span><span class="p">,</span> <span class="n">body_name</span><span class="p">,</span> <span class="n">frame_placement</span><span class="p">)</span>
+
+                    <span class="c1"># Add newly created frame to initialization options</span>
+                    <span class="n">init_kwargs</span><span class="p">[</span><span class="s1">&#39;frame_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frame_name</span>
+                <span class="k">elif</span> <span class="s1">&#39;frame_pose&#39;</span> <span class="ow">in</span> <span class="n">init_kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;The sensor &#39;</span><span class="si">{</span><span class="n">sensor_name</span><span class="si">}</span><span class="s2">&#39; is attached to the frame &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">frame_name</span><span class="si">}</span><span class="s2">&#39; that already exists whereas a &quot;</span>
+                        <span class="s2">&quot;specific pose is also requested.&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Create the sensor and attach it</span>
+            <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="p">(</span><span class="n">jiminy</span><span class="p">,</span> <span class="o">*</span><span class="n">EXTENSION_MODULES</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">sensor</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">sensor_type</span><span class="p">)(</span><span class="n">sensor_name</span><span class="p">)</span>
+                    <span class="k">break</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Cannot instantiate sensor of type &#39;</span><span class="si">{</span><span class="n">sensor_type</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="n">robot</span><span class="o">.</span><span class="n">attach_sensor</span><span class="p">(</span><span class="n">sensor</span><span class="p">)</span>
+
+            <span class="c1"># Initialize the sensor</span>
+            <span class="n">sensor</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="o">**</span><span class="n">init_kwargs</span><span class="p">)</span>
+
+            <span class="c1"># Set the sensor options</span>
+            <span class="n">options</span> <span class="o">=</span> <span class="n">sensor</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+            <span class="n">option_fields</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">sensor_descr</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">option_fields</span><span class="p">:</span>
+                    <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">&quot;&#39;</span><span class="si">%s</span><span class="s2">&#39; is not a valid option for the sensor &#39;</span><span class="si">%s</span><span class="s2">&#39; of &quot;</span>
+                        <span class="s2">&quot;type &#39;</span><span class="si">%s</span><span class="s2">&#39;.&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">sensor_name</span><span class="p">,</span> <span class="n">sensor_type</span><span class="p">)</span>
+                <span class="n">options</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="n">sensor</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">extra_info</span></div>
+
+
+
+<div class="viewcode-block" id="BaseJiminyRobot">
+<a class="viewcode-back" href="../../api/jiminy_py/robot.html#jiminy_py.robot.BaseJiminyRobot">[docs]</a>
+<span class="k">class</span> <span class="nc">BaseJiminyRobot</span><span class="p">(</span><span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class to instantiate a Jiminy robot based on a standard URDF file</span>
+<span class="sd">    and Jiminy-specific hardware description file.</span>
+
+<span class="sd">    The utility &#39;generate_default_hardware_description_file&#39; is provided to</span>
+<span class="sd">    automatically generate a default hardware description file for any given</span>
+<span class="sd">    URDF file. URDF file containing Gazebo plugins description should not</span>
+<span class="sd">    require any further modification as it usually includes the information</span>
+<span class="sd">    required to fully characterize the motors, sensors, contact points and</span>
+<span class="sd">    collision bodies, along with some of there properties.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Overload this class if you need finer-grained capability.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Hardware description files within the same directory and having the</span>
+<span class="sd">        name than the URDF file will be detected automatically without</span>
+<span class="sd">        requiring to manually specify its path.</span>
+
+<span class="sd">    :param name: Name of the robot to be created.</span>
+<span class="sd">                 Optional: Empty string by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extra_info</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hardware_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_urdf_path_orig</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BaseJiminyRobot.initialize">
+<a class="viewcode-back" href="../../api/jiminy_py/robot.html#jiminy_py.robot.BaseJiminyRobot.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>  <span class="c1"># type: ignore[override]</span>
+                   <span class="n">urdf_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                   <span class="n">hardware_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">mesh_package_dirs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+                   <span class="n">has_freeflyer</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                   <span class="n">avoid_instable_collisions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                   <span class="n">load_visual_meshes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                   <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialize the robot.</span>
+
+<span class="sd">        :param urdf_path: Path of the URDF file of the robot.</span>
+<span class="sd">        :param hardware_path: Path of Jiminy hardware description toml file.</span>
+<span class="sd">                              Optional: Looking for &#39;\*_hardware.toml&#39; file in</span>
+<span class="sd">                              the same folder and with the same name. If not</span>
+<span class="sd">                              found, then no hardware is added to the robot,</span>
+<span class="sd">                              which is valid and can be used for display.</span>
+<span class="sd">        :param mesh_dir_path: Path to the folder containing the URDF meshes. It</span>
+<span class="sd">                              will overwrite the common root of all absolute</span>
+<span class="sd">                              mesh paths.</span>
+<span class="sd">                              Optional: Env variable &#39;JIMINY_DATA_PATH&#39; will be</span>
+<span class="sd">                              used if available.</span>
+<span class="sd">        :param mesh_package_dirs: Additional search paths for all relative mesh</span>
+<span class="sd">                                  paths beginning with &#39;packages://&#39; directive.</span>
+<span class="sd">                                  &#39;mesh_dir_path&#39; is systematically appended.</span>
+<span class="sd">        :param has_freeflyer: Whether the robot is fixed-based wrt its root</span>
+<span class="sd">                              link, or can move freely in the world.</span>
+<span class="sd">        :param avoid_instable_collisions: Prevent numerical instabilities by</span>
+<span class="sd">                                          replacing collision mesh by vertices</span>
+<span class="sd">                                          of associated minimal volume bounding</span>
+<span class="sd">                                          box, primitive box by its vertices,</span>
+<span class="sd">                                          and primitive sphere by its center.</span>
+<span class="sd">        :param load_visual_meshes: Load visual and collision geometries when</span>
+<span class="sd">                                   creating the robot. It will allow for</span>
+<span class="sd">                                   dumping standalone log files that are</span>
+<span class="sd">                                   safe to carry around but larger.</span>
+<span class="sd">        :param verbose: Whether to print warnings.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup the original URDF path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_urdf_path_orig</span> <span class="o">=</span> <span class="n">urdf_path</span>
+
+        <span class="c1"># Fix the URDF mesh paths</span>
+        <span class="k">if</span> <span class="n">mesh_dir_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">urdf_path</span> <span class="o">=</span> <span class="n">_fix_urdf_mesh_path</span><span class="p">(</span><span class="n">urdf_path</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">)</span>
+
+        <span class="c1"># Initialize the robot without motors nor sensors</span>
+        <span class="n">mesh_package_dirs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mesh_package_dirs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mesh_dir_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mesh_package_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mesh_dir_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mesh_package_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">urdf_path</span><span class="p">))</span>
+        <span class="n">mesh_env_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;JIMINY_DATA_PATH&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mesh_env_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mesh_package_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mesh_env_path</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span>
+            <span class="n">urdf_path</span><span class="p">,</span> <span class="n">has_freeflyer</span><span class="p">,</span> <span class="n">mesh_package_dirs</span><span class="p">,</span> <span class="n">load_visual_meshes</span><span class="p">)</span>
+
+        <span class="c1"># Load the hardware description file if available</span>
+        <span class="k">if</span> <span class="n">hardware_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hardware_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_urdf_path_orig</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;_hardware.toml&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hardware_path</span> <span class="o">=</span> <span class="n">hardware_path</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">hardware_path</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">hardware_path</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Hardware configuration file not found. Not adding any &quot;</span>
+                    <span class="s2">&quot;hardware to the robot.</span><span class="se">\n</span><span class="s2"> Default file can be generated &quot;</span>
+                    <span class="s2">&quot;using &#39;generate_default_hardware_description_file&#39; &quot;</span>
+                    <span class="s2">&quot;method.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">extra_info</span> <span class="o">=</span> <span class="n">load_hardware_description_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">hardware_path</span><span class="p">,</span> <span class="n">avoid_instable_collisions</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">urdf_path</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_urdf_path_orig</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">urdf_path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">PermissionError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
+                <span class="k">pass</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

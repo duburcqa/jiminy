@@ -1,0 +1,1158 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pipeline &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Blocks" href="../blocks/index.html" />
+    <link rel="prev" title="Compositions" href="compositions.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Bases</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="interfaces.html">Interfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="blocks.html">Blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantities.html">Quantities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compositions.html">Compositions</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper"><code class="docutils literal notranslate"><span class="pre">BasePipelineWrapper</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.pipeline.ComposedJiminyEnv"><code class="docutils literal notranslate"><span class="pre">ComposedJiminyEnv</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.pipeline.ObservedJiminyEnv"><code class="docutils literal notranslate"><span class="pre">ObservedJiminyEnv</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.pipeline.ControlledJiminyEnv"><code class="docutils literal notranslate"><span class="pre">ControlledJiminyEnv</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BaseTransformObservation"><code class="docutils literal notranslate"><span class="pre">BaseTransformObservation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BaseTransformAction"><code class="docutils literal notranslate"><span class="pre">BaseTransformAction</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../blocks/index.html">Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Bases</a></li>
+      <li class="breadcrumb-item active">Pipeline</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/bases/pipeline.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.bases.pipeline">
+<span id="pipeline"></span><h1>Pipeline<a class="headerlink" href="#module-gym_jiminy.common.bases.pipeline" title="Link to this heading">¶</a></h1>
+<p>This method gathers base implementations for blocks to be used in pipeline
+control design.</p>
+<p>It implements:</p>
+<ul class="simple">
+<li><p>the concept of block thats can be connected to a <cite>BaseJiminyEnv</cite> environment
+through multiple <cite>InterfaceJiminyEnv</cite> indirections</p></li>
+<li><p>a base controller block, along with a concrete PD controller</p></li>
+<li><p>a wrapper to combine a controller block and a <cite>BaseJiminyEnv</cite> environment,
+eventually already wrapped, so that it appears as a black-box environment.</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.pipeline.</span></span><span class="sig-name descname"><span class="pre">BasePipelineWrapper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><code class="xref py py-class docutils literal notranslate"><span class="pre">InterfaceJiminyEnv</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>]</p>
+<p>Base class for wrapping a <cite>BaseJiminyEnv</cite> Gym environment so that it
+appears as a single, unified, environment. The environment may have been
+wrapped multiple times already.</p>
+<p>If several successive blocks must be composed, just wrap each of them
+successively one by one.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Hot-plug of additional blocks is supported, but the environment need to
+be reset after changing the pipeline.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This architecture is not designed for trainable blocks, but rather for
+robotic-oriented controllers and observers, such as PID controllers,
+inverse kinematics, Model Predictive Control (MPC), sensor fusion…
+It is recommended to add the controllers and observers into the
+policy itself if they have to be trainable.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>BaseAct</em><em>]</em>) – Base or already wrapped jiminy environment.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments for multiple inheritance.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.env">
+<span class="sig-name descname"><span class="pre">env</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><span class="pre">InterfaceJiminyEnv</span></a><span class="p"><span class="pre">[</span></span><span class="pre">BaseObs</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">BaseAct</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.env" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.get_wrapper_attr">
+<span class="sig-name descname"><span class="pre">get_wrapper_attr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.get_wrapper_attr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.get_wrapper_attr" title="Link to this definition">¶</a></dt>
+<dd><p>Return the value of an attribute in the first layer of the pipeline
+environment for which it exists, from this wrapper to the base
+environment.</p>
+<p>If the attribute does not exist in any layer, then an exception
+<cite>AttributeError</cite> is raised.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the attribute.</p></li>
+<li><p><strong>value</strong> – Desired value of the attribute.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.set_wrapper_attr">
+<span class="sig-name descname"><span class="pre">set_wrapper_attr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.set_wrapper_attr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.set_wrapper_attr" title="Link to this definition">¶</a></dt>
+<dd><p>Assign an attribute to a specified value in the first layer of the
+pipeline environment for which it already exists, from this wrapper to
+the base environment. If the attribute does not exist in any layer, it
+is directly added to this wrapper.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the attribute.</p></li>
+<li><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Desired value of the attribute.</p></li>
+<li><p><strong>force</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.render_mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">render_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.render_mode" title="Link to this definition">¶</a></dt>
+<dd><p>Rendering mode of the base environment.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.spec">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">spec</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">EnvSpec</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.spec" title="Link to this definition">¶</a></dt>
+<dd><p>Random number generator of the base environment.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.np_random">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">np_random</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Generator</span></em><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.np_random" title="Link to this definition">¶</a></dt>
+<dd><p>Random number generator of the base environment.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.unwrapped">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">unwrapped</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../envs/generic.html#gym_jiminy.common.envs.generic.BaseJiminyEnv" title="gym_jiminy.common.envs.generic.BaseJiminyEnv"><span class="pre">BaseJiminyEnv</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.unwrapped" title="Link to this definition">¶</a></dt>
+<dd><p>The “underlying environment at the basis of the pipeline from which
+this environment is part of.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.step_dt">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">step_dt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.step_dt" title="Link to this definition">¶</a></dt>
+<dd><p>Get timestep of a single ‘step’.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.training">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><span class="pre">bool</span></a></em><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.training" title="Link to this definition">¶</a></dt>
+<dd><p>Check whether the environment is in training or evaluation mode.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.train" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the environment in training or evaluation mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to set training (True) or evaluation mode (False).
+Optional: <cite>True</cite> by default.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Reset the unified environment.</p>
+<p>In practice, it resets the environment and initializes the generic
+pipeline internal buffers through the use of ‘controller_hook’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Random seed, as a positive integer.
+Optional: <cite>None</cite> by default. If <cite>None</cite>, then the internal
+random generator of the environment will be kept as-is,
+without updating its seed.</p></li>
+<li><p><strong>options</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>] </em><em>| </em><em>None</em>) – Additional information to specify how the environment
+is reset. The field ‘reset_hook’ is reserved for
+chaining multiple <cite>BasePipelineWrapper</cite>. It is not
+meant to be defined manually.
+Optional: None by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ndarray</em>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.step" title="Link to this definition">¶</a></dt>
+<dd><p>Run a simulation step for a given action.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>action</strong> (<em>Act</em>) – Next action to perform. <cite>None</cite> to not update it.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Next observation, reward, status of the episode (done or
+not), and a dictionary of extra information.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ndarray</em>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.stop" title="Link to this definition">¶</a></dt>
+<dd><p>Stop the underlying simulation completely.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method has nothing to do with termination and/or truncation of
+episodes. Calling it manually should never be necessary for
+collecting samples during training.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is mainly intended for evaluation analysis and
+debugging. Stopping the episode is only necessary for switching
+between training and evaluation mode, and to log the final state,
+otherwise it will be missing from plots and viewer replay (see
+<cite>InterfaceJiminyEnv.log_data</cite> for details). Moreover, sensor data
+will not be available when calling <cite>replay</cite>. The helper method
+<cite>jiminy_py.viewer.replay.play_logs_data</cite> must be preferred to
+replay an episode that cannot be stopped.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Resuming a simulation is not supported, which means that calling
+<cite>reset</cite> to start a new simulation is necessary prior to calling
+<cite>step</cite> once again. Falling to do so will trigger an exception.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable_block_states</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.plot" title="Link to this definition">¶</a></dt>
+<dd><p>Plot figures of simulation data over time associated with the
+ongoing episode until now if any, the previous one otherwise.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Implementation-specific extra keyword arguments if any.</p></li>
+<li><p><strong>enable_block_states</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="../../../jiminy_py/plot.html#jiminy_py.plot.TabbedFigure" title="jiminy_py.plot.TabbedFigure"><em>TabbedFigure</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.replay">
+<span class="sig-name descname"><span class="pre">replay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.replay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.replay" title="Link to this definition">¶</a></dt>
+<dd><p>Replay the ongoing episode until now if any, the previous one
+otherwise.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Implementation-specific extra keyword arguments if any.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.evaluate">
+<span class="sig-name descname"><span class="pre">evaluate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_replay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.evaluate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.evaluate" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate a policy on the environment over a complete episode.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It ignores any top-level <cite>gym.Wrapper</cite> that may be used for
+training but are not considered part of the environment pipeline.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy_fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.13)"><em>Callable</em></a><em>[</em><em>[</em><em>Obs</em><em>, </em><em>Act</em><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em><em>]</em><em>, </em><em>Act</em><em>]</em>) – Policy to evaluate as a callback function. It must have the
+following signature (**rew** = None at reset):<div class="line-block">
+<div class="line">policy_fn(<strong>obs</strong>: Obs,</div>
+<div class="line-block">
+<div class="line"><strong>action_prev</strong>: Optional[Act],</div>
+<div class="line"><strong>reward</strong>: Optional[float],</div>
+<div class="line"><strong>terminated</strong>: bool,</div>
+<div class="line"><strong>truncated</strong>: bool,</div>
+<div class="line"><strong>info</strong>: InfoType</div>
+<div class="line">) -&gt; Act  # <strong>action</strong></div>
+</div>
+</div>
+</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em>) – Seed of the environment to be used for the evaluation of
+the policy.
+Optional: <cite>None</cite> by default. If not specified, then a
+strongly random seed will be generated by gym.</p></li>
+<li><p><strong>horizon</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em> | </em><em>None</em>) – Horizon of the simulation before early termination.
+<cite>None</cite> to disable.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>enable_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to print high-level statistics after the
+simulation.
+Optional: Enabled by default.</p></li>
+<li><p><strong>enable_replay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether to enable replay of the simulation, and
+eventually recording if the extra
+keyword argument <cite>record_video_path</cite> is provided.
+Optional: Enabled by default if display is
+available, disabled otherwise.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to forward to the <cite>replay</cite>
+method if replay is requested.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>]]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.play_interactive">
+<span class="sig-name descname"><span class="pre">play_interactive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable_travelling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_paused</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_is_done</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.play_interactive"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.play_interactive" title="Link to this definition">¶</a></dt>
+<dd><p>Interact evaluation mode where the robot or the world itself are
+actively “controlled” via keyboard inputs, with real-time rendering.</p>
+<p>This method is not available for all pipeline environments. When it
+does, the available interactions and keyboard mapping is completely
+implementation-specific. Please refer to the documentation of the base
+environment being considered for details.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It ignores any top-level <cite>gym.Wrapper</cite> that may be used for
+training but are not considered part of the pipeline environment.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>enable_travelling</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em> | </em><em>None</em>) – Whether enable travelling, following the
+motion of the root frame of the model. This
+parameter is ignored if the model has no
+freeflyer.
+Optional: Enabled by default iif ‘panda3d’
+viewer backend is used.</p></li>
+<li><p><strong>start_paused</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to start in pause.
+Optional: Enabled by default.</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to display status messages.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Implementation-specific extra keyword arguments if any.</p></li>
+<li><p><strong>enable_is_done</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.has_terminated">
+<span class="sig-name descname"><span class="pre">has_terminated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.has_terminated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.has_terminated" title="Link to this definition">¶</a></dt>
+<dd><p>Determine whether the episode is over, because a terminal state of
+the underlying MDP has been reached or an aborting condition outside
+the scope of the MDP has been triggered.</p>
+<p>By default, it does nothing but forwarding the request to the base
+environment. This behavior can be overwritten by the user.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called after <cite>refresh_observation</cite>, so that the
+internal buffer ‘observation’ is up-to-date.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>terminated and truncated flags.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.render">
+<span class="sig-name descname"><span class="pre">render</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.render"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.render" title="Link to this definition">¶</a></dt>
+<dd><p>Render the unified environment.</p>
+<p>By default, it does nothing but forwarding the request to the base
+environment. This behavior can be overwritten by the user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>RenderFrame</em> | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><em>List</em></a>[<em>RenderFrame</em>] | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BasePipelineWrapper.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BasePipelineWrapper.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper.close" title="Link to this definition">¶</a></dt>
+<dd><p>Closes the wrapper and its base environment.</p>
+<p>By default, it does nothing but forwarding the request to the base
+environment. This behavior can be overwritten by the user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ComposedJiminyEnv">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.pipeline.</span></span><span class="sig-name descname"><span class="pre">ComposedJiminyEnv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reward</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">terminations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trajectories</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment_observation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ComposedJiminyEnv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ComposedJiminyEnv" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper" title="gym_jiminy.common.bases.pipeline.BasePipelineWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasePipelineWrapper</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>]</p>
+<p>Extend an environment, eventually already wrapped, by plugging ad-hoc
+reward components and termination conditions, including their accompanying
+trajectory database if any.</p>
+<p>This wrappers optionally adds the current state of the reference trajectory
+to the observation space under nested key (‘states’, ‘reference’), while
+leaving its action space unchanged. Transformation of the observation and
+action space is done via additional observation and/or control blocks.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This wrapper derives from <cite>BasePipelineWrapper</cite>, and such as, it is
+considered as part of the environment pipeline unlike <cite>gym.Wrapper</cite>.
+This means that it will be taken into account when calling <cite>evaluate</cite>
+or <cite>play_interactive</cite> on the wrapped environment.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Setting ‘augment_observation=True’ enforces several restriction on the
+trajectory database to make sure that the observation space remains
+invariant. First, the database is locked, so that no trajectory can be
+added nor removed anymore. Then, the robot model must be the same for
+all the trajectories.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This class is final, ie not meant to be derived.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>Act</em><em>]</em>) – Environment to extend, eventually already wrapped.</p></li>
+<li><p><strong>reward</strong> (<a class="reference internal" href="compositions.html#gym_jiminy.common.bases.compositions.AbstractReward" title="gym_jiminy.common.bases.compositions.AbstractReward"><em>AbstractReward</em></a><em> | </em><em>None</em>) – Reward object deriving from <cite>AbstractReward</cite>. It will be
+evaluated at each step of the environment and summed up
+with the one returned by the wrapped environment. This
+reward must be already instantiated and associated with
+the provided environment. <cite>None</cite> for not considering any
+reward.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>terminations</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference internal" href="compositions.html#gym_jiminy.common.bases.compositions.AbstractTerminationCondition" title="gym_jiminy.common.bases.compositions.AbstractTerminationCondition"><em>AbstractTerminationCondition</em></a><em>]</em>) – Sequence of termination condition objects deriving
+from <cite>AbstractTerminationCondition</cite>. They will be
+checked along with the one enforced by the wrapped
+environment. If provided, these termination
+conditions must be already instantiated and
+associated with the environment at hand.
+Optional: Empty sequence by default.</p></li>
+<li><p><strong>trajectories</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference internal" href="../../../jiminy_py/dynamics.html#jiminy_py.dynamics.Trajectory" title="jiminy_py.dynamics.Trajectory"><em>Trajectory</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.13)"><em>Literal</em></a><em>[</em><em>'raise'</em><em>, </em><em>'wrap'</em><em>, </em><em>'clip'</em><em>]</em><em>]</em><em>] </em><em>| </em><em>None</em>) – Ordered set of named tuples (trajectory, mode) as
+a dictionary, where ‘mode’ corresponds to the time
+wrapping mode. See <cite>Trajectory.get</cite> for details.
+The first trajectory being specified, in any, will
+be selected as reference by default. <cite>None</cite> to
+skip the whole process.
+Optional: <cite>None</cite> by default.</p></li>
+<li><p><strong>augment_observation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to add the current state of the
+reference trajectory to the observation
+of the environment if any.
+Optional: False by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.refresh_observation">
+<span class="sig-name descname"><span class="pre">refresh_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">measurement</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ComposedJiminyEnv.refresh_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.refresh_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute high-level features based on the current wrapped
+environment’s observation.</p>
+<p>It simply forwards the observation computed by the wrapped environment
+without any processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>measurement</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.EngineObsType" title="gym_jiminy.common.bases.interfaces.EngineObsType"><em>EngineObsType</em></a>) – Low-level measure from the environment to process
+to get higher-level observation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.has_terminated">
+<span class="sig-name descname"><span class="pre">has_terminated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ComposedJiminyEnv.has_terminated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.has_terminated" title="Link to this definition">¶</a></dt>
+<dd><p>Determine whether the practitioner is instructed to stop the ongoing
+episode on the spot because a termination condition has been triggered,
+either coming from the based environment or from the ad-hoc termination
+conditions that has been plugged on top of it.</p>
+<p>At each step of the wrapped environment, all its termination conditions
+will be evaluated sequentially until one of them eventually gets
+triggered. If this happens, evaluation is skipped for the remaining
+ones and the reward is evaluated straight away. Ultimately, the
+practitioner is instructed to stop the ongoing episode, but it is his
+own responsibility to honor this request. The first condition being
+evaluated is the one of the underlying environment, then comes the ones
+of this composition layer, following the original sequence ordering.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is called after <cite>refresh_observation</cite>, so that the
+internal buffer ‘observation’ is up-to-date.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>InterfaceJiminyEnv.has_terminated</cite> documentation for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>terminated and truncated flags.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ComposedJiminyEnv.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the motors efforts to apply on the robot.</p>
+<p>It simply forwards the command computed by the wrapped environment
+without any processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>Act</em>) – High-level target to achieve by means of the command.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Lower-level command to updated in-place.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.compute_reward">
+<span class="sig-name descname"><span class="pre">compute_reward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ComposedJiminyEnv.compute_reward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.compute_reward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the sum of the ad-hoc reward components that have been
+plugged on top of the wrapped environment.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <cite>InterfaceController.compute_reward</cite> documentation for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode has reached the terminal state
+of the MDP at the current step. This flag can be
+used to compute a specific terminal reward.</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Aggregated reward for the current step.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ComposedJiminyEnv.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ComposedJiminyEnv.step" title="Link to this definition">¶</a></dt>
+<dd><p>Run a simulation step for a given action.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>action</strong> (<em>Act</em>) – Next action to perform. <cite>None</cite> to not update it.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Next observation, reward, status of the episode (done or
+not), and a dictionary of extra information.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.13)"><em>Mapping</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, StructNested[ValueT]] | <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[StructNested[ValueT]] | <em>ndarray</em>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat" title="(in Python v3.13)"><em>SupportsFloat</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ObservedJiminyEnv">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.pipeline.</span></span><span class="sig-name descname"><span class="pre">ObservedJiminyEnv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observer</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ObservedJiminyEnv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ObservedJiminyEnv" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper" title="gym_jiminy.common.bases.pipeline.BasePipelineWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasePipelineWrapper</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">NestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">NestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>]</p>
+<p>Wrap a <cite>BaseJiminyEnv</cite> Gym environment and a single observer.</p>
+<a class="reference internal image-reference" href="../../../../_images/aafig-7565b0d7eea7517aeff19901809927af5f1ca2ad.svg"><img alt="../../../../_images/aafig-7565b0d7eea7517aeff19901809927af5f1ca2ad.svg" src="../../../../_images/aafig-7565b0d7eea7517aeff19901809927af5f1ca2ad.svg" style="width: 986.0px; height: 160.0px;" />
+</a>
+<p>The input ‘mes_1’ of the ‘observer_1’ must be consistent with the
+observation ‘obs_1’ of the environment. The observation space of the
+resulting unified environment will be the observation space of the
+highest-level observer, while its action space will be the one of the
+unwrapped environment ‘env’.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The observation space gathers the original observation of the
+environment with the high-level features computed by the observer
+in <cite>gym.spaces.Dict</cite> instance. If the original observation is already
+a <cite>gym.spaces.Dict</cite> instance, then the features computed by the
+observer are added to if under (nested) key [‘features’, observer.name]
+along with its internal state [‘states’, observer.name] if any.
+Otherwise, the original observation is stored under key ‘measurement’.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The environment and the observers all have their own update period.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This design is not suitable for learning the observer, but rather for
+robotic-oriented observers, such as sensor fusion algorithms, Kalman
+filters… It is recommended to add the observer into the policy itself
+if it has to be trainable.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>Act</em><em>]</em>) – Environment to observe. It can be an already observed
+environment wrapped in <cite>ObservedJiminyEnv</cite> if one desires
+to stack several observers with <cite>BaseJiminyEnv</cite>.</p></li>
+<li><p><strong>observer</strong> (<a class="reference internal" href="blocks.html#gym_jiminy.common.bases.blocks.BaseObserverBlock" title="gym_jiminy.common.bases.blocks.BaseObserverBlock"><em>BaseObserverBlock</em></a><em>[</em><em>OtherObs</em><em>, </em><em>OtherState</em><em>, </em><em>BaseObs</em><em>, </em><em>Act</em><em>]</em>) – Observer to use to extract higher-level features.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to allow automatic pipeline
+wrapper generation.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ObservedJiminyEnv.refresh_observation">
+<span class="sig-name descname"><span class="pre">refresh_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">measurement</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ObservedJiminyEnv.refresh_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ObservedJiminyEnv.refresh_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute high-level features based on the current wrapped
+environment’s observation.</p>
+<p>It gathers the original observation from the environment with the
+features computed by the observer.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Internally, it can deal with multiple observers with different
+update periods. Besides, it is safe to call this method multiple
+times successively.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>measurement</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.EngineObsType" title="gym_jiminy.common.bases.interfaces.EngineObsType"><em>EngineObsType</em></a>) – Low-level measure from the environment to process
+to get higher-level observation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ObservedJiminyEnv.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ObservedJiminyEnv.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ObservedJiminyEnv.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the motors efforts to apply on the robot.</p>
+<p>It simply forwards the command computed by the wrapped environment
+without any processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>Act</em>) – High-level target to achieve by means of the command.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Lower-level command to updated in-place.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ControlledJiminyEnv">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.pipeline.</span></span><span class="sig-name descname"><span class="pre">ControlledJiminyEnv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">controller</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment_observation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ControlledJiminyEnv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ControlledJiminyEnv" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper" title="gym_jiminy.common.bases.pipeline.BasePipelineWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasePipelineWrapper</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">NestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">NestedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>]</p>
+<p>Wrap a <cite>BaseJiminyEnv</cite> Gym environment and a single controller.</p>
+<a class="reference internal image-reference" href="../../../../_images/aafig-1b3cf6954833a4f688d70f2ea00e6ea6d7af7f6c.svg"><img alt="../../../../_images/aafig-1b3cf6954833a4f688d70f2ea00e6ea6d7af7f6c.svg" src="../../../../_images/aafig-1b3cf6954833a4f688d70f2ea00e6ea6d7af7f6c.svg" style="width: 1378.0px; height: 244.0px;" />
+</a>
+<p>The output command ‘cmd_X’ of ‘ctrl_X’ must be consistent with the action
+space ‘act_X’ of the subsequent block. The action space of the resulting
+unified environment will be the action space of the highest-level
+controller ‘act_N’, while its observation space will be the one of the
+unwrapped environment ‘obs’. Alternatively, the later can also gather the
+(stacked) action space of the successive controllers if one is to observe
+the intermediary controllers’ targets.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The environment and the controllers all have their own update period.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This design is not suitable for learning the controllers ‘ctrl_X’, but
+rather for robotic-oriented pre-defined and possibly model-based
+controllers, such as PID control, inverse kinematics, admittance
+control, or Model Predictive Control (MPC). It is recommended to add
+the controllers into the policy itself if it has to be trainable.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As a reminder, <cite>env.step_dt</cite> refers to the learning step period,
+namely the timestep between two successive frames:</p>
+<blockquote>
+<div><p>[observation, reward, terminated, truncated, info]</p>
+</div></blockquote>
+<p>This definition remains true, independently of whether the
+environment is wrapped with a controller using this class. On the
+contrary, <cite>env.control_dt</cite> corresponds to the apparent control
+update period, namely the update period of the higher-level
+controller if multiple are piped together. The same goes for
+<cite>env.observe_dt</cite>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>BaseAct</em><em>]</em>) – Environment to control. It can be an already controlled
+environment wrapped in <cite>ControlledJiminyEnv</cite> if one desires
+to stack several controllers with <cite>BaseJiminyEnv</cite>.</p></li>
+<li><p><strong>controller</strong> (<a class="reference internal" href="blocks.html#gym_jiminy.common.bases.blocks.BaseControllerBlock" title="gym_jiminy.common.bases.blocks.BaseControllerBlock"><em>BaseControllerBlock</em></a><em>[</em><em>Act</em><em>, </em><em>OtherState</em><em>, </em><em>BaseObs</em><em>, </em><em>BaseAct</em><em>]</em>) – Controller to use to send targets to the subsequent
+block.</p></li>
+<li><p><strong>augment_observation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to add the target state of the
+controller to the observation of the
+environment. Regardless, the internal state
+of the controller will be added if any.
+Optional: Disabled by default.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a>) – Extra keyword arguments to allow automatic pipeline
+wrapper generation.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ControlledJiminyEnv.refresh_observation">
+<span class="sig-name descname"><span class="pre">refresh_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">measurement</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ControlledJiminyEnv.refresh_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ControlledJiminyEnv.refresh_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the unified observation based on the current wrapped
+environment’s observation and controller’s target.</p>
+<p>It gathers the actual observation from the environment with the target
+of the controller, if requested, otherwise it forwards the observation
+directly without any further processing.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Beware it shares the environment observation whenever possible
+for the sake of efficiency. Despite that, it is safe to call this
+method multiple times successively.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>measurement</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.EngineObsType" title="gym_jiminy.common.bases.interfaces.EngineObsType"><em>EngineObsType</em></a>) – Low-level measure from the environment to process
+to get higher-level observation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ControlledJiminyEnv.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ControlledJiminyEnv.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ControlledJiminyEnv.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the motors efforts to apply on the robot.</p>
+<p>In practice, it updates whenever necessary:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>the target sent to the subsequent block by the controller</p></li>
+<li><p>the command send to the robot by the environment through the
+subsequent block</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>Act</em>) – High-level target to achieve by means of the command.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Lower-level command to update in-place.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.ControlledJiminyEnv.compute_reward">
+<span class="sig-name descname"><span class="pre">compute_reward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#ControlledJiminyEnv.compute_reward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.ControlledJiminyEnv.compute_reward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the reward related to a specific control block, plus extra
+information that may be helpful for monitoring or debugging purposes.</p>
+<p>For the corresponding MDP to be stationary, the computation of the
+reward is supposed to involve only the transition from previous to
+current state of the simulation (possibly comprising multiple agents)
+under the ongoing action.</p>
+<p>By default, it returns 0.0 without extra information no matter what.
+The user is expected to provide an appropriate reward on its own,
+either by overloading this method or by wrapping the environment with
+<cite>ComposedJiminyEnv</cite> for modular environment pipeline design.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>terminated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether the episode has reached the terminal state
+of the MDP at the current step. This flag can be
+used to compute a specific terminal reward.</p></li>
+<li><p><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.13)"><em>Any</em></a><em>]</em>) – Dictionary of extra information for monitoring.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Aggregated reward for the current step.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformObservation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.pipeline.</span></span><span class="sig-name descname"><span class="pre">BaseTransformObservation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformObservation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformObservation" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper" title="gym_jiminy.common.bases.pipeline.BasePipelineWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasePipelineWrapper</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">TransformedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">TransformedObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>]</p>
+<p>Apply some transform on the observation of the wrapped environment.</p>
+<p>The observation transform is only applied once per step, as post-processing
+right before returning. It is meant to change the way a whole pipeline
+environment is exposed to the outside rather than changing its internal
+machinery. Incidentally, the transformed observation must not be involved
+in the computations of any subsequent pipeline layer.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The user is expected to define the observation transform and its
+corresponding space by overloading both <cite>_initialize_action_space</cite> and
+<cite>transform_action</cite>. The transform will be applied at the end of every
+environment step.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This wrapper derives from <cite>BasePipelineWrapper</cite>, and such as, it is
+considered internal unlike <cite>gym.Wrapper</cite>. This means that it will be
+taken into account when calling <cite>evaluate</cite> or <cite>play_interactive</cite> on the
+wrapped environment.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>Obs</em><em>, </em><em>Act</em><em>]</em>) – Base or already wrapped jiminy environment.</p></li>
+<li><p><strong>kwargs</strong> – Extra keyword arguments for multiple inheritance.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformObservation.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformObservation.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformObservation.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the motors efforts to apply on the robot.</p>
+<p>It simply forwards the command computed by the wrapped environment
+without any processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>Act</em>) – High-level target to achieve by means of the command.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Lower-level command to update in-place.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformObservation.refresh_observation">
+<span class="sig-name descname"><span class="pre">refresh_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">measurement</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformObservation.refresh_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformObservation.refresh_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute high-level features based on the current wrapped
+environment’s observation.</p>
+<p>It calls <cite>transform_observation</cite> at <cite>step_dt</cite> update period, right
+after having refreshed the base observation.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The method <cite>transform_observation</cite> must have been overwritten by
+the user prior to calling this method.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>measurement</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.EngineObsType" title="gym_jiminy.common.bases.interfaces.EngineObsType"><em>EngineObsType</em></a>) – Low-level measure from the environment to process
+to get higher-level observation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformObservation.transform_observation">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">transform_observation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformObservation.transform_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformObservation.transform_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the transformed observation from the original wrapped
+environment observation.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The environment observation <cite>self.env.observation</cite> has been updated
+prior to calling this method and therefore can be safely accessed.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For the sake of efficiency, this method should directly update
+in-place the pre-allocated transformed observation buffer
+<cite>self.observation</cite> instead of returning a temporary.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformAction">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.bases.pipeline.</span></span><span class="sig-name descname"><span class="pre">BaseTransformAction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformAction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformAction" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#gym_jiminy.common.bases.pipeline.BasePipelineWrapper" title="gym_jiminy.common.bases.pipeline.BasePipelineWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasePipelineWrapper</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">TransformedAct</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code></a>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">TransformedAct</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Obs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">Act</span></code>]</p>
+<p>Apply some transform on the action of the wrapped environment.</p>
+<p>The action transform is only applied once per step, as pre-processing
+right at the beginning. It is meant to change the way a whole pipeline
+environment is exposed to the outside rather than changing its internal
+machinery.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The user is expected to define the observation transform and its
+corresponding space by overloading both <cite>_initialize_action_space</cite> and
+<cite>transform_action</cite>. The transform will be applied at the beginning of
+every environment step.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This wrapper derives from <cite>BasePipelineWrapper</cite>, and such as, it is
+considered internal unlike <cite>gym.Wrapper</cite>. This means that it will be
+taken into account when calling <cite>evaluate</cite> or <cite>play_interactive</cite> on the
+wrapped environment.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>env</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>Obs</em><em>, </em><em>Act</em><em>]</em>) – Base or already wrapped jiminy environment.</p></li>
+<li><p><strong>kwargs</strong> – Extra keyword arguments for multiple inheritance.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformAction.refresh_observation">
+<span class="sig-name descname"><span class="pre">refresh_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">measurement</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformAction.refresh_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformAction.refresh_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute high-level features based on the current wrapped
+environment’s observation.</p>
+<p>It simply forwards the observation computed by the wrapped environment
+without any processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>measurement</strong> (<a class="reference internal" href="interfaces.html#gym_jiminy.common.bases.interfaces.EngineObsType" title="gym_jiminy.common.bases.interfaces.EngineObsType"><em>EngineObsType</em></a>) – Low-level measure from the environment to process
+to get higher-level observation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformAction.compute_command">
+<span class="sig-name descname"><span class="pre">compute_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformAction.compute_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformAction.compute_command" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the motors efforts to apply on the robot.</p>
+<p>It calls <cite>transform_action</cite> at <cite>step_dt</cite> update period, which will
+update the environment action. Then, it delegates computation of the
+command to the base environment.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The method <cite>transform_action</cite> must have been overwritten by the
+user prior to calling this method.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>TransformedAct</em>) – High-level target to achieve by means of the command.</p></li>
+<li><p><strong>command</strong> (<em>ndarray</em>) – Lower-level command to update in-place.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.bases.pipeline.BaseTransformAction.transform_action">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">transform_action</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/bases/pipeline.html#BaseTransformAction.transform_action"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.bases.pipeline.BaseTransformAction.transform_action" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the transformed action from the provided wrapped environment
+action.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For the sake of efficiency, this method should directly update
+in-place the pre-allocated action buffer of the wrapped environment
+<cite>self.env.action</cite> instead of returning a temporary.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>action</strong> (<em>TransformedAct</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="compositions.html" class="btn btn-neutral float-left" title="Compositions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../blocks/index.html" class="btn btn-neutral float-right" title="Blocks" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

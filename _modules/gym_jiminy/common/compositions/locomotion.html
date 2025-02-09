@@ -1,0 +1,1063 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.compositions.locomotion &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.compositions.locomotion</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.compositions.locomotion</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Rewards mainly relevant for locomotion tasks on floating-base robots.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+
+<span class="kn">import</span> <span class="nn">jiminy_py.core</span> <span class="k">as</span> <span class="nn">jiminy</span>
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">InterfaceJiminyEnv</span><span class="p">,</span> <span class="n">InterfaceQuantity</span><span class="p">,</span> <span class="n">QuantityEvalMode</span><span class="p">,</span> <span class="n">QuantityReward</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..bases.compositions</span> <span class="kn">import</span> <span class="n">ArrayOrScalar</span><span class="p">,</span> <span class="n">ArrayLikeOrScalar</span>
+<span class="kn">from</span> <span class="nn">..quantities</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">OrientationType</span><span class="p">,</span> <span class="n">MaskedQuantity</span><span class="p">,</span> <span class="n">UnaryOpQuantity</span><span class="p">,</span> <span class="n">ConcatenatedQuantity</span><span class="p">,</span>
+    <span class="n">FrameOrientation</span><span class="p">,</span> <span class="n">BaseRelativeHeight</span><span class="p">,</span> <span class="n">BaseOdometryPose</span><span class="p">,</span>
+    <span class="n">DeltaBaseOdometryPosition</span><span class="p">,</span> <span class="n">DeltaBaseOdometryOrientation</span><span class="p">,</span>
+    <span class="n">BaseOdometryAverageVelocity</span><span class="p">,</span> <span class="n">CapturePoint</span><span class="p">,</span> <span class="n">MultiFramePosition</span><span class="p">,</span>
+    <span class="n">MultiFootRelativeXYZQuat</span><span class="p">,</span> <span class="n">MultiContactNormalizedSpatialForce</span><span class="p">,</span>
+    <span class="n">MultiFootNormalizedForceVertical</span><span class="p">,</span> <span class="n">MultiFootCollisionDetection</span><span class="p">,</span>
+    <span class="n">AverageBaseMomentum</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">quat_difference</span><span class="p">,</span> <span class="n">quat_to_yaw</span>
+
+<span class="kn">from</span> <span class="nn">.generic</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">TrackingQuantityReward</span><span class="p">,</span> <span class="n">QuantityTermination</span><span class="p">,</span>
+    <span class="n">DriftTrackingQuantityTermination</span><span class="p">,</span> <span class="n">ShiftTrackingQuantityTermination</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..quantities.locomotion</span> <span class="kn">import</span> <span class="n">angle_difference</span>
+<span class="kn">from</span> <span class="nn">.mixin</span> <span class="kn">import</span> <span class="n">radial_basis_function</span>
+
+
+<div class="viewcode-block" id="TrackingBaseHeightReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.TrackingBaseHeightReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingBaseHeightReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the height of the floating base of the</span>
+<span class="sd">    robot relative to lowest contact point wrt some reference trajectory.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_tracking_base_height&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">BaseRelativeHeight</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="TrackingBaseOdometryVelocityReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.TrackingBaseOdometryVelocityReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingBaseOdometryVelocityReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the odometry velocity wrt some reference</span>
+<span class="sd">    trajectory.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_tracking_odometry_velocity&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">BaseOdometryAverageVelocity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="l2_norm">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.l2_norm">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">l2_norm</span><span class="p">(</span><span class="n">vec</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the L2-norm of a vector.</span>
+
+<span class="sd">    :param array: Input array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">vec</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">vec</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="DriftTrackingBaseOdometryPoseReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPoseReward">[docs]</a>
+<span class="k">class</span> <span class="nc">DriftTrackingBaseOdometryPoseReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the drift of the odometry pose over a</span>
+<span class="sd">    horizon wrt some reference trajectory.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `DeltaBaseOdometryPosition`, `DeltaBaseOdometryOrientation` and</span>
+<span class="sd">        `TrackingQuantityReward` documentations for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the drift.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Note that it is essential to operate on the Cartesian distance rather</span>
+        <span class="c1"># than the absolute position in world plan in order to decouple drift</span>
+        <span class="c1"># in position from drift in orientation. Otherwise, any drift on</span>
+        <span class="c1"># orientation would cause the drift in absolute position to diverge.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_tracking_odometry_pose&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">ConcatenatedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantities</span><span class="o">=</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">UnaryOpQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">DeltaBaseOdometryPosition</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                            <span class="n">horizon</span><span class="o">=</span><span class="n">horizon</span><span class="p">,</span>
+                            <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+                        <span class="n">op</span><span class="o">=</span><span class="n">l2_norm</span><span class="p">)),</span>
+                    <span class="p">(</span><span class="n">DeltaBaseOdometryOrientation</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">horizon</span><span class="o">=</span><span class="n">horizon</span><span class="p">,</span>
+                        <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">))))),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="TrackingCapturePointReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.TrackingCapturePointReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingCapturePointReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the capture point wrt some reference</span>
+<span class="sd">    trajectory.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_tracking_capture_point&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">CapturePoint</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">reference_frame</span><span class="o">=</span><span class="n">pin</span><span class="o">.</span><span class="n">ReferenceFrame</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="TrackingFootPositionsReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.TrackingFootPositionsReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingFootPositionsReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the relative position of the feet wrt each</span>
+<span class="sd">    other.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">frame_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        :param frame_names: Name of the frames corresponding to the feet of the</span>
+<span class="sd">                            robot. &#39;auto&#39; to automatically detect them from the</span>
+<span class="sd">                            set of contact and force sensors of the robot.</span>
+<span class="sd">                            Optional: &#39;auto&#39; by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_tracking_foot_positions&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">MultiFootRelativeXYZQuat</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">frame_names</span><span class="o">=</span><span class="n">frame_names</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="TrackingFootOrientationsReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.TrackingFootOrientationsReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingFootOrientationsReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the relative orientation of the feet wrt</span>
+<span class="sd">    each other.</span>
+
+<span class="sd">    The error corresponds to the sum of squared total angles of the differences</span>
+<span class="sd">    between the true and reference relative orientations for each foot.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">frame_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        :param frame_names: Name of the frames corresponding to the feet of the</span>
+<span class="sd">                            robot. &#39;auto&#39; to automatically detect them from the</span>
+<span class="sd">                            set of contact and force sensors of the robot.</span>
+<span class="sd">                            Optional: &#39;auto&#39; by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_tracking_foot_orientations&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">MultiFootRelativeXYZQuat</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">frame_names</span><span class="o">=</span><span class="n">frame_names</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">))),</span>
+            <span class="n">cutoff</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="n">Callable</span><span class="p">[</span>
+                <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">quat_difference</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="TrackingFootForceDistributionReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.TrackingFootForceDistributionReward">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackingFootForceDistributionReward</span><span class="p">(</span><span class="n">TrackingQuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for tracking the relative vertical force in world frame</span>
+<span class="sd">    applied on each foot.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The force is normalized by the weight of the robot rather than the</span>
+<span class="sd">        total force applied on all feet. This is important as it not only takes</span>
+<span class="sd">        into account the force distribution between the feet, but also the</span>
+<span class="sd">        overall ground contact interact force. This way, building up momentum</span>
+<span class="sd">        before jumping will be distinguished for standing still. Moreover, it</span>
+<span class="sd">        ensures that the reward is always properly defined, even if the robot</span>
+<span class="sd">        has no contact with the ground at all, which typically arises during</span>
+<span class="sd">        the flying phase of running.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">frame_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        :param frame_names: Name of the frames corresponding to the feet of the</span>
+<span class="sd">                            robot. &#39;auto&#39; to automatically detect them from the</span>
+<span class="sd">                            set of contact and force sensors of the robot.</span>
+<span class="sd">                            Optional: &#39;auto&#39; by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_tracking_foot_force_distribution&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">MultiFootNormalizedForceVertical</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">frame_names</span><span class="o">=</span><span class="n">frame_names</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+            <span class="n">cutoff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="MinimizeAngularMomentumReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.MinimizeAngularMomentumReward">[docs]</a>
+<span class="k">class</span> <span class="nc">MinimizeAngularMomentumReward</span><span class="p">(</span><span class="n">QuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for minimizing the angular momentum in world plane.</span>
+
+<span class="sd">    The angular momentum along x- and y-axes in local odometry frame is</span>
+<span class="sd">    transform in a normalized reward to maximize by applying RBF kernel on the</span>
+<span class="sd">    error. See `TrackingQuantityReward` documentation for technical details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_momentum&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">AverageBaseMomentum</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">)),</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">radial_basis_function</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+            <span class="n">is_normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">is_terminal</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="MinimizeFrictionReward">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.MinimizeFrictionReward">[docs]</a>
+<span class="k">class</span> <span class="nc">MinimizeFrictionReward</span><span class="p">(</span><span class="n">QuantityReward</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reward the agent for minimizing the tangential forces at all the contact</span>
+<span class="sd">    points and collision bodies, and to avoid jerky intermittent contact state.</span>
+
+<span class="sd">    The L^2-norm is used to aggregate all the local tangential forces. While</span>
+<span class="sd">    the L^1-norm would be more natural in this specific cases, using the L-2</span>
+<span class="sd">    norm is preferable as it promotes space-time regularity, ie balancing the</span>
+<span class="sd">    force distribution evenly between all the candidate contact points and</span>
+<span class="sd">    avoiding jerky contact forces over time (high-frequency vibrations),</span>
+<span class="sd">    phenomena to which the L^1-norm is completely insensitive.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param cutoff: Cutoff threshold for the RBF kernel transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some user argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;reward_friction&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">MultiContactNormalizedSpatialForce</span><span class="p">,</span> <span class="nb">dict</span><span class="p">()),</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))),</span>
+            <span class="n">partial</span><span class="p">(</span><span class="n">radial_basis_function</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+            <span class="n">is_normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">is_terminal</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BaseRollPitchTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.BaseRollPitchTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">BaseRollPitchTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Encourages the agent to keep the floating base straight, ie its torso in</span>
+<span class="sd">    case of a humanoid robot, by prohibiting excessive roll and pitch angles.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">low</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLikeOrScalar</span><span class="p">],</span>
+                 <span class="n">high</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLikeOrScalar</span><span class="p">],</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param low: Lower bound below which termination is triggered.</span>
+<span class="sd">        :param high: Upper bound above which termination is triggered.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_base_roll_pitch&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>  <span class="c1"># type: ignore[arg-type]</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">FrameOrientation</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">frame_name</span><span class="o">=</span><span class="s2">&quot;root_joint&quot;</span><span class="p">,</span>
+                    <span class="nb">type</span><span class="o">=</span><span class="n">OrientationType</span><span class="o">.</span><span class="n">EULER</span><span class="p">)),</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))),</span>
+            <span class="n">low</span><span class="p">,</span>
+            <span class="n">high</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="FallingTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.FallingTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">FallingTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode immediately if the floating base of the robot</span>
+<span class="sd">    gets too close from the ground.</span>
+
+<span class="sd">    It is assumed that the state is no longer recoverable when its condition</span>
+<span class="sd">    is triggered. As such, the episode is terminated on the spot as the</span>
+<span class="sd">    situation is hopeless. Generally speaking, aborting an epsiode in</span>
+<span class="sd">    anticipation of catastrophic failure is beneficial. Assuming the condition</span>
+<span class="sd">    is on point, doing this improves the signal to noice ratio when estimating</span>
+<span class="sd">    the gradient by avoiding cluterring the training batches with irrelevant</span>
+<span class="sd">    information.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">min_base_height</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param min_base_height: Minimum height of the floating base of the</span>
+<span class="sd">                                robot below which termination is triggered.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_base_height&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">BaseRelativeHeight</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>  <span class="c1"># type: ignore[arg-type]</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span><span class="p">)),</span>
+            <span class="n">min_base_height</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="FootCollisionTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.FootCollisionTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">FootCollisionTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode immediately if some of the feet of the robot are</span>
+<span class="sd">    getting too close from each other.</span>
+
+<span class="sd">    Self-collision must be avoided at all cost, as it can damage the hardware.</span>
+<span class="sd">    Considering this condition as a dramatically failure urges the agent to do</span>
+<span class="sd">    his best in this matter, to the point of becoming risk averse.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">security_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">frame_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param security_margin:</span>
+<span class="sd">            Minimum signed distance below which termination is triggered. This</span>
+<span class="sd">            can be interpreted as inflating or deflating the geometry objects</span>
+<span class="sd">            by the safety margin depending on whether it is positive or</span>
+<span class="sd">            negative. See `MultiFootCollisionDetection` for details.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param frame_names: Name of the frames corresponding to the feet of the</span>
+<span class="sd">                            robot. &#39;auto&#39; to automatically detect them from the</span>
+<span class="sd">                            set of contact and force sensors of the robot.</span>
+<span class="sd">                            Optional: &#39;auto&#39; by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_foot_collision&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">MultiFootCollisionDetection</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>  <span class="c1"># type: ignore[arg-type]</span>
+                <span class="n">frame_names</span><span class="o">=</span><span class="n">frame_names</span><span class="p">,</span>
+                <span class="n">security_margin</span><span class="o">=</span><span class="n">security_margin</span><span class="p">)),</span>
+            <span class="kc">False</span><span class="p">,</span>
+            <span class="kc">False</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="min_depth">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.min_depth">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">min_depth</span><span class="p">(</span><span class="n">positions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+              <span class="n">heights</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+              <span class="n">normals</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Approximate minimum distance from the ground profile among a set of the</span>
+<span class="sd">    query points.</span>
+
+<span class="sd">    Internally, it uses a first order approximation assuming zero local</span>
+<span class="sd">    curvature around each query point.</span>
+
+<span class="sd">    :param positions: Position of all the query points from which to compute</span>
+<span class="sd">                      from the ground profile, as a 2D array whose first</span>
+<span class="sd">                      dimension gathers the 3 position coordinates (X, Y, Z)</span>
+<span class="sd">                      while the second correponds to the N individual query</span>
+<span class="sd">                      points.</span>
+<span class="sd">    :param heights: Vertical height wrt the ground profile of the N individual</span>
+<span class="sd">                    query points in world frame as 1D array.</span>
+<span class="sd">    :param normals: Normal of the ground profile for the projection in world</span>
+<span class="sd">                    plane of all the query points, as a 2D array whose first</span>
+<span class="sd">                    dimension gathers the 3 position coordinates (X, Y, Z)</span>
+<span class="sd">                    while the second correponds to the N individual query</span>
+<span class="sd">                    points.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">((</span><span class="n">positions</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">heights</span><span class="p">)</span> <span class="o">*</span> <span class="n">normals</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="_MultiContactMinGroundDistance">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">unsafe_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_MultiContactMinGroundDistance</span><span class="p">(</span><span class="n">InterfaceQuantity</span><span class="p">[</span><span class="nb">float</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Minimum distance from the ground profile among all the contact points.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Internally, it does not compute the exact shortest distance from the</span>
+<span class="sd">        ground profile because it would be computionally too demanding for now.</span>
+<span class="sd">        As a surrogate, it relies on a first order approximation assuming zero</span>
+<span class="sd">        local curvature around all the contact points individually.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        The set of contact points must not change over episodes. In addition,</span>
+<span class="sd">        collision bodies are not supported for now.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">parent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InterfaceQuantity</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param parent: Higher-level quantity from which this quantity is a</span>
+<span class="sd">                       requirement if any, `None` otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get the name of all the contact points</span>
+        <span class="n">contact_frame_names</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">contact_frame_names</span>
+
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="n">parent</span><span class="p">,</span>
+            <span class="n">requirements</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">positions</span><span class="o">=</span><span class="p">(</span><span class="n">MultiFramePosition</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">frame_names</span><span class="o">=</span><span class="n">contact_frame_names</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="n">QuantityEvalMode</span><span class="o">.</span><span class="n">TRUE</span>
+                <span class="p">))),</span>
+            <span class="n">auto_refresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Reference to the heightmap function for the ongoing epsiode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_heightmap</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">HeightmapFunction</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># Allocate memory for the height and normal of all the contact points</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_heights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">contact_frame_names</span><span class="p">),))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">contact_frame_names</span><span class="p">)),</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="_MultiContactMinGroundDistance.initialize">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+        <span class="c1"># Refresh the heighmap function</span>
+        <span class="n">engine_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">unwrapped</span><span class="o">.</span><span class="n">engine</span><span class="o">.</span><span class="n">get_options</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_heightmap</span> <span class="o">=</span> <span class="n">engine_options</span><span class="p">[</span><span class="s2">&quot;world&quot;</span><span class="p">][</span><span class="s2">&quot;groundProfile&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="_MultiContactMinGroundDistance.refresh">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion._MultiContactMinGroundDistance.refresh">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="c1"># Query the height and normal to the ground profile for the position in</span>
+        <span class="c1"># world plane of all the contact points.</span>
+        <span class="n">positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">jiminy</span><span class="o">.</span><span class="n">query_heightmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_heightmap</span><span class="p">,</span>
+                               <span class="n">positions</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">_heights</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">_normals</span><span class="p">)</span>
+
+        <span class="c1"># Make sure the ground normal is normalized</span>
+        <span class="c1"># self._normals /= np.linalg.norm(self._normals, axis=0)</span>
+
+        <span class="c1"># First-order distance estimation assuming no curvature</span>
+        <span class="k">return</span> <span class="n">min_depth</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_heights</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normals</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FlyingTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.FlyingTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">FlyingTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Discourage the agent of jumping by terminating the episode immediately</span>
+<span class="sd">    if the robot is flying too high above the ground.</span>
+
+<span class="sd">    This kind of behavior is unsually undesirable because it may be frightning</span>
+<span class="sd">    for people nearby, damage the hardware, be difficult to predict and be</span>
+<span class="sd">    hardly repeatable. Moreover, such dynamic motions tend to transfer poorly</span>
+<span class="sd">    to reality because the simulation to real gap is worsening.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">max_height</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param max_height: Maximum height of the lowest contact points wrt the</span>
+<span class="sd">                           groupd above which termination is triggered.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_flying&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">_MultiContactMinGroundDistance</span><span class="p">,</span> <span class="p">{}),</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_height</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ImpactForceTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.ImpactForceTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">ImpactForceTermination</span><span class="p">(</span><span class="n">QuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode immediately in case of violent impact on the</span>
+<span class="sd">    ground.</span>
+
+<span class="sd">    Similarly to the jumping behavior, this kind of behavior is usually</span>
+<span class="sd">    undesirable. See `FlyingTermination` documentation for details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">max_force_rel</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param max_force_rel: Maximum vertical force applied on any of the</span>
+<span class="sd">                              contact points or collision bodies above which</span>
+<span class="sd">                              termination is triggered.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_impact_force&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>  <span class="c1"># type: ignore[arg-type]</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">MultiContactNormalizedSpatialForce</span><span class="p">,</span> <span class="nb">dict</span><span class="p">()),</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,))),</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_force_rel</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DriftTrackingBaseOdometryPositionTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryPositionTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">DriftTrackingBaseOdometryPositionTermination</span><span class="p">(</span>
+        <span class="n">DriftTrackingQuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode if the current base odometry position is drifting</span>
+<span class="sd">    too much over wrt some reference trajectory that is being tracked.</span>
+
+<span class="sd">    It is generally important to make sure that the robot is not deviating too</span>
+<span class="sd">    much from some reference trajectory. It sounds appealing to make sure that</span>
+<span class="sd">    the absolute error between the current and reference trajectory is bounded</span>
+<span class="sd">    at all time. However, such a condition is very restrictive, especially for</span>
+<span class="sd">    robots dealing with external disturbances or evolving on an uneven terrain.</span>
+<span class="sd">    Moreover, when it comes to infinite-horizon trajectories in particular, eg</span>
+<span class="sd">    periodic motions, avoiding drifting away over time involves being able to</span>
+<span class="sd">    sense the absolute position of the robot in world frame via exteroceptive</span>
+<span class="sd">    navigation sensors such as depth cameras or LIDARs. This kind of advanced</span>
+<span class="sd">    sensor may not be able, thereby making the objective out of reach. Still,</span>
+<span class="sd">    in the case of legged locomotion, what really matters is tracking</span>
+<span class="sd">    accurately a nominal limit cycle as long as doing so does not compromise</span>
+<span class="sd">    local stability. If it does, then the agent expected to make every effort</span>
+<span class="sd">    to recover balance as fast as possible before going back to the nominal</span>
+<span class="sd">    limit cycle, without trying to catch up with the ensuing drift since the</span>
+<span class="sd">    exact absolute odometry pose in world frame is of little interest. See</span>
+<span class="sd">    `BaseOdometryPose` and `DriftTrackingQuantityTermination` documentations</span>
+<span class="sd">    for details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">max_position_err</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param max_position_err:</span>
+<span class="sd">            Maximum drift error in translation (X, Y) in world plane above</span>
+<span class="sd">            which termination is triggered.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the drift.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_tracking_base_odom_position&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span>  <span class="c1"># type: ignore[arg-type, return-value]</span>
+                <span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">BaseOdometryPose</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))),</span>
+            <span class="n">max_position_err</span><span class="p">,</span>
+            <span class="n">horizon</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DriftTrackingBaseOdometryOrientationTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.DriftTrackingBaseOdometryOrientationTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">DriftTrackingBaseOdometryOrientationTermination</span><span class="p">(</span>
+        <span class="n">DriftTrackingQuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode if the current base odometry orientation is</span>
+<span class="sd">    drifting too much over wrt some reference trajectory that is being tracked.</span>
+
+<span class="sd">    See `BaseOdometryPose` and `DriftTrackingBaseOdometryPositionTermination`</span>
+<span class="sd">    documentations for details.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        It takes into account the  number of turns of the yaw angle of the</span>
+<span class="sd">        floating base over the whole span of the history.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">max_orientation_err</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param max_orientation_err:</span>
+<span class="sd">            Maximum drift error in orientation (yaw,) in world plane above</span>
+<span class="sd">            which termination is triggered.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the drift.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_tracking_base_odom_orientation&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span>  <span class="c1"># type: ignore[arg-type, return-value]</span>
+                <span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">BaseOdometryPose</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,))),</span>
+            <span class="n">max_orientation_err</span><span class="p">,</span>
+            <span class="n">horizon</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">angle_difference</span><span class="p">,</span>
+            <span class="n">bounds_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ShiftTrackingFootOdometryPositionsTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryPositionsTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">ShiftTrackingFootOdometryPositionsTermination</span><span class="p">(</span>
+        <span class="n">ShiftTrackingQuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode if the selected reference trajectory is not</span>
+<span class="sd">    tracked with expected accuracy regarding the relative foot odometry</span>
+<span class="sd">    positions, whatever the timestep being considered over some fixed-size</span>
+<span class="sd">    sliding window.</span>
+
+<span class="sd">    See `MultiFootRelativeXYZQuat` and `ShiftTrackingMotorPositionsTermination`</span>
+<span class="sd">    documentation for details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">max_position_err</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">frame_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">        :param max_position_err:</span>
+<span class="sd">            Maximum shift error in translation (X, Y) in world plane above</span>
+<span class="sd">            which termination is triggered.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the shift.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param frame_names: Name of the frames corresponding to the feet of the</span>
+<span class="sd">                            robot. &#39;auto&#39; to automatically detect them from the</span>
+<span class="sd">                            set of contact and force sensors of the robot.</span>
+<span class="sd">                            Optional: &#39;auto&#39; by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_tracking_foot_odom_positions&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span>  <span class="c1"># type: ignore[arg-type, return-value]</span>
+                <span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">MultiFootRelativeXYZQuat</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">frame_names</span><span class="o">=</span><span class="n">frame_names</span><span class="p">,</span>
+                        <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))),</span>
+            <span class="n">max_position_err</span><span class="p">,</span>
+            <span class="n">horizon</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="angle_distance">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.angle_distance">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inline</span><span class="o">=</span><span class="s1">&#39;always&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">angle_distance</span><span class="p">(</span><span class="n">angle_left</span><span class="p">:</span> <span class="n">ArrayOrScalar</span><span class="p">,</span>
+                   <span class="n">angle_right</span><span class="p">:</span> <span class="n">ArrayOrScalar</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ArrayOrScalar</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the element-wise distance between two batches of angles.</span>
+
+<span class="sd">    The distance is defined as the smallest angle in absolute value between</span>
+<span class="sd">    right and left angles (ignoring multi-turns).</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        See `angle_difference` documentation for details.</span>
+
+<span class="sd">    :param angle_left: Left-hand side angles.</span>
+<span class="sd">    :param angle_right: Right-hand side angles.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">angle_left</span> <span class="o">-</span> <span class="n">angle_right</span>
+    <span class="n">delta</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">delta</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">delta</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ShiftTrackingFootOdometryOrientationsTermination">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/compositions/locomotion.html#gym_jiminy.common.compositions.locomotion.ShiftTrackingFootOdometryOrientationsTermination">[docs]</a>
+<span class="k">class</span> <span class="nc">ShiftTrackingFootOdometryOrientationsTermination</span><span class="p">(</span>
+        <span class="n">ShiftTrackingQuantityTermination</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Terminate the episode if the selected reference trajectory is not</span>
+<span class="sd">    tracked with expected accuracy regarding the relative foot odometry</span>
+<span class="sd">    orientations, whatever the timestep being considered over some fixed-size</span>
+<span class="sd">    sliding window.</span>
+
+<span class="sd">    See `MultiFootRelativeXYZQuat` and `ShiftTrackingMotorPositionsTermination`</span>
+<span class="sd">    documentation for details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">,</span>
+                 <span class="n">max_orientation_err</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">horizon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">grace_period</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">frame_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">training_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param env: Base or wrapped jiminy environment.</span>
+<span class="sd">            Maximum shift error in orientation (yaw,) in world plane above</span>
+<span class="sd">            which termination is triggered.</span>
+<span class="sd">        :param horizon: Horizon over which values of the quantity will be</span>
+<span class="sd">                        stacked before computing the shift.</span>
+<span class="sd">        :param grace_period: Grace period effective only at the very beginning</span>
+<span class="sd">                             of the episode, during which the latter is bound</span>
+<span class="sd">                             to continue whatever happens.</span>
+<span class="sd">                             Optional: 0.0 by default.</span>
+<span class="sd">        :param frame_names: Name of the frames corresponding to the feet of the</span>
+<span class="sd">                            robot. &#39;auto&#39; to automatically detect them from the</span>
+<span class="sd">                            set of contact and force sensors of the robot.</span>
+<span class="sd">                            Optional: &#39;auto&#39; by default.</span>
+<span class="sd">        :param training_only: Whether the termination condition should be</span>
+<span class="sd">                              completely by-passed if the environment is in</span>
+<span class="sd">                              evaluation mode.</span>
+<span class="sd">                              Optional: False by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">env</span><span class="p">,</span>
+            <span class="s2">&quot;termination_tracking_foot_odom_orientations&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">mode</span><span class="p">:</span> <span class="p">(</span><span class="n">UnaryOpQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">MaskedQuantity</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">quantity</span><span class="o">=</span><span class="p">(</span><span class="n">MultiFootRelativeXYZQuat</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">frame_names</span><span class="o">=</span><span class="n">frame_names</span><span class="p">,</span>
+                        <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)),</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">))),</span>
+                <span class="n">op</span><span class="o">=</span><span class="n">quat_to_yaw</span><span class="p">)),</span>
+            <span class="n">max_orientation_err</span><span class="p">,</span>
+            <span class="n">horizon</span><span class="p">,</span>
+            <span class="n">grace_period</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">angle_distance</span><span class="p">,</span>
+            <span class="n">is_truncation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">training_only</span><span class="o">=</span><span class="n">training_only</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

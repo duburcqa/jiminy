@@ -1,0 +1,1190 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jiminy_py.viewer.replay &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jiminy_py.viewer.replay</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jiminy_py.viewer.replay</h1><div class="highlight"><pre>
+<span></span><span class="c1"># mypy: disable-error-code=&quot;attr-defined, name-defined&quot;</span>
+<span class="sd">&quot;&quot;&quot;Generic utilities for conveniently replaying and/or recording a simulation</span>
+<span class="sd">in a 3D viewer from telemetry log data.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">ctypes</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">base64</span> <span class="kn">import</span> <span class="n">b64encode</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">TracebackType</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span><span class="p">,</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">get_ident</span><span class="p">,</span> <span class="n">Thread</span><span class="p">,</span> <span class="n">Lock</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">cycle</span><span class="p">,</span> <span class="n">islice</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">cast</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Deque</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Type</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">av</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">import</span> <span class="nn">pinocchio</span> <span class="k">as</span> <span class="nn">pin</span>
+<span class="kn">from</span> <span class="nn">hppfcl</span> <span class="kn">import</span> <span class="n">CollisionGeometry</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">core</span> <span class="k">as</span> <span class="n">jiminy</span>
+<span class="kn">from</span> <span class="nn">..dynamics</span> <span class="kn">import</span> <span class="n">Trajectory</span>
+<span class="kn">from</span> <span class="nn">..log</span> <span class="kn">import</span> <span class="p">(</span><span class="n">UpdateHook</span><span class="p">,</span>
+                   <span class="n">read_log</span><span class="p">,</span>
+                   <span class="n">build_robot_from_log</span><span class="p">,</span>
+                   <span class="n">extract_trajectory_from_log</span><span class="p">,</span>
+                   <span class="n">update_sensor_measurements_from_log</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.viewer</span> <span class="kn">import</span> <span class="p">(</span><span class="n">COLORS</span><span class="p">,</span>
+                     <span class="n">Tuple3FType</span><span class="p">,</span>
+                     <span class="n">Tuple4FType</span><span class="p">,</span>
+                     <span class="n">CameraPoseType</span><span class="p">,</span>
+                     <span class="n">CameraMotionType</span><span class="p">,</span>
+                     <span class="n">get_default_backend</span><span class="p">,</span>
+                     <span class="n">is_display_available</span><span class="p">,</span>
+                     <span class="n">Viewer</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.meshcat.utilities</span> <span class="kn">import</span> <span class="n">interactive_mode</span>
+
+
+<span class="n">VIDEO_FRAMERATE</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="n">VIDEO_QUALITY</span> <span class="o">=</span> <span class="mf">0.3</span>  <span class="c1"># [Mbytes/s]</span>
+
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">ColorType</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Tuple4FType</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">QRLock</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fair (FIFO) reentrant lock.</span>
+
+<span class="sd">    It is similar to the built-in `threading.RLock` object that is also</span>
+<span class="sd">    reentrant but unfair.</span>
+
+<span class="sd">    .. seealso::</span>
+<span class="sd">        For reference: https://stackoverflow.com/a/19695878/4820605</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">Lock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_waiters</span><span class="p">:</span> <span class="n">Deque</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Acquire a lock in a blocking way.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            If this thread already owns the lock, increment the recursion level</span>
+<span class="sd">            by one, and return immediately. Otherwise, if another thread owns</span>
+<span class="sd">            the lock, block until the lock is unlocked. Once the lock is</span>
+<span class="sd">            unlocked (not owned by any thread), then grab ownership, set the</span>
+<span class="sd">            recursion level to one, and return. If more than one thread is</span>
+<span class="sd">            blocked waiting until the lock is unlocked, only one at a time will</span>
+<span class="sd">            be able to grab ownership of the lock.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Unlike built-in `threading.RLock`, if multiple threads are waiting</span>
+<span class="sd">            for acquiring the lock, which one will get it next is not system</span>
+<span class="sd">            dependent. The priority is given to the first thread in queue that</span>
+<span class="sd">            waited for it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=consider-using-with</span>
+        <span class="n">thread_id</span> <span class="o">=</span> <span class="n">get_ident</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span> <span class="o">==</span> <span class="n">thread_id</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">:</span>
+            <span class="n">new_lock</span> <span class="o">=</span> <span class="n">Lock</span><span class="p">()</span>
+            <span class="n">new_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_waiters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_lock</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+            <span class="n">new_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span> <span class="o">=</span> <span class="n">thread_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Release a lock, decrementing the recursion level.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            If after the decrement it is zero, reset the lock to unlocked (not</span>
+<span class="sd">            owned by any thread), and if any other threads are blocked waiting</span>
+<span class="sd">            for the lock to become unlocked, allow exactly one of them to</span>
+<span class="sd">            proceed. If after the decrement the recursion level is still</span>
+<span class="sd">            nonzero, the lock remains locked and owned by the calling thread.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Only call this method when the calling thread owns the lock. A</span>
+<span class="sd">            RuntimeError is raised if this method is called when the lock is</span>
+<span class="sd">            unlocked.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span> <span class="o">!=</span> <span class="n">get_ident</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;cannot release un-acquired lock&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">count</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_owner</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_waiters</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_waiters</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">exc_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">]],</span>
+                 <span class="n">exc_value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">],</span>
+                 <span class="n">traceback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TracebackType</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+
+<span class="n">viewer_lock</span> <span class="o">=</span> <span class="n">QRLock</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_with_lock</span><span class="p">(</span><span class="n">fun</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">fun</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">fun_safe</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">viewer_lock</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fun_safe</span>
+
+
+<div class="viewcode-block" id="play_trajectories">
+<a class="viewcode-back" href="../../../api/jiminy_py/viewer.html#jiminy_py.viewer.play_trajectories">[docs]</a>
+<span class="nd">@_with_lock</span>
+<span class="k">def</span> <span class="nf">play_trajectories</span><span class="p">(</span>
+        <span class="n">trajectories</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>  <span class="c1"># pylint: disable=unused-argument</span>
+            <span class="n">Trajectory</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Trajectory</span><span class="p">]],</span>
+        <span class="n">update_hooks</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">UpdateHook</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">UpdateHook</span><span class="p">]]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ground_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">jiminy</span><span class="o">.</span><span class="n">HeightmapFunction</span><span class="p">,</span> <span class="n">CollisionGeometry</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">time_interval</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">),</span>
+        <span class="n">speed_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">xyz_offsets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">Tuple3FType</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Tuple3FType</span><span class="p">]]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">robots_colors</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">ColorType</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">ColorType</span><span class="p">]]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">camera_pose</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CameraPoseType</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">enable_travelling</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">camera_motion</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CameraMotionType</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">watermark_fullpath</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">legend</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">enable_clock</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">display_com</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">display_dcm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">display_contacts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">display_f_external</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">bool</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scene_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;world&#39;</span><span class="p">,</span>
+        <span class="n">record_video_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">record_video_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">start_paused</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">backend</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">delete_robot_on_close</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">remove_widgets_overlay</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">close_backend</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">viewers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Viewer</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Viewer</span><span class="p">]]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Viewer</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Replay one or several robot trajectories in a viewer.</span>
+
+<span class="sd">    The ratio between the replay and the simulation time is kept constant to</span>
+<span class="sd">    the desired ratio. One can choose between several backend (&#39;panda3d&#39; or</span>
+<span class="sd">    &#39;meshcat&#39;).</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Replay speed is independent of the platform (windows, linux...) and</span>
+<span class="sd">        available CPU power.</span>
+
+<span class="sd">    :param trajectories: List of trajectories.</span>
+<span class="sd">    :param update_hooks:</span>
+<span class="sd">        Callables associated with each robot that can be used to update</span>
+<span class="sd">        non-kinematic robot data, for instance to emulate sensors data from log</span>
+<span class="sd">        using the hook provided by `update_sensor_measurements_from_log`</span>
+<span class="sd">        method. `None` to disable, otherwise it must have signature:</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            f(t: float, q: ndarray, v: Optional[ndarray]) -&gt; None</span>
+
+<span class="sd">        Optional: None by default.</span>
+<span class="sd">    :param time_interval: Replay only timesteps in this interval of time.</span>
+<span class="sd">                          It does not have to be finite.</span>
+<span class="sd">                          Optional: [0, inf] by default.</span>
+<span class="sd">    :param speed_ratio: Speed ratio of the simulation.</span>
+<span class="sd">                        Optional: 1.0 by default.</span>
+<span class="sd">    :param xyz_offsets: List of constant position of the root joint for each</span>
+<span class="sd">                        robot in world frame. None to disable.</span>
+<span class="sd">                        Optional: None by default.</span>
+<span class="sd">    :param robots_colors: List of RGBA codes or named colors defining the color</span>
+<span class="sd">                          for each robot. It will be applied to every link.</span>
+<span class="sd">                          None to disable.</span>
+<span class="sd">                          Optional: Original color if single robot, default</span>
+<span class="sd">                          color cycle otherwise.</span>
+<span class="sd">    :param camera_pose: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw],</span>
+<span class="sd">                        frame name/index specifying the initial pose of the</span>
+<span class="sd">                        camera or the relative pose wrt the tracked frame</span>
+<span class="sd">                        depending on whether travelling is enabled. `None` to</span>
+<span class="sd">                        disable.</span>
+<span class="sd">                        Optional: None by default.</span>
+<span class="sd">    :param enable_travelling: Whether the camera tracks the robot associated</span>
+<span class="sd">                              with the first trajectory specified in</span>
+<span class="sd">                              `trajectories`. `None` to disable.</span>
+<span class="sd">                              Optional: Disabled by default.</span>
+<span class="sd">    :param camera_motion: Camera breakpoint poses over time, as a list of</span>
+<span class="sd">                          `CameraMotionBreakpointType` dict. None to disable.</span>
+<span class="sd">                          Optional: None by default.</span>
+<span class="sd">    :param watermark_fullpath: Add watermark to the viewer. It is not</span>
+<span class="sd">                               persistent but disabled after replay. This</span>
+<span class="sd">                               option is only supported by Meshcat backend.</span>
+<span class="sd">                               None to disable.</span>
+<span class="sd">                               Optional: No watermark by default.</span>
+<span class="sd">    :param legend: List of labels defining the legend for each robot. It is not</span>
+<span class="sd">                   persistent but disabled after replay. None to disable.</span>
+<span class="sd">                   Optional: No legend by default for a single robot without</span>
+<span class="sd">                   color, the name of each robot otherwise.</span>
+<span class="sd">    :param enable_clock: Add clock on bottom right corner of the viewer.</span>
+<span class="sd">                         Only available with &#39;panda3d&#39; rendering backend.</span>
+<span class="sd">                         Optional: Disabled by default.</span>
+<span class="sd">    :param display_com: Whether to display the center of mass. `None` to keep</span>
+<span class="sd">                        current viewers&#39; settings, if any.</span>
+<span class="sd">                        Optional: Enabled by default iif `viewers` is `None`,</span>
+<span class="sd">                        and backend is &#39;panda3d&#39;.</span>
+<span class="sd">    :param display_dcm: Whether to display the capture point (also called DCM).</span>
+<span class="sd">                        `None to keep current viewers&#39; settings.</span>
+<span class="sd">                        Optional: Enabled by default iif `viewers` is `None`,</span>
+<span class="sd">                        and backend is &#39;panda3d&#39;.</span>
+<span class="sd">    :param display_contacts: Whether to display the contact forces. Note that</span>
+<span class="sd">                             the user is responsible for updating sensors data</span>
+<span class="sd">                             via `update_hooks`. `None` to keep current</span>
+<span class="sd">                             viewers&#39; settings.</span>
+<span class="sd">                             Optional: Enabled by default iif `update_hooks` is</span>
+<span class="sd">                             specified, `viewers` is `None`, and backend is</span>
+<span class="sd">                             &#39;panda3d&#39;.</span>
+<span class="sd">    :param display_f_external: Whether to display the external external forces</span>
+<span class="sd">                               applied at the joints on the robot. If a boolean</span>
+<span class="sd">                               is provided, the same visibility will be set for</span>
+<span class="sd">                               each joint, alternatively one can provide a</span>
+<span class="sd">                               boolean list whose ordering is consistent with</span>
+<span class="sd">                               `pinocchio_model.names`. Note that the user is</span>
+<span class="sd">                               responsible for updating the force buffer</span>
+<span class="sd">                               `viewer.f_external` via `update_hooks`. `None`</span>
+<span class="sd">                               to keep current viewers&#39; settings.</span>
+<span class="sd">                               Optional: `None` by default.</span>
+<span class="sd">    :param scene_name: Name of viewer&#39;s scene in which to display the robot.</span>
+<span class="sd">                       Optional: Common default name if omitted.</span>
+<span class="sd">    :param record_video_path: Fullpath location where to save generated video.</span>
+<span class="sd">                              It must be specified to enable video recording.</span>
+<span class="sd">                              Meshcat only support &#39;webm&#39; format, while the</span>
+<span class="sd">                              other renderer only supports &#39;mp4&#39; format encoded</span>
+<span class="sd">                              with web-compatible &#39;h264&#39; codec.</span>
+<span class="sd">                              Optional: None by default.</span>
+<span class="sd">    :param record_video_size: The width and height of the video recording.</span>
+<span class="sd">                              Optional: (800, 800) if non-interactive and</span>
+<span class="sd">                              (800, 400) otherwise by default.</span>
+<span class="sd">    :param start_paused: Start the simulation is pause, waiting for keyboard</span>
+<span class="sd">                         input before starting to play the trajectories.</span>
+<span class="sd">                         Only available if `record_video_path` is None.</span>
+<span class="sd">                         Optional: False by default.</span>
+<span class="sd">    :param backend: Backend, one of &#39;meshcat&#39;, &#39;panda3d&#39; and&#39;panda3d-sync. If</span>
+<span class="sd">                    `None`, the most appropriate backend will be selected</span>
+<span class="sd">                    automatically based on hardware and python environment.</span>
+<span class="sd">                    Optional: `None` by default.</span>
+<span class="sd">    :param delete_robot_on_close: Whether to delete the robot from the viewer</span>
+<span class="sd">                                  when closing it.</span>
+<span class="sd">                                  Optional: True by default for Panda3d backend</span>
+<span class="sd">                                  in non-interactive mode, False otherwise.</span>
+<span class="sd">    :param remove_widgets_overlay: Remove overlay (legend, watermark, clock,</span>
+<span class="sd">                                   ...) automatically before returning.</span>
+<span class="sd">                                   Optional: Enabled by default.</span>
+<span class="sd">    :param close_backend: Whether to close backend automatically before</span>
+<span class="sd">                          returning.</span>
+<span class="sd">                          Optional: Disabled by default.</span>
+<span class="sd">    :param viewers: List of already instantiated viewers, associated one by one</span>
+<span class="sd">                    in order to each trajectory data. None to disable.</span>
+<span class="sd">                    Optional: None by default.</span>
+<span class="sd">    :param verbose: Add information to keep track of the process.</span>
+<span class="sd">                    Optional: True by default.</span>
+<span class="sd">    :param kwargs: Unused keyword arguments to allow chaining rendering</span>
+<span class="sd">                   methods with ease.</span>
+
+<span class="sd">    :returns: List of viewers used to play the trajectories.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Make sure sequence arguments are list or tuple</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">Trajectory</span><span class="p">):</span>
+        <span class="n">trajectories</span> <span class="o">=</span> <span class="p">[</span><span class="n">trajectories</span><span class="p">]</span>
+    <span class="n">ntrajs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">trajectories</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">update_hooks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">update_hooks</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">ntrajs</span>
+    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">update_hooks</span><span class="p">):</span>
+        <span class="n">update_hooks</span> <span class="o">=</span> <span class="p">[</span><span class="n">update_hooks</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">viewers</span><span class="p">,</span> <span class="n">Viewer</span><span class="p">):</span>
+        <span class="n">viewers</span> <span class="o">=</span> <span class="p">[</span><span class="n">viewers</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="n">viewers</span><span class="p">:</span>
+        <span class="n">viewers</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Make sure the viewers are still running if specified</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+        <span class="n">viewers</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">viewers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">viewers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">viewers</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">viewer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">viewers</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">viewer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                    <span class="ow">not</span> <span class="n">viewer</span><span class="o">.</span><span class="n">is_open</span><span class="p">()):</span>  <span class="c1"># type: ignore[misc]</span>
+                <span class="n">viewers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">viewer</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">viewer</span> <span class="ow">in</span> <span class="n">viewers</span><span class="p">):</span>
+            <span class="n">viewers</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Pick the default backend if unspecified and none is already running. Note</span>
+    <span class="c1"># that repeatedly switching between &quot;panda3d-sync&quot; and &quot;panda3d&quot; backends</span>
+    <span class="c1"># is causing segfaults. See https://github.com/panda3d/panda3d/issues/1372.</span>
+    <span class="k">if</span> <span class="n">backend</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">backend</span> <span class="o">=</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">backend</span>
+        <span class="c1"># elif record_video_path is not None:</span>
+        <span class="c1">#     backend = &quot;panda3d-sync&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">backend</span> <span class="o">=</span> <span class="n">get_default_backend</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">backend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="c1"># Always close viewers if gui is open if necessary for efficiency</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;panda3d&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">record_video_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+            <span class="n">Viewer</span><span class="o">.</span><span class="n">has_gui</span><span class="p">()):</span>
+        <span class="n">Viewer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">viewers</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Create a temporary video if the backend is &#39;panda3d-sync&#39;, no</span>
+    <span class="c1"># &#39;record_video_path&#39; is provided, and running in interactive mode</span>
+    <span class="c1"># with HTML rendering support. Then load it in running cell.</span>
+    <span class="n">record_video_html_embedded</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">record_video_path</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+        <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;panda3d-sync&quot;</span> <span class="ow">and</span> <span class="n">interactive_mode</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">record_video_html_embedded</span><span class="p">:</span>
+        <span class="n">fd</span><span class="p">,</span> <span class="n">record_video_path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.mp4&#39;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
+
+    <span class="c1"># Make sure it is possible to replay something</span>
+    <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;panda3d-sync&quot;</span> <span class="ow">and</span> <span class="n">record_video_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s2">&quot;Impossible to replay simulation using &#39;panda3d-sync&#39; backend. &quot;</span>
+            <span class="s2">&quot;Please set &#39;record_video_path&#39; to save it as a file.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Set default video recording size</span>
+    <span class="k">if</span> <span class="n">record_video_size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">record_video_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">800</span><span class="p">,</span> <span class="mi">400</span> <span class="k">if</span> <span class="n">record_video_html_embedded</span> <span class="k">else</span> <span class="mi">800</span><span class="p">)</span>
+
+    <span class="c1"># Delete robot by default only if not in interactive viewer</span>
+    <span class="k">if</span> <span class="n">delete_robot_on_close</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">delete_robot_on_close</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">backend</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;panda3d&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">interactive_mode</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Handling of default options if no viewer is available</span>
+    <span class="k">if</span> <span class="n">viewers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">backend</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;panda3d&#39;</span><span class="p">):</span>
+        <span class="c1"># Check whether at least one of the robots has a freeflyer</span>
+        <span class="n">has_freeflyer</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">trajectory</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="p">:</span>
+            <span class="n">robot</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span>
+            <span class="k">assert</span> <span class="n">robot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">robot</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+                <span class="n">has_freeflyer</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">break</span>
+
+        <span class="c1"># Handling of default display of CoM, DCM and contact forces</span>
+        <span class="k">if</span> <span class="n">display_com</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">display_com</span> <span class="o">=</span> <span class="n">has_freeflyer</span>
+        <span class="k">if</span> <span class="n">display_dcm</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">display_dcm</span> <span class="o">=</span> <span class="n">has_freeflyer</span>
+        <span class="k">if</span> <span class="n">display_contacts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">display_contacts</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">fun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">fun</span> <span class="ow">in</span> <span class="n">update_hooks</span><span class="p">)</span>
+
+    <span class="c1"># Make sure it is possible to display contacts if requested</span>
+    <span class="k">if</span> <span class="n">display_contacts</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">trajectory</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="p">:</span>
+            <span class="n">robot</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span>
+            <span class="k">assert</span> <span class="n">robot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">robot</span><span class="o">.</span><span class="n">is_locked</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;`display_contacts` is not available if robot is locked. &quot;</span>
+                    <span class="s2">&quot;Please stop any running simulation before replay.&quot;</span><span class="p">)</span>
+                <span class="n">display_contacts</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">break</span>
+
+    <span class="c1"># Sanitize user-specified robot offsets</span>
+    <span class="k">if</span> <span class="n">xyz_offsets</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">xyz_offsets</span> <span class="o">=</span> <span class="n">ntrajs</span> <span class="o">*</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">xyz_offsets</span><span class="p">)</span> <span class="o">!=</span> <span class="n">ntrajs</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">xyz_offsets</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">float</span><span class="p">)</span>
+        <span class="n">xyz_offsets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span>
+            <span class="n">xyz_offsets</span><span class="p">,</span> <span class="p">(</span><span class="n">ntrajs</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>  <span class="c1"># type: ignore[arg-type]</span>
+    <span class="k">assert</span> <span class="n">xyz_offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="c1"># Sanitize user-specified robot colors</span>
+    <span class="k">if</span> <span class="n">robots_colors</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ntrajs</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">robots_colors</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">robots_colors</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">islice</span><span class="p">(</span>
+                <span class="n">cycle</span><span class="p">(</span><span class="n">COLORS</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="n">ntrajs</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">robots_colors</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">robots_colors</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="n">robots_colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">robots_colors</span><span class="p">]</span>  <span class="c1"># type: ignore[list-item]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">robots_colors</span><span class="p">)</span> <span class="o">==</span> <span class="n">ntrajs</span>
+
+    <span class="c1"># Sanitize user-specified legend</span>
+    <span class="k">if</span> <span class="n">legend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">legend</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">legend</span> <span class="o">=</span> <span class="p">[</span><span class="n">legend</span><span class="p">]</span>
+
+    <span class="c1"># Make sure the viewers instances are consistent with the trajectories</span>
+    <span class="k">if</span> <span class="n">viewers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">viewers</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">viewers</span><span class="p">)</span> <span class="o">==</span> <span class="n">ntrajs</span>
+
+    <span class="c1"># Instantiate or refresh viewers if necessary</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">viewer</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">,</span> <span class="n">color</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
+            <span class="n">viewers</span><span class="p">,</span> <span class="n">trajectories</span><span class="p">,</span> <span class="n">robots_colors</span><span class="p">)):</span>
+        <span class="c1"># Extract robot from trajectory</span>
+        <span class="n">robot</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span>
+        <span class="k">assert</span> <span class="n">robot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+        <span class="c1"># Create new viewer instance if necessary, and load the robot in it</span>
+        <span class="k">if</span> <span class="n">viewer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">uniq_id</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">_get_candidate_names</span><span class="p">())</span>
+            <span class="n">robot_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">uniq_id</span><span class="si">}</span><span class="s2">_robot_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">use_theoretical_model</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">use_theoretical_model</span>
+            <span class="n">viewer</span> <span class="o">=</span> <span class="n">Viewer</span><span class="p">(</span>
+                <span class="n">robot</span><span class="p">,</span>
+                <span class="n">use_theoretical_model</span><span class="o">=</span><span class="n">use_theoretical_model</span><span class="p">,</span>
+                <span class="n">robot_color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">robot_name</span><span class="o">=</span><span class="n">robot_name</span><span class="p">,</span>
+                <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">,</span>
+                <span class="n">scene_name</span><span class="o">=</span><span class="n">scene_name</span><span class="p">,</span>
+                <span class="n">delete_robot_on_close</span><span class="o">=</span><span class="n">delete_robot_on_close</span><span class="p">,</span>
+                <span class="n">open_gui_if_parent</span><span class="o">=</span><span class="n">record_video_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">viewers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">viewer</span>
+
+        <span class="c1"># Reset the configuration of the robot</span>
+        <span class="k">if</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">use_theoretical_model</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span>
+        <span class="n">viewer</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">pin</span><span class="o">.</span><span class="n">neutral</span><span class="p">(</span><span class="n">model</span><span class="p">))</span>
+
+        <span class="c1"># Reset robot model in viewer if requested color has changed.</span>
+        <span class="c1"># `_setup` is called instead of `set_color` because the latter is not</span>
+        <span class="c1"># supported by meshcat.</span>
+        <span class="k">if</span> <span class="n">color</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">color</span> <span class="o">!=</span> <span class="n">viewer</span><span class="o">.</span><span class="n">robot_color</span><span class="p">:</span>
+            <span class="n">viewer</span><span class="o">.</span><span class="n">_setup</span><span class="p">(</span><span class="n">robot</span><span class="p">,</span> <span class="n">color</span><span class="p">)</span>
+
+    <span class="c1"># Assert(s) for type checker</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">viewers</span><span class="p">)</span>
+    <span class="n">viewers</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">Viewer</span><span class="p">],</span> <span class="n">viewers</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">_backend_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="c1"># Add default legend with robots names if replaying multiple trajectories</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">color</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">color</span> <span class="ow">in</span> <span class="n">robots_colors</span><span class="p">)</span> <span class="ow">and</span> <span class="n">legend</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">legend</span> <span class="o">=</span> <span class="p">[</span><span class="n">viewer</span><span class="o">.</span><span class="n">robot_name</span> <span class="k">for</span> <span class="n">viewer</span> <span class="ow">in</span> <span class="n">viewers</span><span class="p">]</span>
+
+    <span class="c1"># Make sure clock is only enabled for panda3d backend</span>
+    <span class="k">if</span> <span class="n">enable_clock</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">backend</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;panda3d&#39;</span><span class="p">):</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;`enable_clock` is only available with &#39;panda3d&#39; backend.&quot;</span><span class="p">)</span>
+        <span class="n">enable_clock</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># Early return if nothing to replay</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="ow">not</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">states</span> <span class="k">for</span> <span class="n">trajectory</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="p">):</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Nothing to replay.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">viewers</span>
+
+    <span class="c1"># Enable camera motion if requested</span>
+    <span class="k">if</span> <span class="n">camera_motion</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">Viewer</span><span class="o">.</span><span class="n">register_camera_motion</span><span class="p">(</span><span class="n">camera_motion</span><span class="p">)</span>
+
+    <span class="c1"># Handle meshcat-specific options</span>
+    <span class="k">if</span> <span class="n">legend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">Viewer</span><span class="o">.</span><span class="n">set_legend</span><span class="p">(</span><span class="n">legend</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Impossible to add legend. Please install &#39;jiminy_py[plot]&#39;.&quot;</span><span class="p">)</span>
+            <span class="n">legend</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Add watermark if requested</span>
+    <span class="k">if</span> <span class="n">watermark_fullpath</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">Viewer</span><span class="o">.</span><span class="n">set_watermark</span><span class="p">(</span><span class="n">watermark_fullpath</span><span class="p">)</span>
+
+    <span class="c1"># Make sure the time interval is valid</span>
+    <span class="k">if</span> <span class="n">time_interval</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">time_interval</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Time interval must be non-empty and positive.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Initialize robot and viewer configuration before any further processing</span>
+    <span class="k">for</span> <span class="n">viewer</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">,</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">viewers</span><span class="p">,</span> <span class="n">trajectories</span><span class="p">,</span> <span class="n">xyz_offsets</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">time_interval</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;clip&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">viewer</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">q</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">v</span><span class="p">,</span> <span class="n">offset</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">f_ext</span> <span class="ow">in</span> <span class="n">viewer</span><span class="o">.</span><span class="n">f_external</span><span class="p">:</span>
+            <span class="n">f_ext</span><span class="o">.</span><span class="n">vector</span><span class="p">[:]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">if</span> <span class="n">backend</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;panda3d&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">display_com</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">viewer</span><span class="o">.</span><span class="n">display_center_of_mass</span><span class="p">(</span><span class="n">display_com</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">display_dcm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">viewer</span><span class="o">.</span><span class="n">display_capture_point</span><span class="p">(</span><span class="n">display_dcm</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">display_contacts</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">viewer</span><span class="o">.</span><span class="n">display_contact_forces</span><span class="p">(</span><span class="n">display_contacts</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">display_f_external</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">viewer</span><span class="o">.</span><span class="n">display_external_forces</span><span class="p">(</span><span class="n">display_f_external</span><span class="p">)</span>
+
+    <span class="c1"># Set camera pose or activate camera travelling if requested</span>
+    <span class="n">viewer</span><span class="p">,</span> <span class="n">robot</span> <span class="o">=</span> <span class="n">viewers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">trajectories</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">robot</span>
+    <span class="k">if</span> <span class="n">enable_travelling</span><span class="p">:</span>
+        <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span><span class="p">,</span> <span class="n">relative</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">camera_pose</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span><span class="p">,</span> <span class="n">relative</span> <span class="o">=</span> <span class="n">camera_pose</span>
+        <span class="k">if</span> <span class="n">relative</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Track the first actual frame by default (0: world, 1: root_joint)</span>
+            <span class="k">assert</span> <span class="n">robot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">robot</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Enabling travelling requires `camera_pose` to specify at &quot;</span>
+                    <span class="s2">&quot;least the relative frame to track if the first robot has &quot;</span>
+                    <span class="s2">&quot;no freeflyer.&quot;</span><span class="p">)</span>
+            <span class="n">relative</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="n">viewer</span><span class="o">.</span><span class="n">attach_camera</span><span class="p">(</span><span class="n">relative</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">camera_pose</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">viewer</span><span class="o">.</span><span class="n">set_camera_transform</span><span class="p">(</span><span class="o">*</span><span class="n">camera_pose</span><span class="p">)</span>
+
+    <span class="c1"># Display ground profile if provided</span>
+    <span class="k">if</span> <span class="n">ground_profile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ground_profile</span><span class="p">,</span> <span class="n">CollisionGeometry</span><span class="p">):</span>
+            <span class="n">ground_profile</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">discretize_heightmap</span><span class="p">(</span>
+                <span class="n">ground_profile</span><span class="p">,</span> <span class="o">*</span><span class="p">((</span><span class="o">-</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">0.04</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">),</span> <span class="n">must_simplify</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">viewer</span><span class="o">.</span><span class="n">update_floor</span><span class="p">(</span><span class="n">ground_profile</span><span class="p">)</span>
+
+    <span class="c1"># Wait for the meshes to finish loading if video recording is disable</span>
+    <span class="k">if</span> <span class="n">record_video_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;meshcat&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">verbose</span> <span class="ow">and</span> <span class="n">interactive_mode</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Waiting for meshcat client in browser to connect: &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Viewer</span><span class="o">.</span><span class="n">_backend_obj</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">url</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">Viewer</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">require_client</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">verbose</span> <span class="ow">and</span> <span class="n">interactive_mode</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Browser connected! Replaying simulation...&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Replay the trajectory</span>
+    <span class="k">if</span> <span class="n">record_video_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Extract and resample trajectory data at fixed framerate</span>
+        <span class="n">time_max</span> <span class="o">=</span> <span class="n">time_interval</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">trajectory</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">has_data</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">t_end</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">time_interval</span>
+                <span class="n">time_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">time_max</span><span class="p">,</span> <span class="n">t_end</span><span class="p">)</span>
+        <span class="n">time_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">time_max</span><span class="p">,</span> <span class="n">time_interval</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Initialize video recording</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;meshcat&#39;</span><span class="p">:</span>
+            <span class="c1"># Sanitize the recording path to enforce &#39;.webm&#39; extension</span>
+            <span class="n">record_video_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span>
+                <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">record_video_path</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.webm&#39;</span><span class="p">))</span>
+
+            <span class="c1"># Start backend recording thread</span>
+            <span class="n">Viewer</span><span class="o">.</span><span class="n">_backend_obj</span><span class="o">.</span><span class="n">start_recording</span><span class="p">(</span>
+                <span class="n">VIDEO_FRAMERATE</span><span class="p">,</span> <span class="o">*</span><span class="n">record_video_size</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Sanitize the recording path to enforce &#39;.mp4&#39; extension</span>
+            <span class="n">record_video_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span>
+                <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">record_video_path</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.mp4&#39;</span><span class="p">))</span>
+
+            <span class="c1"># Create ffmpeg video writer</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">av</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">record_video_path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene_name</span>
+            <span class="n">stream</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">add_stream</span><span class="p">(</span><span class="s1">&#39;libx264&#39;</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="n">VIDEO_FRAMERATE</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">av</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">VideoStream</span><span class="p">)</span>
+            <span class="n">stream</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">stream</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">record_video_size</span>
+            <span class="n">stream</span><span class="o">.</span><span class="n">pix_fmt</span> <span class="o">=</span> <span class="s1">&#39;yuv420p&#39;</span>
+            <span class="n">stream</span><span class="o">.</span><span class="n">bit_rate</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">VIDEO_QUALITY</span> <span class="o">*</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="n">stream</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;preset&quot;</span><span class="p">:</span> <span class="s2">&quot;veryfast&quot;</span><span class="p">,</span> <span class="s2">&quot;tune&quot;</span><span class="p">:</span> <span class="s2">&quot;zerolatency&quot;</span><span class="p">}</span>
+
+            <span class="c1"># Create frame storage</span>
+            <span class="n">frame</span> <span class="o">=</span> <span class="n">av</span><span class="o">.</span><span class="n">VideoFrame</span><span class="p">(</span><span class="o">*</span><span class="n">record_video_size</span><span class="p">,</span> <span class="s1">&#39;rgb24&#39;</span><span class="p">)</span>
+            <span class="n">frame_bytes</span> <span class="o">=</span> <span class="nb">memoryview</span><span class="p">(</span>
+                <span class="n">frame</span><span class="o">.</span><span class="n">planes</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>  <span class="c1"># pylint: disable=unsubscriptable-object</span>
+
+        <span class="c1"># Add frames to video sequentially</span>
+        <span class="n">update_hook_t</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">time_global</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
+            <span class="n">time_interval</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">time_max</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="n">speed_ratio</span> <span class="o">/</span> <span class="n">VIDEO_FRAMERATE</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">av</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">VideoStream</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+                <span class="n">time_global</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Rendering frames&quot;</span><span class="p">,</span>
+                <span class="n">disable</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="n">verbose</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">record_video_html_embedded</span><span class="p">)):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Loop over all trajectories</span>
+                <span class="k">for</span> <span class="n">viewer</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">,</span> <span class="n">xyz_offset</span><span class="p">,</span> <span class="n">update_hook</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                        <span class="n">viewers</span><span class="p">,</span> <span class="n">trajectories</span><span class="p">,</span> <span class="n">xyz_offsets</span><span class="p">,</span> <span class="n">update_hooks</span><span class="p">):</span>
+                    <span class="c1"># Skip empty trajectories</span>
+                    <span class="k">assert</span> <span class="n">viewer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">has_data</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="c1"># Compute robot state at current time</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;clip&#39;</span><span class="p">)</span>
+
+                    <span class="c1"># Update viewer state</span>
+                    <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">f_external</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">f_ref</span><span class="p">,</span> <span class="n">f_i</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                                <span class="n">viewer</span><span class="o">.</span><span class="n">f_external</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">f_external</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+                            <span class="n">f_ref</span><span class="o">.</span><span class="n">vector</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">f_i</span>
+                    <span class="k">if</span> <span class="n">update_hook</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">update_hook_t</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+                            <span class="n">update_hook</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">q</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">v</span><span class="p">)</span>
+                    <span class="n">viewer</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">q</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">v</span><span class="p">,</span> <span class="n">xyz_offset</span><span class="p">,</span> <span class="n">update_hook_t</span><span class="p">)</span>
+
+                <span class="c1"># Update clock if enabled</span>
+                <span class="k">if</span> <span class="n">enable_clock</span><span class="p">:</span>
+                    <span class="n">Viewer</span><span class="o">.</span><span class="n">set_clock</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+                <span class="c1"># Add frame to video</span>
+                <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;meshcat&#39;</span><span class="p">:</span>
+                    <span class="n">Viewer</span><span class="o">.</span><span class="n">_backend_obj</span><span class="o">.</span><span class="n">add_frame</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Update frame.</span>
+                    <span class="c1"># Note that `capture_frame` is by far the main bottleneck</span>
+                    <span class="c1"># of the whole recording process (~75% on discrete gpu).</span>
+                    <span class="n">buffer</span> <span class="o">=</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">capture_frame</span><span class="p">(</span><span class="o">*</span><span class="n">record_video_size</span><span class="p">)</span>
+                    <span class="n">frame_bytes</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">buffer</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+
+                    <span class="c1"># Write frame</span>
+                    <span class="k">for</span> <span class="n">packet</span> <span class="ow">in</span> <span class="n">stream</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">frame</span><span class="p">):</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">mux</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">KeyboardInterrupt</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">):</span>
+                <span class="c1"># RuntimeError would be raised if the backend got closed during</span>
+                <span class="c1"># recording, which typically happens when terminating Python</span>
+                <span class="c1"># forcibly during async recording.</span>
+                <span class="k">break</span>
+
+        <span class="c1"># Finalize video recording</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;meshcat&#39;</span><span class="p">:</span>
+            <span class="c1"># Stop backend recording thread</span>
+            <span class="k">assert</span> <span class="n">record_video_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">Viewer</span><span class="o">.</span><span class="n">_backend_obj</span><span class="o">.</span><span class="n">stop_recording</span><span class="p">(</span><span class="n">record_video_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Flush and close recording file</span>
+            <span class="k">for</span> <span class="n">packet</span> <span class="ow">in</span> <span class="n">stream</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="kc">None</span><span class="p">):</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">mux</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Make sure a gui is opened</span>
+        <span class="n">Viewer</span><span class="o">.</span><span class="n">open_gui</span><span class="p">()</span>
+
+        <span class="c1"># Handle start-in-pause mode</span>
+        <span class="k">if</span> <span class="n">start_paused</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">interactive_mode</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Press Enter to continue...&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+                    <span class="k">return</span> <span class="n">viewers</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Start paused is disabled in interactive mode.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Play trajectories with multithreading</span>
+        <span class="k">def</span> <span class="nf">replay_thread</span><span class="p">(</span><span class="n">viewer</span><span class="p">:</span> <span class="n">Viewer</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">new_event_loop</span><span class="p">()</span>
+            <span class="n">asyncio</span><span class="o">.</span><span class="n">set_event_loop</span><span class="p">(</span><span class="n">loop</span><span class="p">)</span>
+            <span class="n">viewer</span><span class="o">.</span><span class="n">replay</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="n">threads</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">viewer</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">,</span> <span class="n">xyz_offset</span><span class="p">,</span> <span class="n">update_hook</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="n">viewers</span><span class="p">,</span> <span class="n">trajectories</span><span class="p">,</span> <span class="n">xyz_offsets</span><span class="p">,</span> <span class="n">update_hooks</span><span class="p">):</span>
+            <span class="n">threads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Thread</span><span class="p">(</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">replay_thread</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">viewer</span><span class="p">,</span>
+                      <span class="n">trajectory</span><span class="p">,</span>
+                      <span class="n">time_interval</span><span class="p">,</span>
+                      <span class="n">speed_ratio</span><span class="p">,</span>
+                      <span class="n">xyz_offset</span><span class="p">,</span>
+                      <span class="n">update_hook</span><span class="p">,</span>
+                      <span class="n">enable_clock</span><span class="p">),</span>
+                <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">thread</span> <span class="ow">in</span> <span class="n">threads</span><span class="p">:</span>
+            <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">thread</span> <span class="ow">in</span> <span class="n">threads</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="n">thread</span><span class="o">.</span><span class="n">ident</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="n">ctypes</span><span class="o">.</span><span class="n">pythonapi</span><span class="o">.</span><span class="n">PyThreadState_SetAsyncExc</span><span class="p">(</span>
+                    <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">(</span><span class="n">thread</span><span class="o">.</span><span class="n">ident</span><span class="p">),</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">py_object</span><span class="p">(</span><span class="ne">SystemExit</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+        <span class="c1"># Disable camera travelling and camera motion if it was enabled</span>
+        <span class="k">if</span> <span class="n">enable_travelling</span><span class="p">:</span>
+            <span class="n">Viewer</span><span class="o">.</span><span class="n">detach_camera</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">camera_motion</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">Viewer</span><span class="o">.</span><span class="n">remove_camera_motion</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">remove_widgets_overlay</span><span class="p">:</span>
+            <span class="c1"># Disable legend if it was enabled</span>
+            <span class="k">if</span> <span class="n">legend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">Viewer</span><span class="o">.</span><span class="n">set_legend</span><span class="p">()</span>
+
+            <span class="c1"># Disable watermark if it was enabled</span>
+            <span class="k">if</span> <span class="n">watermark_fullpath</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">Viewer</span><span class="o">.</span><span class="n">set_watermark</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">enable_clock</span><span class="p">:</span>
+                <span class="n">Viewer</span><span class="o">.</span><span class="n">set_clock</span><span class="p">()</span>
+
+    <span class="c1"># Close backend if requested</span>
+    <span class="k">if</span> <span class="n">close_backend</span><span class="p">:</span>
+        <span class="n">Viewer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="c1"># Show video if temporary</span>
+    <span class="k">if</span> <span class="n">record_video_html_embedded</span><span class="p">:</span>
+        <span class="c1"># pylint: disable=import-outside-toplevel,no-name-in-module</span>
+        <span class="kn">from</span> <span class="nn">IPython.core.display</span> <span class="kn">import</span> <span class="n">HTML</span><span class="p">,</span> <span class="n">display</span>
+        <span class="k">assert</span> <span class="n">record_video_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">video_base64</span> <span class="o">=</span> <span class="n">b64encode</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">record_video_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">record_video_path</span><span class="p">)</span>
+        <span class="n">display</span><span class="p">(</span><span class="n">HTML</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        &lt;video controls style=&quot;</span>
+<span class="s2">            height: 400px; width: 100%; overflow: hidden;&quot;&gt;</span>
+<span class="s2">        &lt;source src=&quot;data:video/mp4;base64,</span><span class="si">{</span><span class="n">video_base64</span><span class="si">}</span><span class="s2">&quot; type=&quot;video/mp4&quot;&gt;</span>
+<span class="s2">        &lt;/video&gt;</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">viewers</span></div>
+
+
+
+<div class="viewcode-block" id="extract_replay_data_from_log">
+<a class="viewcode-back" href="../../../api/jiminy_py/viewer.html#jiminy_py.viewer.extract_replay_data_from_log">[docs]</a>
+<span class="k">def</span> <span class="nf">extract_replay_data_from_log</span><span class="p">(</span>
+        <span class="n">log_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+        <span class="n">robot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">Trajectory</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">UpdateHook</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract replay data from log data.</span>
+
+<span class="sd">    :param robot: Jiminy robot for which to extract log data.</span>
+<span class="sd">    :param log_data: Data from the log file, in a dictionary.</span>
+
+<span class="sd">    :returns: Trajectory data, update hook and extra keyword arguments to</span>
+<span class="sd">              forward to `play_trajectories` method to display the trajectory.</span>
+<span class="sd">              By default, it enables display of external forces applied on</span>
+<span class="sd">              freeflyer if any.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract a trajectory object for `play_trajectories`</span>
+    <span class="n">trajectory</span> <span class="o">=</span> <span class="n">extract_trajectory_from_log</span><span class="p">(</span><span class="n">log_data</span><span class="p">,</span> <span class="n">robot</span><span class="p">)</span>
+    <span class="n">robot</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">robot</span>
+
+    <span class="c1"># Display external forces on root joint, if any</span>
+    <span class="n">replay_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">robot</span><span class="o">.</span><span class="n">has_freeflyer</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">use_theoretical_model</span><span class="p">:</span>
+            <span class="n">njoints</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model_th</span><span class="o">.</span><span class="n">njoints</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">njoints</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">njoints</span>
+        <span class="n">visibility</span> <span class="o">=</span> <span class="p">[</span><span class="kc">True</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">njoints</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">replay_kwargs</span><span class="p">[</span><span class="s2">&quot;display_f_external&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">visibility</span>
+
+    <span class="c1"># Define `update_hook` to emulate sensor update</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">robot</span><span class="o">.</span><span class="n">is_locked</span><span class="p">:</span>
+        <span class="n">update_hook</span> <span class="o">=</span> <span class="n">update_sensor_measurements_from_log</span><span class="p">(</span><span class="n">log_data</span><span class="p">,</span> <span class="n">robot</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;At least one of the robot is locked, which means that a &quot;</span>
+                <span class="s2">&quot;simulation using the robot is still running. It will be &quot;</span>
+                <span class="s2">&quot;impossible to display sensor data. Call `simulator.stop` to &quot;</span>
+                <span class="s2">&quot;unlock the robot before replaying logs data.&quot;</span><span class="p">)</span>
+        <span class="n">update_hook</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="n">trajectory</span><span class="p">,</span> <span class="n">update_hook</span><span class="p">,</span> <span class="n">replay_kwargs</span></div>
+
+
+
+<div class="viewcode-block" id="play_logs_data">
+<a class="viewcode-back" href="../../../api/jiminy_py/viewer.html#jiminy_py.viewer.play_logs_data">[docs]</a>
+<span class="k">def</span> <span class="nf">play_logs_data</span><span class="p">(</span>
+        <span class="n">logs_data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
+            <span class="n">Sequence</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+        <span class="n">robots</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span>
+            <span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">]],</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Viewer</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Play log data in a viewer.</span>
+
+<span class="sd">    This method simply formats the data then calls `play_trajectories`.</span>
+
+<span class="sd">    :param logs_data: Either a single dictionary, or a list of dictionaries of</span>
+<span class="sd">                      simulation data log.</span>
+<span class="sd">    :param robots: Either a single robot, or a list of robot for each log data.</span>
+<span class="sd">    :param kwargs: Keyword arguments to forward to `play_trajectories` method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Reformat input arguments as lists</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">logs_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">logs_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">logs_data</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">robots</span><span class="p">,</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">):</span>
+        <span class="n">robots</span> <span class="o">=</span> <span class="p">[</span><span class="n">robots</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">robots</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">robots</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">,]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">logs_data</span><span class="p">)</span>
+
+    <span class="c1"># Extract ground profile if available</span>
+    <span class="n">ground_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CollisionGeometry</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">log_data</span> <span class="ow">in</span> <span class="n">logs_data</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">log_data</span><span class="p">[</span><span class="s2">&quot;constants&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;groundProfile&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ground_profile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Impossible to display multiple ground profiles at once. &quot;</span>
+                    <span class="s2">&quot;Only the one associated with the first log file will be &quot;</span>
+                    <span class="s2">&quot;considered.&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">ground_profile</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">load_heightmap_from_binary</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Extract a replay data for `play_trajectories` for each pair (robot, log)</span>
+    <span class="n">trajectories</span><span class="p">,</span> <span class="n">update_hooks</span><span class="p">,</span> <span class="n">extra_kwargs</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">log_data</span><span class="p">,</span> <span class="n">robot</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">logs_data</span><span class="p">,</span> <span class="n">robots</span><span class="p">):</span>
+        <span class="n">trajectory</span><span class="p">,</span> <span class="n">update_hook</span><span class="p">,</span> <span class="n">_kwargs</span> <span class="o">=</span> \
+            <span class="n">extract_replay_data_from_log</span><span class="p">(</span><span class="n">log_data</span><span class="p">,</span> <span class="n">robot</span><span class="p">)</span>
+        <span class="n">trajectories</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+        <span class="n">update_hooks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">update_hook</span><span class="p">)</span>
+        <span class="n">extra_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Do not display external forces by default if replaying several trajectory</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trajectories</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">extra_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;display_f_external&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># Finally, play the trajectories</span>
+    <span class="k">return</span> <span class="n">play_trajectories</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span>
+                             <span class="n">update_hooks</span><span class="p">,</span>
+                             <span class="n">ground_profile</span><span class="p">,</span>
+                             <span class="o">**</span><span class="p">{</span><span class="o">**</span><span class="n">extra_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">})</span></div>
+
+
+
+<div class="viewcode-block" id="play_logs_files">
+<a class="viewcode-back" href="../../../api/jiminy_py/viewer.html#jiminy_py.viewer.play_logs_files">[docs]</a>
+<span class="k">def</span> <span class="nf">play_logs_files</span><span class="p">(</span><span class="n">logs_files</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+                    <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">mesh_package_dirs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Viewer</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Play the content of a logfile in a viewer.</span>
+
+<span class="sd">    This method reconstruct the exact extended model used during the simulation</span>
+<span class="sd">    associated with the logfile, including random biases or flexibility joints.</span>
+
+<span class="sd">    :param logs_files: Either a single simulation log files in any format, or</span>
+<span class="sd">                       a list.</span>
+<span class="sd">    :param mesh_dir_path: Overwrite the common root of all absolute mesh paths.</span>
+<span class="sd">                          It which may be necessary to read log generated on a</span>
+<span class="sd">                          different environment.</span>
+<span class="sd">    :param mesh_package_dirs: Additional search paths for all relative mesh</span>
+<span class="sd">                              paths beginning with &#39;packages://&#39; directive. It</span>
+<span class="sd">                              may be necessary to specify it to read log</span>
+<span class="sd">                              generated on a different environment.</span>
+<span class="sd">    :param kwargs: Keyword arguments to forward to `play_trajectories` method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Reformat as list</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">logs_files</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">logs_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">logs_files</span><span class="p">]</span>
+
+    <span class="c1"># Extract log data and build robot for each log file</span>
+    <span class="n">robots</span><span class="p">,</span> <span class="n">logs_data</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">log_file</span> <span class="ow">in</span> <span class="n">logs_files</span><span class="p">:</span>
+        <span class="n">log_data</span> <span class="o">=</span> <span class="n">read_log</span><span class="p">(</span><span class="n">log_file</span><span class="p">)</span>
+        <span class="n">robot</span> <span class="o">=</span> <span class="n">build_robot_from_log</span><span class="p">(</span>
+            <span class="n">log_data</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">,</span> <span class="n">mesh_package_dirs</span><span class="p">)</span>
+        <span class="n">logs_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">log_data</span><span class="p">)</span>
+        <span class="n">robots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">robot</span><span class="p">)</span>
+
+    <span class="c1"># Default legend if several log files are provided</span>
+    <span class="k">if</span> <span class="s2">&quot;legend&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">logs_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;legend&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">log_file</span><span class="p">)</span><span class="o">.</span><span class="n">stem</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                            <span class="k">for</span> <span class="n">log_file</span> <span class="ow">in</span> <span class="n">logs_files</span><span class="p">]</span>
+
+    <span class="c1"># Forward arguments to lower-level method</span>
+    <span class="k">return</span> <span class="n">play_logs_data</span><span class="p">(</span><span class="n">logs_data</span><span class="p">,</span> <span class="n">robots</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="async_play_and_record_logs_files">
+<a class="viewcode-back" href="../../../api/jiminy_py/viewer.html#jiminy_py.viewer.async_play_and_record_logs_files">[docs]</a>
+<span class="k">def</span> <span class="nf">async_play_and_record_logs_files</span><span class="p">(</span>
+        <span class="n">logs_files</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+        <span class="n">enable_replay</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mesh_package_dirs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Thread</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Play and/or replay the content of a logfile in a viewer asynchronously.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This call can be made blocking at any point in time by calling `join()`</span>
+<span class="sd">        on the returned `Thread` instance.</span>
+
+<span class="sd">    :param logs_files: Simulation log files in any of the supported formats.</span>
+<span class="sd">    :param enable_replay: Whether to force replay the simulation. It would</span>
+<span class="sd">                          first replay then record if this option is enabled</span>
+<span class="sd">                          and `record_video_path` is specified.</span>
+<span class="sd">                          Optional: True by default if `record_video_path` is</span>
+<span class="sd">                          not specified and the current backend supports</span>
+<span class="sd">                          onscreen rendering, False otherwise.</span>
+<span class="sd">    :param mesh_dir_path: Overwrite the common root of all absolute mesh paths.</span>
+<span class="sd">                          It which may be necessary to read log generated on a</span>
+<span class="sd">                          different environment.</span>
+<span class="sd">    :param mesh_package_dirs: Prepend custom mesh package search path</span>
+<span class="sd">                              directories to the ones provided by log file.</span>
+<span class="sd">    :param kwargs: Keyword arguments to forward to `play_logs_files` method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Handling of default argument(s)</span>
+    <span class="n">enable_recording</span> <span class="o">=</span> <span class="s2">&quot;record_video_path&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span>
+    <span class="k">if</span> <span class="n">enable_replay</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">enable_replay</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">enable_recording</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">Viewer</span><span class="o">.</span><span class="n">backend</span> <span class="ow">or</span> <span class="n">get_default_backend</span><span class="p">())</span> <span class="o">!=</span> <span class="s2">&quot;panda3d-sync&quot;</span> <span class="ow">or</span>
+            <span class="n">interactive_mode</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Disable replay if not available and video recording is requested</span>
+    <span class="k">if</span> <span class="n">enable_replay</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_display_available</span><span class="p">():</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No display available. Disabling replay.&quot;</span><span class="p">)</span>
+        <span class="n">enable_replay</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># Nothing to do. Silently returning early.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">enable_recording</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">enable_replay</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># Define method to pass to threading</span>
+    <span class="k">def</span> <span class="nf">_locked_play_and_record</span><span class="p">(</span><span class="n">lock</span><span class="p">:</span> <span class="n">QRLock</span><span class="p">,</span>
+                                <span class="n">logs_files</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                                <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                                <span class="n">mesh_package_dirs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                                <span class="n">enable_replay</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                                <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;A lock is used to force waiting for the current evaluation to finish</span>
+<span class="sd">        before starting a new one, otherwise it will crash because of request</span>
+<span class="sd">        collisions, and it is undesirable anyway.</span>
+
+<span class="sd">        The viewer must be closed after replay if recording is requested,</span>
+<span class="sd">        otherwise the graphical window will dramatically slowdown rendering.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">close_backend</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;close_backend&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">record_video_path</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;record_video_path&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">close_backend</span><span class="p">:</span>
+                <span class="c1"># Make sure there is no viewer already open at this point.</span>
+                <span class="c1"># Otherwise adding the legend will fail if some robots have not</span>
+                <span class="c1"># been deleted from the scene.</span>
+                <span class="n">Viewer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">enable_replay</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">play_logs_files</span><span class="p">(</span>
+                        <span class="n">logs_files</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">,</span> <span class="n">mesh_package_dirs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="c1"># Replay may fail if current backend does not support it</span>
+                    <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">&quot;The current viewer backend &#39;</span><span class="si">%s</span><span class="s2">&#39; does not support &quot;</span>
+                        <span class="s2">&quot;replaying simulation: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">backend</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">record_video_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">play_logs_files</span><span class="p">(</span>
+                    <span class="n">logs_files</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">,</span> <span class="n">mesh_package_dirs</span><span class="p">,</span>
+                    <span class="n">record_video_path</span><span class="o">=</span><span class="n">record_video_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">close_backend</span><span class="p">:</span>
+                <span class="c1"># Honor close backend at exit but not between replay and record</span>
+                <span class="n">Viewer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="c1"># Start replay and record thread</span>
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span>
+        <span class="n">target</span><span class="o">=</span><span class="n">_locked_play_and_record</span><span class="p">,</span>
+        <span class="n">args</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">viewer_lock</span><span class="p">,</span> <span class="n">logs_files</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">,</span> <span class="n">mesh_package_dirs</span><span class="p">,</span>
+            <span class="n">enable_replay</span><span class="p">),</span>
+        <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span>
+            <span class="o">**</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">close_backend</span><span class="o">=</span><span class="p">(</span><span class="n">enable_replay</span> <span class="ow">and</span> <span class="n">enable_recording</span><span class="p">),</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">delete_robot_on_close</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+        <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">thread</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_play_logs_files_entrypoint</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Command-line entrypoint to replay the content of a logfile in a viewer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Parse command-line arguments</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="p">(</span>
+        <span class="s2">&quot;Replay Jiminy simulation log files in a viewer. Multiple files &quot;</span>
+        <span class="s2">&quot;can be specified for simultaneous display&quot;</span><span class="p">))</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s1">&#39;-p&#39;</span><span class="p">,</span> <span class="s1">&#39;--start_paused&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Start in pause, waiting for keyboard input.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s1">&#39;-s&#39;</span><span class="p">,</span> <span class="s1">&#39;--speed_ratio&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Real time to simulation time factor.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s1">&#39;-t&#39;</span><span class="p">,</span> <span class="s1">&#39;--travelling&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;Whether to track the root frame of the first robot, &quot;</span>
+              <span class="s2">&quot;assuming the robot has a freeflyer.&quot;</span><span class="p">))</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s1">&#39;-b&#39;</span><span class="p">,</span> <span class="s1">&#39;--backend&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;panda3d&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Display backend (&#39;panda3d&#39; or &#39;meshcat&#39;).&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s1">&#39;-m&#39;</span><span class="p">,</span> <span class="s1">&#39;--mesh_dir_path&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Fullpath location of mesh directory.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s1">&#39;-v&#39;</span><span class="p">,</span> <span class="s1">&#39;--record_video_path&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Fullpath location where to save generated video.&quot;</span><span class="p">)</span>
+    <span class="n">options</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">()</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;logs_files&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">files</span>
+
+    <span class="c1"># Map argument name(s)</span>
+    <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;enable_travelling&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;travelling&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Replay trajectories</span>
+    <span class="n">repeat</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">viewers</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">while</span> <span class="n">repeat</span><span class="p">:</span>
+        <span class="n">viewers</span> <span class="o">=</span> <span class="n">play_logs_files</span><span class="p">(</span>
+            <span class="n">viewers</span><span class="o">=</span><span class="n">viewers</span><span class="p">,</span>
+            <span class="o">**</span><span class="p">{</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">remove_widgets_overlay</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">})</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;start_paused&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;camera_pose&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;record_video_path&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">reply</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Do you want to replay again (y/[n])?&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">reply</span> <span class="ow">or</span> <span class="n">reply</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">):</span>
+                    <span class="k">break</span>
+            <span class="n">repeat</span> <span class="o">=</span> <span class="n">reply</span> <span class="o">==</span> <span class="s2">&quot;y&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">repeat</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># Do not exit method as long as a graphical window is open</span>
+    <span class="k">while</span> <span class="n">Viewer</span><span class="o">.</span><span class="n">has_gui</span><span class="p">():</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

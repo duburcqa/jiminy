@@ -1,0 +1,497 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jiminy_py.log &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jiminy_py.log</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jiminy_py.log</h1><div class="highlight"><pre>
+<span></span><span class="c1"># mypy: disable-error-code=&quot;attr-defined, name-defined&quot;</span>
+<span class="sd">&quot;&quot;&quot;Utilities for extracting structured information from log data, from</span>
+<span class="sd">reconstructing the robot to reading telemetry variables.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">bisect</span> <span class="kn">import</span> <span class="n">bisect_right</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">zip_longest</span><span class="p">,</span> <span class="n">starmap</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">overload</span><span class="p">,</span>
+    <span class="n">cast</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">core</span> <span class="k">as</span> <span class="n">jiminy</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">tree</span>
+<span class="kn">from</span> <span class="nn">.dynamics</span> <span class="kn">import</span> <span class="n">State</span><span class="p">,</span> <span class="n">Trajectory</span>
+
+
+<span class="n">FieldNested</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s1">&#39;FieldNested&#39;</span><span class="p">],</span> <span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;FieldNested&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span>
+<span class="n">UpdateHook</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span> <span class="kc">None</span><span class="p">]</span>
+
+<span class="n">read_log</span> <span class="o">=</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Engine</span><span class="o">.</span><span class="n">read_log</span>
+
+
+<span class="nd">@overload</span>
+<span class="k">def</span> <span class="nf">extract_variables_from_log</span><span class="p">(</span><span class="n">log_vars</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                               <span class="n">fieldnames</span><span class="p">:</span> <span class="n">FieldNested</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                               <span class="o">*</span><span class="p">,</span> <span class="n">as_dict</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                               <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+    <span class="o">...</span>
+
+
+<span class="nd">@overload</span>
+<span class="k">def</span> <span class="nf">extract_variables_from_log</span><span class="p">(</span><span class="n">log_vars</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                               <span class="n">fieldnames</span><span class="p">:</span> <span class="n">FieldNested</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                               <span class="o">*</span><span class="p">,</span> <span class="n">as_dict</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">]</span>
+                               <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+    <span class="o">...</span>
+
+
+<div class="viewcode-block" id="extract_variables_from_log">
+<a class="viewcode-back" href="../../api/jiminy_py/log.html#jiminy_py.log.extract_variables_from_log">[docs]</a>
+<span class="k">def</span> <span class="nf">extract_variables_from_log</span><span class="p">(</span><span class="n">log_vars</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+                               <span class="n">fieldnames</span><span class="p">:</span> <span class="n">FieldNested</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                               <span class="o">*</span><span class="p">,</span> <span class="n">as_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+                               <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span>
+                                   <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract values associated with a set of variables in a specific</span>
+<span class="sd">    namespace.</span>
+
+<span class="sd">    :param log_vars: Logged variables as a dictionary.</span>
+<span class="sd">    :param fieldnames: Structured fieldnames.</span>
+<span class="sd">    :param namespace: Namespace of the fieldnames. Empty string to disable.</span>
+<span class="sd">                      Optional: Empty by default.</span>
+<span class="sd">    :param as_dict: Whether to return a dictionary mapping flattened fieldnames</span>
+<span class="sd">                    to values.</span>
+<span class="sd">                    Optional: True by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract values from log if it exists</span>
+    <span class="k">if</span> <span class="n">as_dict</span><span class="p">:</span>
+        <span class="n">keys</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">fieldname_path</span><span class="p">,</span> <span class="n">fieldname</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">flatten_with_path</span><span class="p">(</span><span class="n">fieldnames</span><span class="p">):</span>
+        <span class="c1"># A key is the concatenation of namespace and full path of fieldname</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">key</span><span class="p">:</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span><span class="p">,</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="o">*</span><span class="n">fieldname_path</span><span class="p">,</span> <span class="n">fieldname</span><span class="p">)))</span>
+
+        <span class="c1"># Raise an exception if the key does not exists and not fail safe</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">log_vars</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39; not found in log file.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Extract the value corresponding to the key</span>
+        <span class="k">if</span> <span class="n">as_dict</span><span class="p">:</span>
+            <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">log_vars</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+    <span class="c1"># Return flat mapping from fieldnames (without prefix) to scalar values</span>
+    <span class="k">if</span> <span class="n">as_dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">values</span></div>
+
+
+
+<div class="viewcode-block" id="build_robot_from_log">
+<a class="viewcode-back" href="../../api/jiminy_py/log.html#jiminy_py.log.build_robot_from_log">[docs]</a>
+<span class="k">def</span> <span class="nf">build_robot_from_log</span><span class="p">(</span>
+        <span class="n">log_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mesh_package_dirs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+        <span class="o">*</span><span class="p">,</span> <span class="n">robot_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create and initialize a robot from single- or multi- robot simulations.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        It returns a valid and fully initialized robot, that can be used to</span>
+<span class="sd">        perform new simulation if added to a Jiminy Engine, but the original</span>
+<span class="sd">        controller is lost.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Model options and `robot.pinocchio_model` will be the same as during</span>
+<span class="sd">        the simulation until the next call to `reset` or `set_options` methods.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        In case of multi-robot simulation, one may use `build_robots_from_log`</span>
+<span class="sd">        for building all robots at once without having the specify explicitly</span>
+<span class="sd">        the name for each of them.</span>
+
+<span class="sd">    :param log_data: Logged data (constants plus variables) as a dictionary.</span>
+<span class="sd">    :param mesh_dir_path: Overwrite the common root of all absolute mesh paths.</span>
+<span class="sd">                          It may be necessary to read logs generated on</span>
+<span class="sd">                          different environments.</span>
+<span class="sd">    :param mesh_package_dirs: Prepend custom mesh package search path</span>
+<span class="sd">                              directories to the ones provided by log file. It</span>
+<span class="sd">                              may be necessary to specify it to read log</span>
+<span class="sd">                              generated on a different environment.</span>
+<span class="sd">    :param robot_name: Name of the robot to build from log. If `None`, then the</span>
+<span class="sd">                       name will be detected automatically in case of</span>
+<span class="sd">                       single-robot simulations, otherwise it will raise an</span>
+<span class="sd">                       exception.</span>
+
+<span class="sd">    :returns: Reconstructed robot.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract log constants</span>
+    <span class="n">log_constants</span> <span class="o">=</span> <span class="n">log_data</span><span class="p">[</span><span class="s2">&quot;constants&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Try to infer robot names from log constants if not specified</span>
+    <span class="k">if</span> <span class="n">robot_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">robot_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">log_data</span><span class="p">[</span><span class="s2">&quot;constants&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">robot_name_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^(\w*?)\.?robot$&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">robot_name_match</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">robot_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">robot_name_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">robot_names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;In case of multi-robot simulations, the name of the robot to &quot;</span>
+                <span class="s2">&quot;build must be specified. Please call `build_robots_from_log` &quot;</span>
+                <span class="s2">&quot;to build all robots at once.&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">robot_names</span>
+        <span class="n">robot_name</span> <span class="o">=</span> <span class="n">robot_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Get binary serialized robot data</span>
+    <span class="n">robot_data</span> <span class="o">=</span> <span class="n">log_constants</span><span class="p">[</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">robot_name</span><span class="p">,</span> <span class="s2">&quot;robot&quot;</span><span class="p">)))]</span>
+
+    <span class="c1"># Load robot from binary data</span>
+    <span class="k">return</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">load_robot_from_binary</span><span class="p">(</span>
+        <span class="n">robot_data</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">,</span> <span class="n">mesh_package_dirs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_robots_from_log">
+<a class="viewcode-back" href="../../api/jiminy_py/log.html#jiminy_py.log.build_robots_from_log">[docs]</a>
+<span class="k">def</span> <span class="nf">build_robots_from_log</span><span class="p">(</span>
+        <span class="n">log_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">mesh_dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mesh_package_dirs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build all the robots in the log of the simulation.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Internally, this function calls `build_robot_from_log` to build each</span>
+<span class="sd">        available robot. Refer to `build_robot_from_log` for more information.</span>
+
+<span class="sd">    :param log_data: Logged data (constants and variables) as a dictionary.</span>
+<span class="sd">    :param mesh_dir_path: Overwrite the common root of all absolute mesh paths.</span>
+<span class="sd">                          It which may be necessary to read log generated on a</span>
+<span class="sd">                          different environment.</span>
+<span class="sd">    :param mesh_package_dirs: Prepend custom mesh package search path</span>
+<span class="sd">                              directories to the ones provided by log file. It</span>
+<span class="sd">                              may be necessary to specify it to read log</span>
+<span class="sd">                              generated on a different environment.</span>
+
+<span class="sd">    :returns: Sequence of reconstructed robots.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Try to infer robot names from log constants</span>
+    <span class="n">robot_names</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">log_data</span><span class="p">[</span><span class="s2">&quot;constants&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">robot_name_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^(\w*?)\.?robot$&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">robot_name_match</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">robot_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">robot_name_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="c1"># Build all the robots sequentially</span>
+    <span class="n">robots</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">robot_name</span> <span class="ow">in</span> <span class="n">robot_names</span><span class="p">:</span>
+        <span class="n">robot</span> <span class="o">=</span> <span class="n">build_robot_from_log</span><span class="p">(</span>
+            <span class="n">log_data</span><span class="p">,</span> <span class="n">mesh_dir_path</span><span class="p">,</span> <span class="n">mesh_package_dirs</span><span class="p">,</span> <span class="n">robot_name</span><span class="o">=</span><span class="n">robot_name</span><span class="p">)</span>
+        <span class="n">robots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">robot</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">robots</span></div>
+
+
+
+<div class="viewcode-block" id="extract_trajectory_from_log">
+<a class="viewcode-back" href="../../api/jiminy_py/log.html#jiminy_py.log.extract_trajectory_from_log">[docs]</a>
+<span class="k">def</span> <span class="nf">extract_trajectory_from_log</span><span class="p">(</span><span class="n">log_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+                                <span class="n">robot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                                <span class="o">*</span><span class="p">,</span> <span class="n">robot_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Trajectory</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract the minimal required information from raw log data in order to</span>
+<span class="sd">    replay the simulation in a viewer.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        It extracts the required data for replay, namely temporal evolution of:</span>
+<span class="sd">          - robot configuration: to display of the robot on the scene,</span>
+<span class="sd">          - robot velocity: to update velocity-dependent markers such as DCM,</span>
+<span class="sd">          - external forces: to update force-dependent markers.</span>
+
+<span class="sd">    :param log_data: Logged data (constants and variables) as a dictionary.</span>
+<span class="sd">    :param robot: Jiminy robot associated with the logged trajectory.</span>
+<span class="sd">                  Optional: None by default. If None, then it will be</span>
+<span class="sd">                  reconstructed from &#39;log_data&#39; using `build_robot_from_log`.</span>
+<span class="sd">    :param robot_name: Name of the robot to be constructed in the log. If it</span>
+<span class="sd">                       is not known, call `build_robot_from_log`.</span>
+
+<span class="sd">    :returns: Dictionary whose keys are the name of each robot and values are</span>
+<span class="sd">              the corresponding `Trajectory` object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Prepare robot namespace</span>
+    <span class="k">if</span> <span class="n">robot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">robot_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">robot_name</span> <span class="o">=</span> <span class="n">robot</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">elif</span> <span class="n">robot_name</span> <span class="o">!=</span> <span class="n">robot</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The name specified in `robot_name` and the name of the robot &quot;</span>
+                <span class="s2">&quot;are differents.&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">robot_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">robot_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="c1"># Handling of default argument(s)</span>
+    <span class="k">if</span> <span class="n">robot</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">robot</span> <span class="o">=</span> <span class="n">build_robot_from_log</span><span class="p">(</span><span class="n">log_data</span><span class="p">,</span> <span class="n">robot_name</span><span class="o">=</span><span class="n">robot_name</span><span class="p">)</span>
+
+    <span class="c1"># Define some proxies for convenience</span>
+    <span class="n">log_vars</span> <span class="o">=</span> <span class="n">log_data</span><span class="p">[</span><span class="s2">&quot;variables&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Extract robot state data over time for all quantities available</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;position&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;velocity&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;acceleration&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;effort&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;command&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;f_external&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;constraint&quot;</span><span class="p">):</span>
+        <span class="n">fieldnames</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">robot</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;log_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_fieldnames&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_variables_from_log</span><span class="p">(</span>
+                <span class="n">log_vars</span><span class="p">,</span> <span class="n">fieldnames</span><span class="p">,</span> <span class="n">robot_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Add fictitious &#39;universe&#39; external force and reshape data if available</span>
+    <span class="n">f_ext</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;f_external&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">f_ext</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">f_ext</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="o">*</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">f_ext</span><span class="p">[</span><span class="mi">0</span><span class="p">]),)</span> <span class="o">*</span> <span class="mi">6</span><span class="p">),</span> <span class="o">*</span><span class="n">f_ext</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;f_external&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f_ext</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">f_ext</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;A&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Stack available data</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Create state sequence</span>
+    <span class="n">states</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">starmap</span><span class="p">(</span>
+        <span class="n">State</span><span class="p">,</span> <span class="n">zip_longest</span><span class="p">(</span><span class="n">log_vars</span><span class="p">[</span><span class="s2">&quot;Global.Time&quot;</span><span class="p">],</span> <span class="o">*</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+
+    <span class="c1"># Create the trajectory</span>
+    <span class="k">return</span> <span class="n">Trajectory</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">robot</span><span class="p">,</span> <span class="n">use_theoretical_model</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="extract_trajectories_from_log">
+<a class="viewcode-back" href="../../api/jiminy_py/log.html#jiminy_py.log.extract_trajectories_from_log">[docs]</a>
+<span class="k">def</span> <span class="nf">extract_trajectories_from_log</span><span class="p">(</span>
+        <span class="n">log_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">robots</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">jiminy</span><span class="o">.</span><span class="n">Robot</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Trajectory</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract the minimal required information from raw log data in order to</span>
+<span class="sd">    replay the simulation in a viewer.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This function calls `extract_trajectory_from_log` to extract each</span>
+<span class="sd">        robot&#39;s trajectory. Refer to `extract_trajectory_from_log` for more</span>
+<span class="sd">        information.</span>
+
+<span class="sd">    :param log_data: Logged data (constants and variables) as a dictionary.</span>
+<span class="sd">    :param robots: Sequence of Jiminy robots associated with the logged</span>
+<span class="sd">                   trajectory.</span>
+<span class="sd">                   Optional: None by default. If None, then it will be</span>
+<span class="sd">                   reconstructed from &#39;log_data&#39; using `build_robots_from_log`.</span>
+
+<span class="sd">    :returns: Dictionary mapping each robot name to its corresponding</span>
+<span class="sd">              trajectory.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Handling of default argument(s)</span>
+    <span class="k">if</span> <span class="n">robots</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">robots</span> <span class="o">=</span> <span class="n">build_robots_from_log</span><span class="p">(</span><span class="n">log_data</span><span class="p">)</span>
+
+    <span class="c1"># Load the trajectory associated with each robot sequentially</span>
+    <span class="n">trajectories</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">robot</span> <span class="ow">in</span> <span class="n">robots</span><span class="p">:</span>
+        <span class="n">trajectories</span><span class="p">[</span><span class="n">robot</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_trajectory_from_log</span><span class="p">(</span>
+            <span class="n">log_data</span><span class="p">,</span> <span class="n">robot</span><span class="p">,</span> <span class="n">robot_name</span><span class="o">=</span><span class="n">robot</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">trajectories</span></div>
+
+
+
+<div class="viewcode-block" id="update_sensor_measurements_from_log">
+<a class="viewcode-back" href="../../api/jiminy_py/log.html#jiminy_py.log.update_sensor_measurements_from_log">[docs]</a>
+<span class="k">def</span> <span class="nf">update_sensor_measurements_from_log</span><span class="p">(</span>
+        <span class="n">log_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">robot</span><span class="p">:</span> <span class="n">jiminy</span><span class="o">.</span><span class="n">Model</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UpdateHook</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper to make it easy to emulate sensor data update based on log data.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        It returns an update_hook that can forwarding the `Viewer.replay` to</span>
+<span class="sd">        display sensor information such as contact forces for instance.</span>
+
+<span class="sd">    :param log_data: Logged data (constants and variables) as a dictionary.</span>
+<span class="sd">    :param robot: Jiminy robot associated with the logged trajectory.</span>
+
+<span class="sd">    :returns: Callable taking update time in argument and returning nothing.</span>
+<span class="sd">              Note that it does not through an exception if out-of-range, but</span>
+<span class="sd">              rather clip to desired time to the available data range.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract time from log</span>
+    <span class="n">log_vars</span> <span class="o">=</span> <span class="n">log_data</span><span class="p">[</span><span class="s2">&quot;variables&quot;</span><span class="p">]</span>
+    <span class="n">times</span> <span class="o">=</span> <span class="n">log_vars</span><span class="p">[</span><span class="s2">&quot;Global.Time&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Filter sensors whose data is available</span>
+    <span class="n">sensor_data_map</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">sensor_group</span> <span class="ow">in</span> <span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">sensor_group</span><span class="p">:</span>
+            <span class="n">log_sensor_name</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sensor</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">sensor</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">extract_variables_from_log</span><span class="p">(</span>
+                    <span class="n">log_vars</span><span class="p">,</span> <span class="n">sensor</span><span class="o">.</span><span class="n">fieldnames</span><span class="p">,</span> <span class="n">log_sensor_name</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">sensor_data_map</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sensor</span><span class="p">,</span> <span class="n">data</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">update_hook</span><span class="p">(</span><span class="n">t</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                    <span class="n">q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>  <span class="c1"># pylint: disable=unused-argument</span>
+                    <span class="n">v</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>  <span class="c1"># pylint: disable=unused-argument</span>
+                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">nonlocal</span> <span class="n">times</span><span class="p">,</span> <span class="n">sensor_data_map</span>
+
+        <span class="c1"># Early return if no more data is available</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="o">&gt;</span> <span class="n">times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Get surrounding indices in log data</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">bisect_right</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+        <span class="n">i_prev</span><span class="p">,</span> <span class="n">i_next</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">times</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Compute linear interpolation ratio</span>
+        <span class="k">if</span> <span class="n">i_next</span> <span class="o">==</span> <span class="n">i_prev</span><span class="p">:</span>
+            <span class="c1"># Special case for final data point</span>
+            <span class="n">ratio</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ratio</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">-</span> <span class="n">times</span><span class="p">[</span><span class="n">i_prev</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="n">i_next</span><span class="p">]</span> <span class="o">-</span> <span class="n">times</span><span class="p">[</span><span class="n">i_prev</span><span class="p">])</span>
+
+        <span class="c1"># Update sensors data</span>
+        <span class="k">for</span> <span class="n">sensor</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">sensor_data_map</span><span class="p">:</span>
+            <span class="n">value_prev</span><span class="p">,</span> <span class="n">value_next</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">i_prev</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="n">i_next</span><span class="p">]</span>
+            <span class="n">sensor</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">value_prev</span> <span class="o">+</span> <span class="p">(</span><span class="n">value_next</span> <span class="o">-</span> <span class="n">value_prev</span><span class="p">)</span> <span class="o">*</span> <span class="n">ratio</span>
+
+    <span class="k">return</span> <span class="n">update_hook</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

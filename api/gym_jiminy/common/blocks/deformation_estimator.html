@@ -1,0 +1,437 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deformation Estimator &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="Generic Quantity Observer" href="quantity_observer.html" />
+    <link rel="prev" title="Body Orientation State Observation" href="body_orientation_observer.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Gym Jiminy API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bases/index.html">Bases</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Blocks</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="proportional_derivative_controller.html">Proportional Derivative Controller</a></li>
+<li class="toctree-l3"><a class="reference internal" href="motor_safety_limit.html">Motor Safety Limit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mahony_filter.html">Mahony Filter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="body_orientation_observer.html">Body Orientation State Observation</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Deformation Estimator</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.deformation_estimator.flexibility_estimator"><code class="docutils literal notranslate"><span class="pre">flexibility_estimator()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.deformation_estimator.get_flexibility_imu_frame_chains"><code class="docutils literal notranslate"><span class="pre">get_flexibility_imu_frame_chains()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator"><code class="docutils literal notranslate"><span class="pre">DeformationEstimator</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="quantity_observer.html">Generic Quantity Observer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../envs/index.html">Envs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantities/index.html">Quantities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compositions/index.html">Compositions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../wrappers/index.html">Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../utils/index.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Gym Jiminy API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Blocks</a></li>
+      <li class="breadcrumb-item active">Deformation Estimator</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/gym_jiminy/common/blocks/deformation_estimator.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gym_jiminy.common.blocks.deformation_estimator">
+<span id="deformation-estimator"></span><h1>Deformation Estimator<a class="headerlink" href="#module-gym_jiminy.common.blocks.deformation_estimator" title="Link to this heading">¶</a></h1>
+<p>Implementation of a stateless kinematic deformation estimator block
+compatible with gym_jiminy reinforcement learning pipeline environment design.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.deformation_estimator.flexibility_estimator">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.deformation_estimator.</span></span><span class="sig-name descname"><span class="pre">flexibility_estimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obs_imu_quats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_imu_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_imu_quats_ordered</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kin_imu_rots</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kin_imu_quats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kin_flex_rots</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kin_flex_quats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_flex_flipped</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_chain_orphan</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dev_imu_quats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">child_dev_imu_quats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent_dev_imu_quats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deformation_flex_quats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_twist</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/deformation_estimator.html#flexibility_estimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.deformation_estimator.flexibility_estimator" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the local deformation at an arbitrary set of flexibility points
+that are presumably responsible for most of the whole deformation of the
+mechanical structure.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The local deformation at each flexibility frame must be observable, ie
+the flexibility and IMU frames interleave with each others in a unique
+and contiguous sub-chain in theoretical kinematic tree of the robot.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obs_imu_quats</strong> (<em>ndarray</em>) – Orientation estimates of an unordered arbitrary set
+of IMUs as a 2D array whose first dimension gathers
+the 4 quaternion coordinates [qx, qy, qz, qw] while
+the second corresponds to N independent IMU data.</p></li>
+<li><p><strong>obs_imu_indices</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – M-tuple of ordered IMU indices of interest for
+which the total deviation will be computed.</p></li>
+<li><p><strong>obs_imu_quats_ordered</strong> (<em>ndarray</em>) – Pre-allocated memory for storing the inverse
+of the orientation estimates for an ordered
+subset of the IMU data <cite>obs_imu_quats</cite>
+according to <cite>obs_imu_indices</cite>.</p></li>
+<li><p><strong>kin_imu_rots</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><em>ndarray</em><em>, </em><em>...</em><em>]</em>) – Tuple of M kinematic frame orientations corresponding
+to the ordered subset of IMUs <cite>obs_imu_indices</cite>, for
+the configuration of the theoretical robot model.</p></li>
+<li><p><strong>kin_imu_quats</strong> (<em>ndarray</em>) – Pre-allocated memory for storing the kinematic frame
+orientations of the ordered subset of IMUs of
+interest as a 2D array whose first dimension gathers
+the 4 quaternion coordinates while the second
+corresponds to the M independent IMUs.</p></li>
+<li><p><strong>kin_flex_rots</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><em>ndarray</em><em>, </em><em>...</em><em>]</em>) – Tuple of K kinematic frame orientations for all the
+flexibility points that interleaves with the ordered
+subset of IMUs of interest in the kinematic tree.</p></li>
+<li><p><strong>kin_flex_quats</strong> (<em>ndarray</em>) – Pre-allocated memory for storing the kinematic frame
+orientations of the flexibility points that
+interleaves with the ordered subset of IMUs of
+interest as a 2D array whose first dimension gathers
+the 4 quaternion coordinates while the second
+corresponds to the K independent flexibility points.</p></li>
+<li><p><strong>is_flex_flipped</strong> (<em>ndarray</em>) – Whether local deformation estimates for each
+flexibility point must be inverted to be consistent
+with standard URDF convention as 1D boolean array.</p></li>
+<li><p><strong>is_chain_orphan</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>]</em>) – 2-Tuple stating whether first and last flexibility
+point is orphan respectively, ie only a single IMU
+is available for estimating its local deformation.</p></li>
+<li><p><strong>dev_imu_quats</strong> (<em>ndarray</em>) – Total deviation of th observed IMU data wrt to the
+theoretical model in world frame for the ordered
+subset of IMUs of interest, as a 2D array whose first
+dimension gathers the 4 quaternion coordinates while
+the second corresponds to the M independent IMUs.</p></li>
+<li><p><strong>child_dev_imu_quats</strong> (<em>ndarray</em>) – Total deviation observed IMU data in child flexibility frame as a 2D
+array whose first dimension gathers the 4 quaternion coordinates while
+the second corresponds to the K independent flexibility frames.</p></li>
+<li><p><strong>parent_dev_imu_quats</strong> (<em>ndarray</em>) – Total deviation observed IMU data in parent flexibility frame as a 2D
+array whose first dimension gathers the 4 quaternion coordinates while
+the second corresponds to the K independent flexibility frames.</p></li>
+<li><p><strong>deformation_flex_quats</strong> (<em>ndarray</em>) – Pre-allocated memory for storing the local deformation estimates for
+each flexibility point flexibility points as a 2D array whose first
+dimension gathers the 4 quaternion coordinates while the second
+corresponds to the K independent flexibility points.</p></li>
+<li><p><strong>ignore_twist</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to ignore the twist of the orientation
+estimates of the ordered subset of IMUs of interest,
+and incidentally the twist of deformation at the
+flexibility points.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.deformation_estimator.get_flexibility_imu_frame_chains">
+<span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.deformation_estimator.</span></span><span class="sig-name descname"><span class="pre">get_flexibility_imu_frame_chains</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pinocchio_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flex_joint_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">imu_frame_names</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/deformation_estimator.html#get_flexibility_imu_frame_chains"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.deformation_estimator.get_flexibility_imu_frame_chains" title="Link to this definition">¶</a></dt>
+<dd><p>Extract the minimal set of contiguous sub-chains in kinematic tree of a
+given model that goes through all the specified flexibility and IMU frames.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pinocchio_model</strong> (<em>Model</em>) – Model from which to extract sub-chains.</p></li>
+<li><p><strong>flex_joint_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em>) – Unordered sequence of joint names that must be
+considered as associated with flexibility frames.</p></li>
+<li><p><strong>imu_frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em>) – Unordered sequence of frame names that must be
+considered as associated with IMU frames.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a> | <em>None</em>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>]]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gym_jiminy.common.blocks.deformation_estimator.</span></span><span class="sig-name descname"><span class="pre">DeformationEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">imu_frame_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flex_frame_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_twist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nested_imu_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('features',</span> <span class="pre">'mahony_filter',</span> <span class="pre">'quat')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_rpy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/deformation_estimator.html#DeformationEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../bases/blocks.html#gym_jiminy.common.bases.blocks.BaseObserverBlock" title="gym_jiminy.common.bases.blocks.BaseObserverBlock"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObserverBlock</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseObs</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseAct</span></code>]</p>
+<p>Compute the local deformation at an arbitrary set of flexibility points
+that are presumably responsible for most of the whole deformation of the
+mechanical structure.</p>
+<dl>
+<dt>The number of IMU sensors and flexibility frames must be consistent:</dt><dd><ul>
+<li><p>If the robot has no freeflyer, there must be as many IMU sensors as
+flexibility frames (0), ie</p>
+<blockquote>
+<div><dl>
+<dt><a href="#id1"><span class="problematic" id="id2">*</span></a>—o—x—o—x—o—x</dt><dd><div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+<p>x—o—x</p>
+</dd>
+</dl>
+</div></blockquote>
+</li>
+<li><p>Otherwise, it can either have one more IMU than flexibility frames
+(1), the same number (2), or up to one less IMU per branch in the
+kinematic tree (3).</p>
+<blockquote>
+<div><ol class="arabic">
+<li><dl>
+<dt>x—o—x—o—x—o—x</dt><dd><div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+<p>x—o—x</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>+—o—x—o—x—o—x</dt><dd><div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+<p>x—o—x</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>+—o—x—o—x—o—+</dt><dd><div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+<p>x—o—+</p>
+</dd>
+</dl>
+</li>
+</ol>
+</div></blockquote>
+</li>
+</ul>
+</dd>
+</dl>
+<p><a href="#id3"><span class="problematic" id="id4">*</span></a>: Fixed base, +: leaf frame, x: IMU frame, o: flexibility frame</p>
+<dl class="simple">
+<dt>(1): The pose of the freeflyer is ignored when estimating the deformation</dt><dd><p>at the flexibility frames in local frame. Mathematically, it is the
+same as (0) when considering a virtual IMU with fixed orientation to
+identity for the root joint.</p>
+</dd>
+<dt>(2): One has to compensate for the missing IMU by providing instead the</dt><dd><p>configuration of the freeflyer. More precisely, one should ensure that
+the orientation of the parent frame of the orphan flexibility frame
+matches the reality for the theoretical configuration. This usually
+requires making some assumptions to guess to pose of the frame that is
+not directly observable. Any discrepancy will be aggregated to the
+estimated deformation for the orphan flexibility frame specifically
+since both cannot be distinguished. This issue typically happens when
+there is no IMUs in the feet of a legged robot. In such a case, there
+is no better option than assuming that one of the active contact
+bodies remains flat on the ground. If the twist of the IMUs are
+ignored, then the twist of the contact body does not matter either,
+otherwise it must be set appropriately by the user to get a
+meaningless estimate for the twist of the deformation. If it cannot be
+observed by some exteroceptive sensor such as vision, then the most
+reasonable assumption is to suppose that it matches the twist of the
+IMU coming right after in the kinematic tree. This way, they will
+cancel out each other without adding bias to the twist of the orphan
+flexibility frame.</p>
+</dd>
+<dt>(3): This case is basically the same as (2), with the addition that only</dt><dd><p>the deformation of one of the orphan flexibility frames can be
+estimated at once, namely the one whose parent frame is declared as
+having known orientation. The other ones will be set to identity. For
+a legged robot, this corresponds to one of the contact bodies, usually
+the one holding most of the total weight.</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>(2) and (3) are not supported for now, as it requires using one
+additional observation layer responsible for estimating the theoretical
+configuration of the robot including its freeflyer, along with the name
+of the reference frame, ie the one having known orientation.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The feature space of this observer is the same as <cite>MahonyFilter</cite>. See
+documentation for details.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>Matthieu Vigne, Antonio El Khoury, Marine Pétriaux, Florent Di Meglio,
+and Nicolas Petit “MOVIE: a Velocity-aided IMU Attitude Estimator for
+Observing and Controlling Multiple Deformations on Legged Robots” IEEE
+Robotics and Automation Letters, Institute of Electrical and
+Electronics Engineers, 2022, 7 (2):
+<a class="reference external" href="https://hal.science/hal-03511198/document">https://hal.science/hal-03511198/document</a></p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The user-specified ordering of the flexibility frames will not be
+honored. Indeed, they are reordered to be consistent with the
+kinematic tree according to URDF standard.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the block.</p></li>
+<li><p><strong>env</strong> (<a class="reference internal" href="../bases/interfaces.html#gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv" title="gym_jiminy.common.bases.interfaces.InterfaceJiminyEnv"><em>InterfaceJiminyEnv</em></a><em>[</em><em>BaseObs</em><em>, </em><em>BaseAct</em><em>]</em>) – Environment to connect with.</p></li>
+<li><p><strong>imu_frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em>) – Unordered sequence of IMU frame names that must
+be used to estimate the local deformation at
+all flexibility frames.</p></li>
+<li><p><strong>flex_frame_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>]</em>) – Unordered sequence of flexibility frame names.
+It does not have to match the flexibility
+frames of the true dynamic model, which is
+only known in simulation. It is up to the user
+to choose them appropriately. Ideally, they
+must be chosen so as to explain as much as
+possible the effect of the deformation on
+kinematic quantities, eg the vertical position
+of the end effectors, considering the number
+and placement of the IMUs at hand.</p></li>
+<li><p><strong>ignore_twist</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to ignore the twist of the IMU quaternion
+estimate. If so, then the twist of the deformation
+will not be estimated either.</p></li>
+<li><p><strong>nested_imu_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Unpack" title="(in Python v3.13)"><em>Unpack</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>...</em><em>]</em><em>]</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.13)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.13)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em> | </em><em>None</em><em>]</em><em>]</em><em>]</em>) – Nested key from environment observation mapping
+to the IMU quaternion estimates. Their ordering
+must be consistent with the true IMU sensors of
+the robot.</p></li>
+<li><p><strong>compute_rpy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – Whether to compute the Yaw-Pitch-Roll Euler angles
+representation for the 3D orientation of the IMU,
+in addition to the quaternion representation.
+Optional: False by default.</p></li>
+<li><p><strong>update_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Ratio between the update period of the observer
+and the one of the subsequent observer. -1 to
+match the simulation timestep of the environment.
+Optional: <cite>1</cite> by default.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator.fieldnames">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fieldnames</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.13)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator.fieldnames" title="Link to this definition">¶</a></dt>
+<dd><p>Get mapping between each scalar element of the observation space of
+the observer block and the associated fieldname for logging.</p>
+<p>It is expected to return an object with the same structure than the
+observation space, but having lists of string as leaves. Generic
+fieldnames are used by default.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator.refresh_observation">
+<span class="sig-name descname"><span class="pre">refresh_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">measurement</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/gym_jiminy/common/blocks/deformation_estimator.html#DeformationEstimator.refresh_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gym_jiminy.common.blocks.deformation_estimator.DeformationEstimator.refresh_observation" title="Link to this definition">¶</a></dt>
+<dd><p>Compute observed features based on the current simulation state and
+lower-level measure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>measurement</strong> (<em>BaseObs</em>) – Low-level measure from the environment to process
+to get higher-level observation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="body_orientation_observer.html" class="btn btn-neutral float-left" title="Body Orientation State Observation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="quantity_observer.html" class="btn btn-neutral float-right" title="Generic Quantity Observer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,706 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>engine &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="utilities" href="utilities.html" />
+    <link rel="prev" title="controller" href="controller.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Jiminy Python API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">core</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="constraints.html">analytical constraints</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="motors.html">motors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controller.html">controller</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">engine</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.ProfileForce"><code class="docutils literal notranslate"><span class="pre">ProfileForce</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.ImpulseForce"><code class="docutils literal notranslate"><span class="pre">ImpulseForce</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.CouplingForce"><code class="docutils literal notranslate"><span class="pre">CouplingForce</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.Engine"><code class="docutils literal notranslate"><span class="pre">Engine</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.StepperState"><code class="docutils literal notranslate"><span class="pre">StepperState</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#jiminy_py.core.RobotState"><code class="docutils literal notranslate"><span class="pre">RobotState</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="utilities.html">utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../simulator.html">simulator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../viewer.html">viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../log.html">log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">plot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dynamics.html">dynamics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Jiminy Python API</a></li>
+          <li class="breadcrumb-item"><a href="index.html">core</a></li>
+      <li class="breadcrumb-item active">engine</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/api/jiminy_py/core/engine.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="engine">
+<h1>engine<a class="headerlink" href="#engine" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.ProfileForce">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">ProfileForce</span></span><a class="headerlink" href="#jiminy_py.core.ProfileForce" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>Raises an exception
+This class cannot be instantiated from Python</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ProfileForce.force">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">force</span></span><a class="headerlink" href="#jiminy_py.core.ProfileForce.force" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ProfileForce)self) -&gt; pinocchio.pinocchio_pywrap.Force</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ProfileForce.frame_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frame_index</span></span><a class="headerlink" href="#jiminy_py.core.ProfileForce.frame_index" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ProfileForce)self) -&gt; int</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ProfileForce.frame_name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frame_name</span></span><a class="headerlink" href="#jiminy_py.core.ProfileForce.frame_name" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ProfileForce)self) -&gt; str</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ProfileForce.func">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">func</span></span><a class="headerlink" href="#jiminy_py.core.ProfileForce.func" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ProfileForce)self) -&gt; object</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ProfileForce.update_period">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">update_period</span></span><a class="headerlink" href="#jiminy_py.core.ProfileForce.update_period" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ProfileForce)self) -&gt; float</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.ImpulseForce">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">ImpulseForce</span></span><a class="headerlink" href="#jiminy_py.core.ImpulseForce" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>Raises an exception
+This class cannot be instantiated from Python</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ImpulseForce.dt">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dt</span></span><a class="headerlink" href="#jiminy_py.core.ImpulseForce.dt" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ImpulseForce)self) -&gt; float</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ImpulseForce.force">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">force</span></span><a class="headerlink" href="#jiminy_py.core.ImpulseForce.force" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ImpulseForce)self) -&gt; pinocchio.pinocchio_pywrap.Force</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ImpulseForce.frame_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frame_index</span></span><a class="headerlink" href="#jiminy_py.core.ImpulseForce.frame_index" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ImpulseForce)self) -&gt; int</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ImpulseForce.frame_name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frame_name</span></span><a class="headerlink" href="#jiminy_py.core.ImpulseForce.frame_name" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ImpulseForce)self) -&gt; str</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.ImpulseForce.t">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">t</span></span><a class="headerlink" href="#jiminy_py.core.ImpulseForce.t" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.ImpulseForce)self) -&gt; float</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.CouplingForce">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">CouplingForce</span></span><a class="headerlink" href="#jiminy_py.core.CouplingForce" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>Raises an exception
+This class cannot be instantiated from Python</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.CouplingForce.func">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">func</span></span><a class="headerlink" href="#jiminy_py.core.CouplingForce.func" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.CouplingForce)self) -&gt; object</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.CouplingForce.robot_index_1">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot_index_1</span></span><a class="headerlink" href="#jiminy_py.core.CouplingForce.robot_index_1" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.CouplingForce)self) -&gt; int</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.CouplingForce.robot_index_2">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot_index_2</span></span><a class="headerlink" href="#jiminy_py.core.CouplingForce.robot_index_2" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.CouplingForce)self) -&gt; int</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.CouplingForce.robot_name_1">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot_name_1</span></span><a class="headerlink" href="#jiminy_py.core.CouplingForce.robot_name_1" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.CouplingForce)self) -&gt; str</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.CouplingForce.robot_name_2">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot_name_2</span></span><a class="headerlink" href="#jiminy_py.core.CouplingForce.robot_name_2" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.CouplingForce)self) -&gt; str</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">Engine</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(object)arg1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#jiminy_py.core.Engine" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.add_robot">
+<span class="sig-name descname"><span class="pre">add_robot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(Robot)robot</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.add_robot" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.compute_forward_kinematics">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_forward_kinematics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Robot)robot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)a</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.compute_forward_kinematics" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.compute_robots_dynamics">
+<span class="sig-name descname"><span class="pre">compute_robots_dynamics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)t_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)q_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)v_list</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><span class="pre">list</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.compute_robots_dynamics" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.coupling_forces">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">coupling_forces</span></span><a class="headerlink" href="#jiminy_py.core.Engine.coupling_forces" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; jiminy_py.core.core.CouplingForceVector</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.get_options">
+<span class="sig-name descname"><span class="pre">get_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)arg1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.get_options" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.get_robot">
+<span class="sig-name descname"><span class="pre">get_robot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="robot.html#jiminy_py.core.Robot" title="jiminy_py.core.Robot"><span class="pre">Robot</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.get_robot" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.get_robot_index">
+<span class="sig-name descname"><span class="pre">get_robot_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><span class="pre">int</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.get_robot_index" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.get_robot_state">
+<span class="sig-name descname"><span class="pre">get_robot_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#jiminy_py.core.RobotState" title="jiminy_py.core.RobotState"><span class="pre">RobotState</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.get_robot_state" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.get_simulation_options">
+<span class="sig-name descname"><span class="pre">get_simulation_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)arg1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.Engine.get_simulation_options" title="Link to this definition">¶</a></dt>
+<dd><p>Get the options of the engine and all the robots.</p>
+<p>The key ‘engine’ maps to the engine options, whereas <cite>robot.name</cite> maps to the
+individual options of each robot for multi-robot simulations, ‘robot’ for
+single-robot simulations.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.impulse_forces">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">impulse_forces</span></span><a class="headerlink" href="#jiminy_py.core.Engine.impulse_forces" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; dict</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.is_simulation_running">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_simulation_running</span></span><a class="headerlink" href="#jiminy_py.core.Engine.is_simulation_running" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; bool</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.log_data">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">log_data</span></span><a class="headerlink" href="#jiminy_py.core.Engine.log_data" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; dict</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.profile_forces">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">profile_forces</span></span><a class="headerlink" href="#jiminy_py.core.Engine.profile_forces" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; dict</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.read_log">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(str)fullpath</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)format=None</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.Engine.read_log" title="Link to this definition">¶</a></dt>
+<dd><p>Read a logfile from jiminy.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function supports both binary and hdf5 log.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fullpath</strong> – Name of the file to load.</p></li>
+<li><p><strong>format</strong> – Name of the file to load.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary containing the logged constants and variables.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.register_coupling_force">
+<span class="sig-name descname"><span class="pre">register_coupling_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name_1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name_2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)force_func</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.Engine.register_coupling_force" title="Link to this definition">¶</a></dt>
+<dd><p>Add a force linking both robots together.</p>
+<p>This function registers a callback function that links both robots by a given
+force. This function must return the force that the second robots applies to
+the first robot, in the global frame of the first frame, i.e. expressed at
+the origin of the first frame, in word coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>robotName1</strong> – Name of the robot receiving the force.</p></li>
+<li><p><strong>robotName2</strong> – Name of the robot applying the force.</p></li>
+<li><p><strong>frameName1</strong> – Frame on the first robot where the force is applied.</p></li>
+<li><p><strong>frameName2</strong> – Frame on the second robot where the opposite force is applied.</p></li>
+<li><p><strong>forceFunc</strong> – Callback function returning the force that robotName2 applies on
+robotName1, in the global frame of frameName1.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.register_impulse_force">
+<span class="sig-name descname"><span class="pre">register_impulse_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)force</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.Engine.register_impulse_force" title="Link to this definition">¶</a></dt>
+<dd><p>Apply an impulse force on a frame for a given duration at the desired time.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The force must be given in the world frame.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.register_profile_force">
+<span class="sig-name descname"><span class="pre">register_profile_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(object)force_func</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(float)update_period=0.0</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.register_profile_force" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.register_viscoelastic_coupling_force">
+<span class="sig-name descname"><span class="pre">register_viscoelastic_coupling_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name_1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name_2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)stiffness</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(numpy.ndarray)damping</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(float)alpha=0.5</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.register_viscoelastic_coupling_force" title="Link to this definition">¶</a></dt>
+<dd><p>register_viscoelastic_coupling_force( (Engine)self, (str)robot_name, (str)frame_name_1, (str)frame_name_2, (numpy.ndarray)stiffness, (numpy.ndarray)damping [, (float)alpha=0.5]) -&gt; None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.register_viscoelastic_directional_coupling_force">
+<span class="sig-name descname"><span class="pre">register_viscoelastic_directional_coupling_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name_1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)frame_name_2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)stiffness</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)damping</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(float)rest_length=0.0</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.register_viscoelastic_directional_coupling_force" title="Link to this definition">¶</a></dt>
+<dd><p>register_viscoelastic_directional_coupling_force( (Engine)self, (str)robot_name, (str)frame_name_1, (str)frame_name_2, (float)stiffness, (float)damping [, (float)rest_length=0.0]) -&gt; None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.remove_all_forces">
+<span class="sig-name descname"><span class="pre">remove_all_forces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)arg1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.remove_all_forces" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.remove_coupling_forces">
+<span class="sig-name descname"><span class="pre">remove_coupling_forces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name_2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.remove_coupling_forces" title="Link to this definition">¶</a></dt>
+<dd><p>remove_coupling_forces( (Engine)self [, (str)robot_name]) -&gt; None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.remove_impulse_forces">
+<span class="sig-name descname"><span class="pre">remove_impulse_forces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.remove_impulse_forces" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.remove_profile_forces">
+<span class="sig-name descname"><span class="pre">remove_profile_forces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.remove_profile_forces" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.remove_robot">
+<span class="sig-name descname"><span class="pre">remove_robot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)robot_name</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.remove_robot" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)reset_random_generator=False</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(bool)remove_all_forces=False</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.reset" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.robot_states">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robot_states</span></span><a class="headerlink" href="#jiminy_py.core.Engine.robot_states" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; list</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.robots">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">robots</span></span><a class="headerlink" href="#jiminy_py.core.Engine.robots" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; object</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.set_options">
+<span class="sig-name descname"><span class="pre">set_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)arg1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)arg2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.set_options" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.set_simulation_options">
+<span class="sig-name descname"><span class="pre">set_simulation_options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)arg1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)arg2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.Engine.set_simulation_options" title="Link to this definition">¶</a></dt>
+<dd><p>Set the options of the engine and all the robots.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>simulationOptions</strong> – Dictionary gathering all the options. See
+<cite>getSimulationOptions</cite> for details about the hierarchy.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.simulate">
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(float)t_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)q_init_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)v_init_dict</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)a_init_dict=None</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)callback=None</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.simulate" title="Link to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>simulate( (Engine)self, (float)t_end, (numpy.ndarray)q_init, (numpy.ndarray)v_init [, (object)a_init=None [, (bool)is_state_theoretical=False [, (object)callback=None]]]) -&gt; None :</dt><dd><p>Run a simulation of duration tEnd, starting at xInit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param tEnd<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Duration of the simulation.</p>
+</dd>
+<dt class="field-even">param qInit<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initial configuration of every robots, i.e. at t=0.0.</p>
+</dd>
+<dt class="field-odd">param vInit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Initial velocity of every robots, i.e. at t=0.0.</p>
+</dd>
+<dt class="field-even">param aInit<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initial acceleration of every robots, i.e. at t=0.0.
+Optional: Zero by default.</p>
+</dd>
+<dt class="field-odd">param callback<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Callable that can be specified to abort simulation. It will be
+evaluated after every simulation step. Abort if false is returned.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.simulation_duration_max">
+<span class="sig-name descname"><span class="pre">simulation_duration_max</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">922337203.6854776</span></em><a class="headerlink" href="#jiminy_py.core.Engine.simulation_duration_max" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.start">
+<span class="sig-name descname"><span class="pre">start</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)q_init_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(dict)v_init_dict</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(object)a_init_dict=None</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.start" title="Link to this definition">¶</a></dt>
+<dd><dl>
+<dt>start( (Engine)self, (numpy.ndarray)q_init, (numpy.ndarray)v_init [, (object)a_init=None [, (bool)is_state_theoretical=False]]) -&gt; None :</dt><dd><p>Start the simulation</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This function calls <cite>reset</cite> internally only if necessary, namely if it was not
+done manually at some point after stopping the previous simulation if any.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">param qInit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Initial configuration of every robots.</p>
+</dd>
+<dt class="field-even">param vInit<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initial velocity of every robots.</p>
+</dd>
+<dt class="field-odd">param aInit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Initial acceleration of every robots.
+Optional: Zero by default.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">(float)step_dt=-1</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.Engine.step" title="Link to this definition">¶</a></dt>
+<dd><p>Advance the ongoing simulation forward by a given amount of time.</p>
+<p>Internally, the integrator must perform multiple steps, which may involve
+calling the controller to compute command or internal dynamics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stepSize</strong> – Duration of integration. For convenience, a sensible default will
+be selected automatically a negative value is specified. This
+default either corresponds the discrete-time controller update
+period, the discrete-time sensor update period, or stepper option
+‘dtMax’, depending on which one of this criteria is applicable, in
+this priority order.
+Optional: -1 by default.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.stepper_state">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stepper_state</span></span><a class="headerlink" href="#jiminy_py.core.Engine.stepper_state" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.Engine)self) -&gt; jiminy_py.core.core.StepperState</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span> <span class="pre">:</span></span></span><a class="headerlink" href="#jiminy_py.core.Engine.stop" title="Link to this definition">¶</a></dt>
+<dd><p>Stop the simulation completely.</p>
+<p>It releases the lock on the robot and the telemetry, so that it is possible
+again to update the robot (for example to update the options, add or remove
+sensors…) and to register new variables or forces. Resuming a simulation is
+not supported.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.telemetry_time_unit">
+<span class="sig-name descname"><span class="pre">telemetry_time_unit</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-10</span></em><a class="headerlink" href="#jiminy_py.core.Engine.telemetry_time_unit" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="jiminy_py.core.Engine.write_log">
+<span class="sig-name descname"><span class="pre">write_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">(Engine)self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)fullpath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">(str)format</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#jiminy_py.core.Engine.write_log" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">StepperState</span></span><a class="headerlink" href="#jiminy_py.core.StepperState" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>Raises an exception
+This class cannot be instantiated from Python</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState.a">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">a</span></span><a class="headerlink" href="#jiminy_py.core.StepperState.a" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.StepperState)self) -&gt; object</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState.dt">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dt</span></span><a class="headerlink" href="#jiminy_py.core.StepperState.dt" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.StepperState)self) -&gt; float</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState.iter">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">iter</span></span><a class="headerlink" href="#jiminy_py.core.StepperState.iter" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.StepperState)self) -&gt; int</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState.iter_failed">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">iter_failed</span></span><a class="headerlink" href="#jiminy_py.core.StepperState.iter_failed" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.StepperState)self) -&gt; int</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState.q">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">q</span></span><a class="headerlink" href="#jiminy_py.core.StepperState.q" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.StepperState)self) -&gt; object</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState.t">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">t</span></span><a class="headerlink" href="#jiminy_py.core.StepperState.t" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.StepperState)self) -&gt; float</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.StepperState.v">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">v</span></span><a class="headerlink" href="#jiminy_py.core.StepperState.v" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.StepperState)self) -&gt; object</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">jiminy_py.core.</span></span><span class="sig-name descname"><span class="pre">RobotState</span></span><a class="headerlink" href="#jiminy_py.core.RobotState" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">instance</span></code></p>
+<p>Raises an exception
+This class cannot be instantiated from Python</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.a">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">a</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.a" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.command">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">command</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.command" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.f_external">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">f_external</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.f_external" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; pinocchio.pinocchio_pywrap.StdVec_Force</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.q">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">q</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.q" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.u">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">u</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.u" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.u_custom">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">u_custom</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.u_custom" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.u_internal">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">u_internal</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.u_internal" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.u_motor">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">u_motor</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.u_motor" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.u_transmission">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">u_transmission</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.u_transmission" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="jiminy_py.core.RobotState.v">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">v</span></span><a class="headerlink" href="#jiminy_py.core.RobotState.v" title="Link to this definition">¶</a></dt>
+<dd><p>fget( (jiminy_py.core.core.RobotState)self) -&gt; numpy.ndarray</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="controller.html" class="btn btn-neutral float-left" title="controller" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="utilities.html" class="btn btn-neutral float-right" title="utilities" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

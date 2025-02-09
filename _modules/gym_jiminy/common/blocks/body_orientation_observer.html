@@ -1,0 +1,399 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gym_jiminy.common.blocks.body_orientation_observer &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy/index.html">Jiminy C++ API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gym_jiminy.common.blocks.body_orientation_observer</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gym_jiminy.common.blocks.body_orientation_observer</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implementation of a stateless body orientation state estimator block</span>
+<span class="sd">compatible with gym_jiminy reinforcement learning pipeline environment design.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Mapping</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+<span class="kn">import</span> <span class="nn">gymnasium</span> <span class="k">as</span> <span class="nn">gym</span>
+
+<span class="kn">from</span> <span class="nn">jiminy_py.core</span> <span class="kn">import</span> <span class="n">ImuSensor</span>  <span class="c1"># pylint: disable=no-name-in-module</span>
+
+<span class="kn">from</span> <span class="nn">..bases</span> <span class="kn">import</span> <span class="n">BaseAct</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseObserverBlock</span><span class="p">,</span> <span class="n">InterfaceJiminyEnv</span>
+<span class="kn">from</span> <span class="nn">..wrappers.observation_layout</span> <span class="kn">import</span> <span class="n">NestedData</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">DataNested</span><span class="p">,</span>
+                     <span class="n">fill</span><span class="p">,</span>
+                     <span class="n">quat_to_rpy</span><span class="p">,</span>
+                     <span class="n">matrices_to_quat</span><span class="p">,</span>
+                     <span class="n">quat_multiply</span><span class="p">,</span>
+                     <span class="n">quat_apply</span><span class="p">,</span>
+                     <span class="n">remove_twist_from_quat</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="update_twist">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/body_orientation_observer.html#gym_jiminy.common.blocks.body_orientation_observer.update_twist">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">update_twist</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                 <span class="n">twist</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                 <span class="n">omega</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                 <span class="n">time_constant_inv</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the twist estimate of the Twist-after-Swing decomposition of</span>
+<span class="sd">    given orientations in quaternion representation using leaky integrator.</span>
+
+<span class="sd">    :param q: Current swing estimate as a quaternion. It will be updated</span>
+<span class="sd">              in-place to add the estimated twist.</span>
+<span class="sd">    :param twist: Current twist estimate to update in-place.</span>
+<span class="sd">    :param omega: Current angular velocity estimate in local frame.</span>
+<span class="sd">    :param time_constant_inv: Inverse of the time constant of the leaky</span>
+<span class="sd">                              integrator used to update the twist estimate.</span>
+<span class="sd">    :param dt: Time step, in seconds, between consecutive Quaternions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Compute the derivative of the twist angle:</span>
+    <span class="c1"># The element-wise time-derivative of a quaternion is given by:</span>
+    <span class="c1">#   dq = 0.5 * q * Quaternion(axis=gyro, w=0.0)        [1]</span>
+    <span class="c1"># The twist around a given axis can be computed as follows:</span>
+    <span class="c1">#   p = q_axis.dot(twist_axis) * twist_axis            [2]</span>
+    <span class="c1">#   twist = pin.Quaternion(np.array((*p, q_w))).normalized()</span>
+    <span class="c1"># The twist angle can be inferred from this expression:</span>
+    <span class="c1">#   twist = 2 * atan2(q_axis.dot(twist_axis), q_w)     [3]</span>
+    <span class="c1"># The derivative of twist angle can be derived:</span>
+    <span class="c1">#  dtwist = 2 * (</span>
+    <span class="c1">#     (dq_axis * q_w - q_axis * dq_w).dot(twist_axis)  [4]</span>
+    <span class="c1">#  ) / (q_axis.dot(twist_axis) ** 2 + q_w ** 2)</span>
+    <span class="c1"># One can show that if q_s is the swing part of the orientation, then:</span>
+    <span class="c1">#   q_s_axis.dot(twist_axis) = 0</span>
+    <span class="c1"># It yields:</span>
+    <span class="c1">#  dtwist = 2 * dq_s_axis.dot(twist_axis) / q_s_w      [5]</span>
+    <span class="n">q_x</span><span class="p">,</span> <span class="n">q_y</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">q_w</span> <span class="o">=</span> <span class="n">q</span>
+    <span class="n">dtwist</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span> <span class="n">q_y</span> <span class="o">*</span> <span class="n">omega</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">q_x</span> <span class="o">*</span> <span class="n">omega</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">q_w</span> <span class="o">+</span> <span class="n">omega</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="c1"># Update twist angle using Leaky Integrator scheme to avoid long-term drift</span>
+    <span class="n">twist</span> <span class="o">*=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">time_constant_inv</span> <span class="o">*</span> <span class="n">dt</span><span class="p">)</span>
+    <span class="n">twist</span> <span class="o">+=</span> <span class="n">dtwist</span> <span class="o">*</span> <span class="n">dt</span>
+
+    <span class="c1"># Update quaternion to add estimated twist</span>
+    <span class="n">p_z</span><span class="p">,</span> <span class="n">p_w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">twist</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">twist</span><span class="p">)</span>
+    <span class="n">q</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">p_w</span> <span class="o">*</span> <span class="n">q_x</span> <span class="o">-</span> <span class="n">p_z</span> <span class="o">*</span> <span class="n">q_y</span><span class="p">,</span>
+        <span class="n">p_z</span> <span class="o">*</span> <span class="n">q_x</span> <span class="o">+</span> <span class="n">p_w</span> <span class="o">*</span> <span class="n">q_y</span><span class="p">,</span>
+        <span class="n">p_z</span> <span class="o">*</span> <span class="n">q_w</span><span class="p">,</span>
+        <span class="n">p_w</span> <span class="o">*</span> <span class="n">q_w</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BodyObserver">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/body_orientation_observer.html#gym_jiminy.common.blocks.body_orientation_observer.BodyObserver">[docs]</a>
+<span class="k">class</span> <span class="nc">BodyObserver</span><span class="p">(</span><span class="n">BaseObserverBlock</span><span class="p">[</span>
+        <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseAct</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the orientation and angular velocity in local frame of the</span>
+<span class="sd">    parent body associated with all the IMU sensors of the robot.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The twist angle is not part of the internal state, even if being</span>
+<span class="sd">        integrated over time, because it is uniquely determined from the</span>
+<span class="sd">        orientation estimate.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">env</span><span class="p">:</span> <span class="n">InterfaceJiminyEnv</span><span class="p">[</span><span class="n">BaseObs</span><span class="p">,</span> <span class="n">BaseAct</span><span class="p">],</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">nested_imu_quat_key</span><span class="p">:</span> <span class="n">NestedData</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s2">&quot;features&quot;</span><span class="p">,</span> <span class="s2">&quot;mahony_filter&quot;</span><span class="p">,</span> <span class="s2">&quot;quat&quot;</span><span class="p">),</span>
+                 <span class="n">nested_imu_omega_key</span><span class="p">:</span> <span class="n">NestedData</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s2">&quot;features&quot;</span><span class="p">,</span> <span class="s2">&quot;mahony_filter&quot;</span><span class="p">,</span> <span class="s2">&quot;omega&quot;</span><span class="p">,),</span>
+                 <span class="n">twist_time_constant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">compute_rpy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">update_ratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param name: Name of the block.</span>
+<span class="sd">        :param env: Environment to connect with.</span>
+<span class="sd">        :param nested_imu_quat_key: Nested key from environment observation</span>
+<span class="sd">                                    mapping to the IMU quaternion estimates.</span>
+<span class="sd">                                    Their ordering must be consistent with the</span>
+<span class="sd">                                    true IMU sensors of the robot.</span>
+<span class="sd">        :param nested_imu_omega_key: Nested key from environment observation</span>
+<span class="sd">                                     mapping to the IMU angular velocity in</span>
+<span class="sd">                                     local frame estimates. Their ordering must</span>
+<span class="sd">                                     be consistent with the true IMU sensors of</span>
+<span class="sd">                                     the robot.</span>
+<span class="sd">        :param twist_time_constant:</span>
+<span class="sd">            If specified, it corresponds to the time constant of the leaky</span>
+<span class="sd">            integrator (Exponential Moving Average) used to estimate the twist</span>
+<span class="sd">            part of twist-after-swing decomposition of the estimated</span>
+<span class="sd">            orientation in place of the Mahony Filter. If `0.0`, then its is</span>
+<span class="sd">            kept constant equal to zero. `None` to kept the original estimate</span>
+<span class="sd">            provided by Mahony Filter. See `remove_twist_from_quat` and</span>
+<span class="sd">            `update_twist` documentations for details.</span>
+<span class="sd">            Optional: `0.0` by default.</span>
+<span class="sd">        :param compute_rpy: Whether to compute the Yaw-Pitch-Roll Euler angles</span>
+<span class="sd">                            representation for the 3D orientation of the IMU,</span>
+<span class="sd">                            in addition to the quaternion representation.</span>
+<span class="sd">                            Optional: True by default.</span>
+<span class="sd">        :param update_ratio: Ratio between the update period of the observer</span>
+<span class="sd">                             and the one of the subsequent observer. -1 to</span>
+<span class="sd">                             match the simulation timestep of the environment.</span>
+<span class="sd">                             Optional: `1` by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backup some of the user-argument(s)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span> <span class="o">=</span> <span class="n">compute_rpy</span>
+
+        <span class="c1"># Keep track of how the twist must be computed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">twist_time_constant</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">twist_time_constant</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">twist_time_constant</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remove_twist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_twist</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span><span class="p">))</span>
+
+        <span class="c1"># Define observed / estimated IMU data proxies for fast access</span>
+        <span class="n">obs_imu_data_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">nested_imu_key</span> <span class="ow">in</span> <span class="p">(</span><span class="n">nested_imu_quat_key</span><span class="p">,</span> <span class="n">nested_imu_omega_key</span><span class="p">):</span>
+            <span class="n">obs_imu_data</span><span class="p">:</span> <span class="n">DataNested</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">observation</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">nested_imu_key</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_data</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">)</span>
+                    <span class="n">obs_imu_data</span> <span class="o">=</span> <span class="n">obs_imu_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_data</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">)</span>
+                    <span class="n">obs_imu_data</span> <span class="o">=</span> <span class="n">obs_imu_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+                    <span class="n">slices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">start_end</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">start_end</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                            <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">start_end</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="ow">not</span> <span class="n">start_end</span><span class="p">:</span>
+                            <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,))</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">slices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="o">*</span><span class="n">start_end</span><span class="p">))</span>
+                    <span class="n">obs_imu_data</span> <span class="o">=</span> <span class="n">obs_imu_data</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">slices</span><span class="p">)]</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_imu_data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+            <span class="n">obs_imu_data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obs_imu_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_quats</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_omegas</span> <span class="o">=</span> <span class="n">obs_imu_data_list</span>
+
+        <span class="c1"># Extract the relative IMU frame placement wrt its parent body</span>
+        <span class="n">imu_rel_rot_mats</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]:</span>
+            <span class="n">frame</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">pinocchio_model</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="n">sensor</span><span class="o">.</span><span class="n">frame_index</span><span class="p">]</span>
+            <span class="n">imu_rel_rot_mats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">placement</span><span class="o">.</span><span class="n">rotation</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_imu_rel_quats</span> <span class="o">=</span> <span class="n">matrices_to_quat</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">imu_rel_rot_mats</span><span class="p">))</span>
+
+        <span class="c1"># Allocate twist angle estimate around z-axis in world frame.</span>
+        <span class="n">num_imu_sensors</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_twist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_imu_sensors</span><span class="p">))</span>
+
+        <span class="c1"># Initialize the observer</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">update_ratio</span><span class="p">)</span>
+
+        <span class="c1"># Define proxies for the body orientations and angular velocities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">[</span><span class="s2">&quot;quat&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rpy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">[</span><span class="s2">&quot;rpy&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rpy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_omega</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation</span><span class="p">[</span><span class="s2">&quot;omega&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">num_imu_sensors</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span><span class="p">])</span>
+        <span class="n">observation_space</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">gym</span><span class="o">.</span><span class="n">Space</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">observation_space</span><span class="p">[</span><span class="s2">&quot;quat&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">low</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_imu_sensors</span><span class="p">),</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1e-9</span><span class="p">),</span>
+            <span class="n">high</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_imu_sensors</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="mf">1e-9</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">])</span> <span class="o">+</span> <span class="mf">1e-9</span>
+            <span class="n">observation_space</span><span class="p">[</span><span class="s2">&quot;rpy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+                <span class="n">low</span><span class="o">=-</span><span class="n">high</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">num_imu_sensors</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">high</span><span class="o">=</span><span class="n">high</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">num_imu_sensors</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">observation_space</span><span class="p">[</span><span class="s2">&quot;omega&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span>
+            <span class="n">low</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span>
+            <span class="n">high</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">num_imu_sensors</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Dict</span><span class="p">(</span>
+            <span class="o">**</span><span class="n">observation_space</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
+
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Call base implementation</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="c1"># Reset the twist estimate</span>
+        <span class="n">fill</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_twist</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Fix initialization of the observation to be valid quaternions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fieldnames</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]:</span>
+        <span class="n">imu_sensors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">robot</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="n">ImuSensor</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+        <span class="n">fieldnames</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">fieldnames</span><span class="p">[</span><span class="s2">&quot;quat&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sensor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Quat</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span> <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">imu_sensors</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;X&quot;</span><span class="p">,</span> <span class="s2">&quot;Y&quot;</span><span class="p">,</span> <span class="s2">&quot;Z&quot;</span><span class="p">,</span> <span class="s2">&quot;W&quot;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="n">fieldnames</span><span class="p">[</span><span class="s2">&quot;rpy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sensor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span> <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">imu_sensors</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;Roll&quot;</span><span class="p">,</span> <span class="s2">&quot;Pitch&quot;</span><span class="p">,</span> <span class="s2">&quot;Yaw&quot;</span><span class="p">)]</span>
+        <span class="n">fieldnames</span><span class="p">[</span><span class="s2">&quot;omega&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sensor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span> <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">imu_sensors</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;X&quot;</span><span class="p">,</span> <span class="s2">&quot;Y&quot;</span><span class="p">,</span> <span class="s2">&quot;Z&quot;</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">fieldnames</span>
+
+<div class="viewcode-block" id="BodyObserver.refresh_observation">
+<a class="viewcode-back" href="../../../../api/gym_jiminy/common/blocks/body_orientation_observer.html#gym_jiminy.common.blocks.body_orientation_observer.BodyObserver.refresh_observation">[docs]</a>
+    <span class="k">def</span> <span class="nf">refresh_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="n">BaseObs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Compute the parent body orientations</span>
+        <span class="n">quat_multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_quats</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">_imu_rel_quats</span><span class="p">,</span>
+                      <span class="n">out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">,</span>
+                      <span class="n">is_right_conjugate</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Compute the parent body angular velocities in local frame.</span>
+        <span class="c1"># Note that batched &quot;quaternion apply&quot; is faster than sequential</span>
+        <span class="c1"># &quot;rotation matrix apply&quot; in practice, both when using `np.einsum` or</span>
+        <span class="c1"># single-threaded numba jitted implementation.</span>
+        <span class="n">quat_apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_imu_rel_quats</span><span class="p">,</span>
+                   <span class="bp">self</span><span class="o">.</span><span class="n">_obs_imu_omegas</span><span class="p">,</span>
+                   <span class="n">out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_omega</span><span class="p">)</span>
+
+        <span class="c1"># Remove twist if requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_twist</span><span class="p">:</span>
+            <span class="n">remove_twist_from_quat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">)</span>
+
+        <span class="c1"># Update twist if requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_twist</span><span class="p">:</span>
+            <span class="n">update_twist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">_twist</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">_omega</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">twist_time_constant_inv</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">observe_dt</span><span class="p">)</span>
+
+        <span class="c1"># Compute the RPY representation if requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_rpy</span><span class="p">:</span>
+            <span class="n">quat_to_rpy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_quat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rpy</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

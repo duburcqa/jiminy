@@ -1,0 +1,602 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>motors &mdash; jiminy 1.8.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/documentation_options.js?v=32cf9813"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="controller" href="controller.html" />
+    <link rel="prev" title="sensors" href="sensors.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            jiminy
+              <img src="../../_static/jiminy_logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">README</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html">Key features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#gym-jiminy">Gym Jiminy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#demo">Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../README.html#getting-started">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">INSTALLATION</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html">Easy-install on Ubuntu 18+</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../INSTALL.html#building-from-source">Building from source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">TUTORIALS</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial.html">An introduction to Jiminy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API DOC</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Jiminy C++ API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="robot.html">robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html">analytical constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sensors.html">sensors</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">motors</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBaseE"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase22getDefaultMotorOptionsEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getDefaultMotorOptions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase17AbstractMotorBaseERKNSt6stringE"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::AbstractMotorBase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBaseD0Ev"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::~AbstractMotorBase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase14refreshProxiesEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::refreshProxies()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase8resetAllEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::resetAll()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase10getOptionsEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getOptions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase3getEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::get()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase6getAllEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getAll()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase10setOptionsERK13GenericConfig"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::setOptions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase13setOptionsAllERK13GenericConfig"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::setOptionsAll()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase13getIsAttachedEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getIsAttached()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase16getIsInitializedEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getIsInitialized()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase7getNameEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase8getIndexEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getIndex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase12getJointNameEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getJointName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase13getJointIndexEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getJointIndex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase21getPositionLimitLowerEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getPositionLimitLower()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase21getPositionLimitUpperEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getPositionLimitUpper()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase16getVelocityLimitEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getVelocityLimit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase14getEffortLimitEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getEffortLimit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase11getArmatureEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getArmature()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4NK6jiminy17AbstractMotorBase11getBacklashEv"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::getBacklash()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase13computeEffortEdRKN5Eigen11VectorBlockIKN5Eigen8VectorXdEEEddd"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::computeEffort()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase16computeEffortAllEdRKN5Eigen8VectorXdERKN5Eigen8VectorXdERKN5Eigen8VectorXdERKN5Eigen8VectorXdE"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::computeEffortAll()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase17baseMotorOptions_E"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::baseMotorOptions_</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptionsE"><code class="docutils literal notranslate"><span class="pre">AbstractMotorBase::AbstractMotorOptions</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#_CPPv4N6jiminy11SimpleMotorE"><code class="docutils literal notranslate"><span class="pre">SimpleMotor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy11SimpleMotor22getDefaultMotorOptionsEv"><code class="docutils literal notranslate"><span class="pre">SimpleMotor::getDefaultMotorOptions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy11SimpleMotor11SimpleMotorERKNSt6stringE"><code class="docutils literal notranslate"><span class="pre">SimpleMotor::SimpleMotor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy11SimpleMotorD0Ev"><code class="docutils literal notranslate"><span class="pre">SimpleMotor::~SimpleMotor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy11SimpleMotor10initializeERKNSt6stringE"><code class="docutils literal notranslate"><span class="pre">SimpleMotor::initialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy11SimpleMotor10setOptionsERK13GenericConfig"><code class="docutils literal notranslate"><span class="pre">SimpleMotor::setOptions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptionsE"><code class="docutils literal notranslate"><span class="pre">SimpleMotor::SimpleMotorOptions</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="controller.html">controller</a></li>
+<li class="toctree-l2"><a class="reference internal" href="engine.html">engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utilities.html">utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jiminy_py/index.html">Jiminy Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gym_jiminy/common/index.html">Gym Jiminy API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Technical Specifications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/src/tlmc_format_specification.html">HDF5 telemetry log format (TLMC)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../spec/pdf/index.html">Downloadable PDF</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">jiminy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Jiminy C++ API</a></li>
+      <li class="breadcrumb-item active">motors</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/api/jiminy/motors.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="motors">
+<h1>motors<a class="headerlink" href="#motors" title="Link to this heading">¶</a></h1>
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBaseE">
+<span class="target" id="classjiminy_1_1_abstract_motor_base"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">AbstractMotorBase</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBaseE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Subclassed by <a class="reference internal" href="#classjiminy_1_1_simple_motor"><span class="std std-ref">jiminy::SimpleMotor</span></a></p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase22getDefaultMotorOptionsEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a0b84098053bd1ab15118ee978ae30ca1"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getDefaultMotorOptions</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase22getDefaultMotorOptionsEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Dictionary gathering the configuration options shared between motors. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase17AbstractMotorBaseERKNSt6stringE">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1ad4f9930ecdfd61d452a093396c5ee7b4"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">AbstractMotorBase</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">name</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase17AbstractMotorBaseERKNSt6stringE" title="Link to this definition">¶</a><br /></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> – <strong>[in]</strong> Name of the motor. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBaseD0Ev">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a123c1a4d447e9415196a5ee640d0f896"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~AbstractMotorBase</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBaseD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase14refreshProxiesEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a13fe1da1d8c04b80f733d91451c33b65"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">refreshProxies</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase14refreshProxiesEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Refresh the proxies. </p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the motor is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">refresh</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase8resetAllEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1abd663202943040de0b804cef2135738c"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">resetAll</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase8resetAllEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Reset the internal state of the motors. </p>
+<p>This method resets the internal state of the motor.</p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the motor is added is taking care of it when its own <code class="docutils literal notranslate"><span class="pre">reset</span></code> method is called. </p>
+</div>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase10getOptionsEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a1ca4cb674ddb6553e1d85d1b4892de5d"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getOptions</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase10getOptionsEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Configuration options of the motor. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase3getEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a1482aff099892e3a82244364a1c3fe41"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">tuple</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">get</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase3getEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Actual effort of the motor at the current time. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase6getAllEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a44c62a06af7b5c2eff287449449dfede"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">tuple</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Ref</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">Ref</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getAll</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase6getAllEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Actual effort of all the motors at the current time. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase10setOptionsERK13GenericConfig">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1ade37bd6512404379d010082dfb0ee8a6"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setOptions</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">motorOptions</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase10setOptionsERK13GenericConfig" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Set the configuration options of the motor. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>motorOptions</strong> – <strong>[in]</strong> Dictionary with the parameters of the motor. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase13setOptionsAllERK13GenericConfig">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a39085e19f5b3c022248ca8a945900a26"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setOptionsAll</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">motorOptions</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase13setOptionsAllERK13GenericConfig" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Set the same configuration options for all motors of same type as current one. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>motorOptions</strong> – <strong>[in]</strong> Dictionary with the parameters used for any motor. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase13getIsAttachedEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a6037ed30367d004e7e8870e5f5c9b5e9"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getIsAttached</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase13getIsAttachedEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Whether the motor has been attached to a robot. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase16getIsInitializedEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a41550840f84e919e418a58a6df52b800"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getIsInitialized</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase16getIsInitializedEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Whether the motor has been initialized. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase7getNameEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1ac422d8aaed3c2b85aa72a21f5aaf959e"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getName</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase7getNameEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Name of the motor. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase8getIndexEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a78a987fb325d8ec44ac608fa902c826d"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getIndex</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase8getIndexEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Index of the motor. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase12getJointNameEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1af6a1eff4ad025921b58fc52ed4b18452"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getJointName</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase12getJointNameEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Name of the joint associated with the motor. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase13getJointIndexEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a9b7aa9d3645a427d3e164bac35c3de83"></span><span class="n"><span class="pre">pinocchio</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">JointIndex</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getJointIndex</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase13getJointIndexEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Index of the joint associated with the motor in the kinematic tree. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase21getPositionLimitLowerEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1aa266248df936d58b534187594832719b"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getPositionLimitLower</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase21getPositionLimitLowerEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Maximum position of the actuated joint translated on motor side. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase21getPositionLimitUpperEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a8b501a4c7615315904c332c7e9135d8d"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getPositionLimitUpper</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase21getPositionLimitUpperEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Minimum position of the actuated joint translated on motor side. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase16getVelocityLimitEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a261d7083875dc156b50389e8613eae03"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getVelocityLimit</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase16getVelocityLimitEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Maximum velocity of the motor. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase14getEffortLimitEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a529a991da8054efc8e4f0beaa5e8c2a4"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getEffortLimit</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase14getEffortLimitEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Maximum effort of the motor. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase11getArmatureEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1ae7b7bf014bbd24eb4c35e250f6fc7761"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getArmature</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase11getArmatureEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Rotor inertia of the motor on joint side. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK6jiminy17AbstractMotorBase11getBacklashEv">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a4cfaef5d86bbc3405df4347990e4ec9d"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getBacklash</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK6jiminy17AbstractMotorBase11getBacklashEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Backlash of the transmission on joint side. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase13computeEffortEdRKN5Eigen11VectorBlockIKN5Eigen8VectorXdEEEddd">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a8646505dcf70d3c2c4197732c35b66aa"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeEffort</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">t</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorBlock</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">v</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">a</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">command</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="m"><span class="pre">0</span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase13computeEffortEdRKN5Eigen11VectorBlockIKN5Eigen8VectorXdEEEddd" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Request the motor to update its actual effort based of the input data. </p>
+<p>It assumes that the internal state of the robot is consistent with the input arguments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> – <strong>[in]</strong> Current time. </p></li>
+<li><p><strong>q</strong> – <strong>[in]</strong> Current configuration of the motor. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current velocity of the motor. </p></li>
+<li><p><strong>a</strong> – <strong>[in]</strong> Current acceleration of the motor. </p></li>
+<li><p><strong>command</strong> – <strong>[in]</strong> Current command effort of the motor. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase16computeEffortAllEdRKN5Eigen8VectorXdERKN5Eigen8VectorXdERKN5Eigen8VectorXdERKN5Eigen8VectorXdE">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1aa995e3f22e02585f7b20a747ab26accb"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">computeEffortAll</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">t</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">q</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">v</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">a</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Eigen</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">VectorXd</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">command</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase16computeEffortAllEdRKN5Eigen8VectorXdERKN5Eigen8VectorXdERKN5Eigen8VectorXdERKN5Eigen8VectorXdE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Request every motors to update their actual effort based of the input data. </p>
+<p>It assumes that the internal state of the robot is consistent with the input arguments.</p>
+<p><div class="remark admonition">
+<p class="admonition-title">Remark</p>
+<p>This method is not intended to be called manually. The <a class="reference internal" href="robot.html#classjiminy_1_1_robot"><span class="std std-ref">Robot</span></a> to which the motor is added is taking care of it while updating the state of the motors.</p>
+</div>
+</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> – <strong>[in]</strong> Current time. </p></li>
+<li><p><strong>q</strong> – <strong>[in]</strong> Current configuration vector of the robot. </p></li>
+<li><p><strong>v</strong> – <strong>[in]</strong> Current velocity vector of the robot. </p></li>
+<li><p><strong>a</strong> – <strong>[in]</strong> Current acceleration vector of the robot. </p></li>
+<li><p><strong>command</strong> – <strong>[in]</strong> Current command effort vector of the robot. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase17baseMotorOptions_E">
+<span class="target" id="classjiminy_1_1_abstract_motor_base_1a7faa527730b837b9441e455ae6eb3be5"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">unique_ptr</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptionsE" title="jiminy::AbstractMotorBase::AbstractMotorOptions"><span class="n"><span class="pre">AbstractMotorOptions</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">baseMotorOptions_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="k"><span class="pre">nullptr</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase17baseMotorOptions_E" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Structure with the parameters of the motor. </p>
+</dd></dl>
+
+</div>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptionsE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">AbstractMotorOptions</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptionsE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Subclassed by <a class="reference internal" href="#structjiminy_1_1_simple_motor_1_1_simple_motor_options"><span class="std std-ref">jiminy::SimpleMotor::SimpleMotorOptions</span></a></p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions20AbstractMotorOptionsERK13GenericConfig">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1ab286b930b1272d9c76cf2fe3c2fb3aff"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">AbstractMotorOptions</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">options</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions20AbstractMotorOptionsERK13GenericConfig" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions19mechanicalReductionE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1adbd01246dc0f30e8cd11619ce5223ae1"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">mechanicalReduction</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions19mechanicalReductionE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Mechanical reduction ratio of transmission (joint/motor), usually &gt;= 1.0. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions21velocityLimitFromUrdfE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1a8b128be9260a35c971f11c7c2210924d"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">velocityLimitFromUrdf</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions21velocityLimitFromUrdfE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions13velocityLimitE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1a1aa10853ab4dbba54c75b0b2f1c9b513"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">velocityLimit</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions13velocityLimitE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions19effortLimitFromUrdfE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1ab08e20de57d678a66a3863d27d7c6462"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">effortLimitFromUrdf</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions19effortLimitFromUrdfE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions11effortLimitE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1a7c1d7fa86c906176ba09e34a62a026d3"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">effortLimit</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions11effortLimitE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions14enableArmatureE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1ad66aeaec992f7add7183a4ed44ea5b13"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">enableArmature</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions14enableArmatureE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions8armatureE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1aba7cada90e1745bfedfc7254b17b9d50"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">armature</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions8armatureE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions14enableBacklashE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1a78ea3ccfe07b50692c58259ab2c47c1d"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">enableBacklash</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions14enableBacklashE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions8backlashE">
+<span class="target" id="structjiminy_1_1_abstract_motor_base_1_1_abstract_motor_options_1af1a71a2db5a389ba7e0df276425625eb"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">backlash</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptions8backlashE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotorE">
+<span class="target" id="classjiminy_1_1_simple_motor"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SimpleMotor</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="k"><span class="pre">public</span></span><span class="w"> </span><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBaseE" title="jiminy::AbstractMotorBase"><span class="n"><span class="pre">AbstractMotorBase</span></span></a><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotorE" title="Link to this definition">¶</a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor22getDefaultMotorOptionsEv">
+<span class="target" id="classjiminy_1_1_simple_motor_1a372ce44989f139c53abb4cf501cddd6b"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getDefaultMotorOptions</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor22getDefaultMotorOptionsEv" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Dictionary gathering the configuration options shared between motors. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor11SimpleMotorERKNSt6stringE">
+<span class="target" id="classjiminy_1_1_simple_motor_1a0ec935ec2b8dec9f699e52b275947109"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SimpleMotor</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">name</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor11SimpleMotorERKNSt6stringE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotorD0Ev">
+<span class="target" id="classjiminy_1_1_simple_motor_1a7243408958c5690f1e580ce0a1c80c55"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">~SimpleMotor</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotorD0Ev" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor10initializeERKNSt6stringE">
+<span class="target" id="classjiminy_1_1_simple_motor_1a6c7170c156610a4a5ef55db9f38a3508"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">initialize</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">jointName</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor10initializeERKNSt6stringE" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor10setOptionsERK13GenericConfig">
+<span class="target" id="classjiminy_1_1_simple_motor_1aa19abeb90d9db8507a368dbebd4335b3"></span><span class="k"><span class="pre">virtual</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">setOptions</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">motorOptions</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">override</span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor10setOptionsERK13GenericConfig" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Set the configuration options of the motor. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>motorOptions</strong> – <strong>[in]</strong> Dictionary with the parameters of the motor. </p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptionsE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SimpleMotorOptions</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="k"><span class="pre">public</span></span><span class="w"> </span><span class="n"><span class="pre">jiminy</span></span><span class="p"><span class="pre">::</span></span><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBaseE" title="jiminy::AbstractMotorBase"><span class="n"><span class="pre">AbstractMotorBase</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference internal" href="#_CPPv4N6jiminy17AbstractMotorBase20AbstractMotorOptionsE" title="jiminy::AbstractMotorBase::AbstractMotorOptions"><span class="n"><span class="pre">AbstractMotorOptions</span></span></a><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptionsE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Simple motor that does not required specifying advanced motor constant (phase inductance, back-EMF…), nor hardware properties such as battery voltage. </p>
+<p>The motor torque is applied instantaneously, but may be saturated to make into account the maximum torque at zero velocity and the maximum velocity at zero load. A simple linear model is used for the maximum velocity. For reference: <a class="reference external" href="https://things-in-motion.blogspot.com/2019/05/understanding-bldc-pmsm-electric-motors.html">https://things-in-motion.blogspot.com/2019/05/understanding-bldc-pmsm-electric-motors.html</a></p>
+<p><div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>For details about the modelling of PMSM motors (ie brushless motors), see: <a class="reference external" href="https://github.com/matthieuvigne/nemo_bldc/blob/1c9073114a70d762b8d13774e7da984afd48bd32/src/nemo_bldc/doc/BrushlessMotorPhysics.pdf">https://github.com/matthieuvigne/nemo_bldc/blob/1c9073114a70d762b8d13774e7da984afd48bd32/src/nemo_bldc/doc/BrushlessMotorPhysics.pdf</a></p>
+</div>
+</p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions18SimpleMotorOptionsERK13GenericConfig">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1afd4afc71916e4928dfec62dc910e030b"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SimpleMotorOptions</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">GenericConfig</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">options</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions18SimpleMotorOptionsERK13GenericConfig" title="Link to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions19enableVelocityLimitE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1a96e11f4424080dd17c11b521d0a5291b"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">enableVelocityLimit</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions19enableVelocityLimitE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Wether velocity limit is enabled. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions22velocityEffortInvSlopeE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1a7ba858346c61a63ef89797295d39558d"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">velocityEffortInvSlope</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions22velocityEffortInvSlopeE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Inverse constant decrease rate of the maximum torque wrt velocity when approaching the maximum velocity. The maximum torque is equal to zero at maximum velocity. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions17enableEffortLimitE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1ab1c0a507a3219d442aa5ce5c2c909c29"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">enableEffortLimit</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions17enableEffortLimitE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Wether effort limit is enabled. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions14enableFrictionE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1a22e2315b0f84bd549b24d9ea7bf04894"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">enableFriction</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions14enableFrictionE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Wether joint friction is enabled. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions23frictionViscousPositiveE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1a1da8ee254b5d0208b66d894e8c7482af"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frictionViscousPositive</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions23frictionViscousPositiveE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Viscous coefficient of the joint friction for positive velocity. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Pre<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Must be negative. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions23frictionViscousNegativeE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1ad14068ac129a6fe76e4c8c46a8894259"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frictionViscousNegative</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions23frictionViscousNegativeE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Viscous coefficient of the joint friction for negative velocity. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Pre<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Must be negative. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions19frictionDryPositiveE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1adc20666e664d0efbce39cabe6ac43f5d"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frictionDryPositive</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions19frictionDryPositiveE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Dry coefficient of the joint friction for positive velocity, which corresponds to the positive dry friction at saturation. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Pre<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Must be negative. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions19frictionDryNegativeE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1a9efb0a2d9763105be6c1cde7132426c3"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frictionDryNegative</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions19frictionDryNegativeE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Dry coefficient of the joint friction for negative velocity, which corresponds to the negative dry friction at saturation. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Pre<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Must be negative. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions16frictionDrySlopeE">
+<span class="target" id="structjiminy_1_1_simple_motor_1_1_simple_motor_options_1af7a6254c03d360ec0bfbf96eaf1dd8fb"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">frictionDrySlope</span></span></span><a class="headerlink" href="#_CPPv4N6jiminy11SimpleMotor18SimpleMotorOptions16frictionDrySlopeE" title="Link to this definition">¶</a><br /></dt>
+<dd><p>Slope of the Tanh of the joint velocity that saturates the dry friction. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Pre<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Must be negative. </p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sensors.html" class="btn btn-neutral float-left" title="sensors" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="controller.html" class="btn btn-neutral float-right" title="controller" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Alexis Duburcq - MIT licence.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
