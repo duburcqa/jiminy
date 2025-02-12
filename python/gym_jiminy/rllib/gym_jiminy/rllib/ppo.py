@@ -16,6 +16,7 @@ from ray.rllib.core.columns import Columns
 from ray.rllib.core.learner.learner import (
     POLICY_LOSS_KEY, VF_LOSS_KEY, ENTROPY_KEY, Learner)
 from ray.rllib.core.rl_module.rl_module import RLModule
+from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.torch.torch_rl_module import TorchRLModule
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.ppo.ppo import (
@@ -32,12 +33,18 @@ from ray.rllib.connectors.learner.\
     add_next_observations_from_episodes_to_train_batch import (
         AddNextObservationsFromEpisodesToTrainBatch)
 from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.utils.schedules.scheduler import Scheduler
+from ray.rllib.utils.lambda_defaultdict import LambdaDefaultDict
 from ray.rllib.utils.torch_utils import explained_variance, l2_loss
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.from_config import _NotProvided, NotProvided
+from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED_LIFETIME
 from ray.rllib.utils.typing import TensorType, EpisodeType, ModuleID
 
 from jiminy_py import tree
+
+
+LEARNER_RESULTS_CURR_L2_REG_KEY = "curr_l2_reg"
 
 
 ObsMirrorMat = Union[np.ndarray, Sequence[np.ndarray]]
@@ -376,6 +383,17 @@ class PPOTorchLearner(_PPOTorchLearner):
         # Call base implementation
         super().build()
 
+        # Dict mapping module IDs to the respective L2-reg Scheduler instance
+        assert isinstance(self.config, PPOConfig)
+        self.l2_reg_schedulers_per_module: Dict[ModuleID, Scheduler]
+        self.l2_reg_schedulers_per_module = LambdaDefaultDict(
+            lambda module_id: Scheduler(
+                fixed_value_or_schedule=(
+                    self.config.get_config_for_module(
+                        module_id).l2_reg),  # type: ignore[attr-defined]
+                framework=self.framework,
+                device=self._device))
+
         # Make sure that the environment is single-agent
         if self.config.is_multi_agent():
             raise RuntimeError("Multi-agent environments are not supported")
@@ -410,6 +428,33 @@ class PPOTorchLearner(_PPOTorchLearner):
                     device=self._device)
                 for mirror_mat in tree.flatten(mirror_mat_nested))
                 for mirror_mat_nested in module_config.symmetric_spec)
+
+    @override(_PPOTorchLearner)
+    def remove_module(self,
+                      module_id: ModuleID,
+                      **kwargs: Any) -> MultiRLModuleSpec:
+        # Call base implementation
+        marl_spec = super().remove_module(module_id, **kwargs)
+
+        # Remove L2-regularization scheduler
+        self.l2_reg_schedulers_per_module.pop(module_id, None)
+
+        return marl_spec
+
+    @override(_PPOTorchLearner)
+    def after_gradient_based_update(
+            self, *, timesteps: Dict[str, Any]) -> None:
+        # Call base implementation
+        super().after_gradient_based_update(timesteps=timesteps)
+
+        # Update L2-regularization coefficient via Scheduler
+        for module_id, _ in self.module._rl_modules.items():
+            new_l2_reg = self.l2_reg_schedulers_per_module[module_id].update(
+                timestep=timesteps.get(NUM_ENV_STEPS_SAMPLED_LIFETIME, 0))
+            self.metrics.log_value(
+                (module_id, LEARNER_RESULTS_CURR_L2_REG_KEY),
+                new_l2_reg,
+                window=1)
 
     @override(_PPOTorchLearner)
     def compute_loss_for_module(
@@ -745,7 +790,9 @@ class PPOTorchLearner(_PPOTorchLearner):
                 window=float("inf"),
                 clear_on_reduce=True)
 
-        if config.l2_reg > 0.0:
+        l2_ref_coeff = self.l2_reg_schedulers_per_module[
+            module_id].get_current_value()
+        if l2_ref_coeff > 0.0:
             # Add actor l2-regularization loss
             l2_reg = torch.tensor(0.0, device=self._device)
             for name, params in rl_module.named_parameters():
@@ -753,7 +800,7 @@ class PPOTorchLearner(_PPOTorchLearner):
                     l2_reg += l2_loss(params)
 
             # Add l2-regularization loss to total loss
-            total_loss += config.l2_reg * l2_reg
+            total_loss += l2_ref_coeff * l2_reg
             self.metrics.log_value(
                 (module_id, "l2_reg"),
                 l2_reg.item(),
