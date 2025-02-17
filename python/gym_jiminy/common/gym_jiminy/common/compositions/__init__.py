@@ -30,6 +30,7 @@ from .locomotion import (TrackingBaseHeightReward,
                          FallingTermination,
                          FootCollisionTermination,
                          FlyingTermination,
+                         SlippageTermination,
                          ImpactForceTermination)
 
 __all__ = [
@@ -60,6 +61,7 @@ __all__ = [
     "MechanicalSafetyTermination",
     "MechanicalPowerConsumptionTermination",
     "FlyingTermination",
+    "SlippageTermination",
     "BaseRollPitchTermination",
     "FallingTermination",
     "FootCollisionTermination",
