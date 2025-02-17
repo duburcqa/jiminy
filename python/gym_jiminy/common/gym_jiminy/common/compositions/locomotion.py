@@ -1,8 +1,10 @@
 """Rewards mainly relevant for locomotion tasks on floating-base robots.
 """
+import math
 from functools import partial
 from dataclasses import dataclass
-from typing import Optional, Union, Sequence, Literal, Callable, cast
+from typing import (
+    Optional, Union, Sequence, Literal, Callable, Tuple, List, cast)
 
 import numpy as np
 import numba as nb
@@ -11,7 +13,8 @@ import jiminy_py.core as jiminy
 import pinocchio as pin
 
 from ..bases import (
-    InterfaceJiminyEnv, InterfaceQuantity, QuantityEvalMode, QuantityReward)
+    InterfaceJiminyEnv, InterfaceQuantity, QuantityEvalMode, AbstractQuantity,
+    QuantityReward)
 from ..bases.compositions import ArrayOrScalar, ArrayLikeOrScalar
 from ..quantities import (
     OrientationType, MaskedQuantity, UnaryOpQuantity, ConcatenatedQuantity,
@@ -447,11 +450,11 @@ class FootCollisionTermination(QuantityTermination):
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
-def min_depth(positions: np.ndarray,
-              heights: np.ndarray,
-              normals: np.ndarray) -> float:
-    """Approximate minimum distance from the ground profile among a set of the
-    query points.
+def depth_approx(positions: np.ndarray,
+                 heights: np.ndarray,
+                 normals: np.ndarray) -> np.ndarray:
+    """Approximate signed distance from the ground profile (positive if above
+    the ground, negative otherwise) of a set of the query points.
 
     Internally, it uses a first order approximation assuming zero local
     curvature around each query point.
@@ -469,12 +472,14 @@ def min_depth(positions: np.ndarray,
                     while the second correponds to the N individual query
                     points.
     """
-    return np.min((positions[2] - heights) * normals[2])
+    return (positions[2] - heights) * normals[2]
 
 
 @dataclass(unsafe_hash=True)
-class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
-    """Minimum distance from the ground profile among all the contact points.
+class _MultiContactGroundDistanceAndNormal(
+        InterfaceQuantity[Tuple[np.ndarray, np.ndarray]]):
+    """Signed distance (positive if above the ground, negative otherwise) and
+    normal from the ground profile of all the candidate contact points.
 
     .. note::
         Internally, it does not compute the exact shortest distance from the
@@ -524,7 +529,7 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
         engine_options = self.env.unwrapped.engine.get_options()
         self._heightmap = engine_options["world"]["groundProfile"]
 
-    def refresh(self) -> float:
+    def refresh(self) -> Tuple[np.ndarray, np.ndarray]:
         # Query the height and normal to the ground profile for the position in
         # world plane of all the contact points.
         positions = self.positions.get()
@@ -533,11 +538,13 @@ class _MultiContactMinGroundDistance(InterfaceQuantity[float]):
                                self._heights,
                                self._normals)
 
-        # Make sure the ground normal is normalized
+        # Make sure the ground normal has unit length
         # self._normals /= np.linalg.norm(self._normals, axis=0)
 
         # First-order distance estimation assuming no curvature
-        return min_depth(positions, self._heights, self._normals)
+        depth = depth_approx(positions, self._heights, self._normals)
+
+        return depth, self._normals
 
 
 class FlyingTermination(QuantityTermination):
@@ -571,9 +578,218 @@ class FlyingTermination(QuantityTermination):
         super().__init__(
             env,
             "termination_flying",
-            (_MultiContactMinGroundDistance, {}),  # type: ignore[arg-type]
+            (UnaryOpQuantity, dict(
+                quantity=(_MultiContactGroundDistanceAndNormal, {}),
+                op=lambda depths_and_normals: depths_and_normals[0].min()
+            )),
             None,
             max_height,
+            grace_period,
+            is_truncation=False,
+            training_only=training_only)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def compute_linear_velocity_local_frame(frame_pos_rel: np.ndarray,
+                                        joint_rot_mat: np.ndarray,
+                                        joint_vel_linear: np.ndarray,
+                                        joint_vel_ang: np.ndarray
+                                        ) -> np.ndarray:
+    """Compute the linear velocity of a given frame in local-world-aligned
+    reference frame.
+
+    :param frame_pos_rel: Relative position of the frame wrt its parent joint.
+    :param joint_rot_mat: Orientation of the joint in world refence frame.
+    :param joint_vel_linear: Linear velocity of the joint in local reference
+                             frame.
+    :param joint_vel_ang: Angular velocity of the joint in local reference
+                          frame.
+    """
+    return joint_rot_mat @ (
+        joint_vel_linear + np.cross(joint_vel_ang, frame_pos_rel))
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def compute_velocity_tangential(velocity: np.ndarray,
+                                normal: np.ndarray) -> float:
+    """Compute the norm of the velocity projected in the plan orthogonal to a
+    given normal direction vector.
+
+    .. warning::
+        The normal direction vector used assumed to be normalized. It is up to
+        the pratitioner to make sure this holds true.
+
+    :param velocity: Linear velocity in world-aligned reference frame.
+    :param normal: Normal direction vector in world reference frame.
+    """
+    return math.sqrt(
+        np.sum(np.square(velocity), 0) - np.sum(velocity * normal, 0) ** 2)
+
+
+@nb.jit(nopython=True, cache=True, fastmath=True)
+def _compute_max_velocity_tangential(
+        local_linear_velocities_args: Tuple[
+            Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], ...],
+        depths: np.ndarray,
+        normals: np.ndarray,
+        height_thr: float) -> float:
+    """Compute the maximum norm of the tangential velocity wrt local curvature
+    of the ground profile of all the frames that are considered in contact.
+
+    :param local_linear_velocities_args:
+        Sequence of tuples (`frame_pos_rel`, `joint_rot_mat`,
+        `joint_vel_linear`, `joint_vel_ang`) that fully specify the linear
+        velocity of each frame. These arguments will be passed to
+        `compute_linear_velocity_local_frame`.
+    :param depths: Signed distance of each frames from the ground as a vector.
+    :param normals: Normal direction vector that fully specify the local
+                    curvature of the ground profile at the location of each
+                    frame as a 2D array whose first dimension gathers the
+                    position components (X, Y, Z) and the second corresponds
+                    to individual frames.
+    :param height_thr: Distance threshold below which frames are considered in
+                       contact with the ground.
+    """
+    # Compute the maximum tangential velocity sequentially
+    vel_tangential_max = 0.0
+    for local_linear_velocity_args, depth, normal in zip(
+            local_linear_velocities_args, depths, normals.T):
+        # Early return if the contact point is not close to the ground
+        if depth > height_thr:
+            continue
+
+        # Get the linear velocity of the contact point
+        velocity = compute_linear_velocity_local_frame(
+            *local_linear_velocity_args)
+
+        # Compute the norm of the tangential velocity
+        vel_tangential = compute_velocity_tangential(velocity, normal)
+
+        # Update the maximum tangential velocity
+        vel_tangential_max = max(vel_tangential_max, vel_tangential)
+
+    return vel_tangential_max
+
+
+@dataclass(unsafe_hash=True)
+class _MultiContactMaxVelocityTangential(AbstractQuantity[float]):
+    """Maximum norm of the tangential velocity wrt local curvature of the
+    ground profile of all the candidate contact frames that are close enough
+    from the ground.
+
+    .. note::
+        The maximum norm of the tangential velocity is considered to be 0.0 if
+        none of the candidate contact frames are close enough from the ground.
+    """
+
+    height_thr: float
+    """Height threshold above which a candidate contact point is deemed too far
+    from the ground and is discarded from the set of frames being considered
+    when looking for the maximum norm of the tangential velocity.
+    """
+
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 parent: Optional[InterfaceQuantity],
+                 height_thr: float) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param parent: Higher-level quantity from which this quantity is a
+                       requirement if any, `None` otherwise.
+        :param height_thr: Height threshold above which a candidate contact
+                           point is ignored for being too far from the ground.
+        """
+        # Backup some user-argument(s)
+        self.height_thr = height_thr
+
+        # Get the name of all the contact points
+        self.contact_frame_names = env.robot.contact_frame_names
+
+        # Call base implementation
+        super().__init__(
+            env,
+            parent,
+            requirements=dict(
+                depths_and_normals=(
+                    _MultiContactGroundDistanceAndNormal, {})),
+            auto_refresh=False)
+
+        # Define proxies for fast access
+        self._contact_frame_local_linear_velocities_args: Tuple[
+            Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], ...] = ()
+
+    def initialize(self) -> None:
+        # Call base implementation
+        super().initialize()
+
+        # Refresh proxies
+        contact_frame_local_linear_velocities_args: List[
+            Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = []
+        for contact_frame_index in jiminy.get_frame_indices(
+                self.pinocchio_model, self.contact_frame_names):
+            frame = self.pinocchio_model.frames[contact_frame_index]
+            joint_pose = self.pinocchio_data.oMi[frame.parent]
+            joint_velocity_spatial = self.pinocchio_data.v[frame.parent]
+            contact_frame_local_linear_velocities_args.append((
+                frame.placement.translation,
+                joint_pose.rotation,
+                joint_velocity_spatial.linear,
+                joint_velocity_spatial.angular))
+        self._contact_frame_local_linear_velocities_args = tuple(
+            contact_frame_local_linear_velocities_args)
+
+    def refresh(self) -> float:
+        # Get the distance and normal of all the contact points from the ground
+        depths, normals = self.depths_and_normals.get()
+
+        # Compute the maximum tangential velocity
+        return _compute_max_velocity_tangential(
+            self._contact_frame_local_linear_velocities_args,
+            depths,
+            normals,
+            self.height_thr)
+
+
+class SlippageTermination(QuantityTermination):
+    """Discourage the agent of sliding on the ground purposedly by terminating
+    the episode immediately if some of the active contact points are slipping
+    on the ground.
+
+    This kind of behavior is usually undesirable because they are hardly
+    repeatable and tend to transfer poorly to reality. Moreover, it may cause
+    a sense of poorly controlled motion to people nearby.
+    """
+    def __init__(self,
+                 env: InterfaceJiminyEnv,
+                 height_thr: float,
+                 max_velocity: float,
+                 grace_period: float = 0.0,
+                 *,
+                 training_only: bool = False) -> None:
+        """
+        :param env: Base or wrapped jiminy environment.
+        :param height_thr: Height threshold below which a candidate contact
+                           point is closed enough from the ground for its
+                           tangential velocity to be considered.
+        :param max_velocity: Maximum norm of the tangential velocity wrt ground
+                             of the contact points that are close enough above
+                             which termination is triggered.
+        :param grace_period: Grace period effective only at the very beginning
+                             of the episode, during which the latter is bound
+                             to continue whatever happens.
+                             Optional: 0.0 by default.
+        :param training_only: Whether the termination condition should be
+                              completely by-passed if the environment is in
+                              evaluation mode.
+                              Optional: False by default.
+        """
+        super().__init__(
+            env,
+            "termination_slippage",
+            (_MultiContactMaxVelocityTangential, dict(
+                height_thr=height_thr)),
+            None,
+            max_velocity,
             grace_period,
             is_truncation=False,
             training_only=training_only)
