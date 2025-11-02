@@ -479,7 +479,7 @@ namespace jiminy
     }
 
     void Model::removeFrames(const std::vector<std::string> & frameNames,
-                             const std::vector<pinocchio::FrameType> & filter)
+                             const std::vector<pinocchio::FrameType> & allowed)
     {
         // Make sure that no simulation is already running
         if (getIsLocked())
@@ -491,14 +491,14 @@ namespace jiminy
 
         /* Check that the frame can be safely removed from the theoretical model.
            If so, then it holds true for the extended model. */
-        if (!filter.empty())
+        if (!allowed.empty())
         {
             for (const std::string & frameName : frameNames)
             {
                 const pinocchio::FrameIndex frameIndex =
                     getFrameIndex(pinocchioModelTh_, frameName);
                 const pinocchio::FrameType frameType = pinocchioModelTh_.frames[frameIndex].type;
-                if (std::find(filter.begin(), filter.end(), frameType) != filter.end())
+                if (std::find(allowed.begin(), allowed.end(), frameType) == allowed.end())
                 {
                     JIMINY_THROW(std::logic_error,
                                  "Not allowed to remove frame '",
