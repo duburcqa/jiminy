@@ -231,7 +231,7 @@ jobs:
         merge-multiple: true
         path: wheelhouse
     - name: Publish the wheels on PyPi
-      uses: pypa/gh-action-pypi-publish@v1.10.3
+      uses: pypa/gh-action-pypi-publish@v1.14.3
       with:
         packages-dir: wheelhouse
         verify-metadata: false
